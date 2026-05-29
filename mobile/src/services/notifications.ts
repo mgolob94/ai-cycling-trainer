@@ -22,7 +22,8 @@ export const DEFAULT_SETTINGS: NotificationSettings = { enabled: false, hour: 18
 // open. (Background/closed delivery is handled by the OS.)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
@@ -109,9 +110,9 @@ export async function scheduleDailyReminder(hour: number, minute: number): Promi
       body: "Your workout is waiting — let's get the ride in.",
     },
     trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
       hour,
       minute,
-      repeats: true,
       ...(Platform.OS === 'android' ? { channelId: ANDROID_CHANNEL_ID } : {}),
     },
   });
