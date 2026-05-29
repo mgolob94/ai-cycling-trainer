@@ -36,6 +36,19 @@ supabase/   SQL migrations (schema, RLS, triggers)
    npx expo start
    ```
 
+   **Configure `mobile/app.json` → `expo.extra`** for your environment:
+
+   | Key | Notes |
+   |---|---|
+   | `apiBaseUrl` | Backend API base. **Machine-specific.** Use `http://localhost:3000/api` for the iOS simulator, your Mac's **LAN IP** (e.g. `http://192.168.31.117:3000/api`) for a physical phone on the same Wi-Fi, or your deployed URL in production. |
+   | `supabaseUrl` / `supabaseAnonKey` | From Supabase → Settings → API. |
+   | `stravaClientId` | From your Strava API application. |
+
+   > The committed `apiBaseUrl` is a local dev value and will not work from another
+   > machine/network — update it to match your environment (Strava OAuth also needs
+   > the backend reachable from the device, so the LAN IP / a public tunnel must
+   > match the Strava callback domain).
+
 ## API overview
 
 All responses follow the `{ success, data, error }` shape.
