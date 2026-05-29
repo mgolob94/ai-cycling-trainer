@@ -38,4 +38,28 @@ async function updateProfile(req, res, next) {
   }
 }
 
-module.exports = { getProfile, updateProfile };
+/** POST /api/users/push-token — register/refresh this device's push token. */
+async function registerPushToken(req, res, next) {
+  try {
+    const { token, platform } = req.body;
+    if (!token) {
+      return res
+        .status(400)
+        .json({ success: false, data: null, error: 'Missing push token' });
+    }
+
+    // Upsert on token so the same device re-registering (or moving accounts)
+    // updates the owning user rather than duplicating.
+    const { error } = await supabaseAdmin.from('push_tokens').upsert(
+      { user_id: req.user.id, token, platform: platform ?? null },
+      { onConflict: 'token' }
+    );
+
+    if (error) throw error;
+    res.json({ success: true, data: { registered: true }, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getProfile, updateProfile, registerPushToken };
