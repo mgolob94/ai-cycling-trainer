@@ -10,10 +10,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
-import Constants from 'expo-constants';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { api, apiOrigin, ApiResponse } from '../services/api';
+import { useAuthStore } from '../store/useAuthStore';
 import type { AppStackParamList } from '../navigation/types';
 import { colors, spacing, radius, fontSize } from '../theme';
 
@@ -34,8 +34,6 @@ interface StravaStatus {
   connected: boolean;
   athlete: Athlete | null;
 }
-
-const STRAVA_MOBILE_AUTHORIZE = 'https://www.strava.com/oauth/mobile/authorize';
 
 export default function StravaConnectScreen(_props: Props) {
   const [checking, setChecking] = useState(true);
@@ -71,50 +69,36 @@ export default function StravaConnectScreen(_props: Props) {
     setError(null);
     setConnecting(true);
     try {
-      const clientId = Constants.expoConfig?.extra?.stravaClientId as string | undefined;
-      if (!clientId) {
-        setError('Strava client ID is not configured.');
+      const token = useAuthStore.getState().token;
+      if (!token) {
+        setError('You need to be signed in to connect Strava.');
         return;
       }
 
-      // Deep link back into the app; Strava redirects here with ?code=...
-      const redirectUri = Linking.createURL('strava-callback');
+      // Backend-mediated OAuth: Strava only accepts http(s) redirect URIs under a
+      // registered domain, so we open the backend's /auth/strava entry point. It
+      // redirects to Strava, handles the callback, stores tokens, and bounces
+      // back to our deep link (passed as return_url).
+      const returnUrl = Linking.createURL('strava-callback');
       const authUrl =
-        `${STRAVA_MOBILE_AUTHORIZE}?client_id=${clientId}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-        `&response_type=code&approval_prompt=auto&scope=read,activity:read_all`;
+        `${apiOrigin}/auth/strava?token=${encodeURIComponent(token)}` +
+        `&return_url=${encodeURIComponent(returnUrl)}`;
 
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl);
 
       if (result.type !== 'success' || !result.url) {
-        // User dismissed the browser or cancelled — no error to show.
+        // User dismissed/cancelled the browser — nothing to show.
         return;
       }
 
       const { queryParams } = Linking.parse(result.url);
       if (queryParams?.error) {
-        setError('Strava authorization was denied.');
+        setError('Strava authorization failed. Please try again.');
         return;
       }
 
-      const code = queryParams?.code;
-      if (typeof code !== 'string') {
-        setError('No authorization code returned from Strava.');
-        return;
-      }
-
-      // Hand the code to the backend, which exchanges it and stores the tokens.
-      const { data } = await api.post<ApiResponse<StravaStatus>>(
-        `${apiOrigin}/auth/strava/callback`,
-        { code }
-      );
-
-      if (data.data?.athlete) {
-        setAthlete(data.data.athlete);
-      } else {
-        // Connected but no athlete payload — fall back to fetching status.
-        await refreshStatus();
-      }
+      // Backend already stored the tokens; refresh status to show the profile.
+      await refreshStatus();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to connect to Strava.');
     } finally {

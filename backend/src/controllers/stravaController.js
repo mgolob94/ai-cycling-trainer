@@ -39,7 +39,10 @@ async function authorize(req, res, next) {
         .json({ success: false, data: null, error: 'Invalid or expired token' });
     }
 
-    const state = jwt.sign({ sub: user.id }, SUPABASE_JWT_SECRET, {
+    // Carry the app's deep link through OAuth (Strava preserves `state`) so the
+    // callback can bounce the user back into the app afterwards.
+    const returnUrl = typeof req.query.return_url === 'string' ? req.query.return_url : null;
+    const state = jwt.sign({ sub: user.id, returnUrl }, SUPABASE_JWT_SECRET, {
       expiresIn: STATE_TTL,
     });
 
@@ -69,8 +72,9 @@ async function callback(req, res, next) {
     }
 
     let userId;
+    let returnUrl;
     try {
-      ({ sub: userId } = jwt.verify(state, SUPABASE_JWT_SECRET));
+      ({ sub: userId, returnUrl } = jwt.verify(state, SUPABASE_JWT_SECRET));
     } catch {
       return res
         .status(400)
@@ -80,9 +84,12 @@ async function callback(req, res, next) {
     const token = await strava.exchangeCodeForToken(code);
     await strava.saveConnection(userId, token);
 
-    // Bounce back into the app if a deep link is configured; otherwise confirm.
-    if (APP_OAUTH_SUCCESS_REDIRECT) {
-      return res.redirect(APP_OAUTH_SUCCESS_REDIRECT);
+    // Bounce back into the app: prefer the deep link the app passed through
+    // state, then a configured fallback; otherwise just confirm with JSON.
+    const target = returnUrl || APP_OAUTH_SUCCESS_REDIRECT;
+    if (target) {
+      const sep = target.includes('?') ? '&' : '?';
+      return res.redirect(`${target}${sep}strava=connected`);
     }
     res.json({ success: true, data: { connected: true }, error: null });
   } catch (err) {
