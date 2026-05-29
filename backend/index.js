@@ -40,8 +40,12 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend listening on port ${PORT} (${process.env.NODE_ENV || 'development'})`);
-});
+// Only start listening when run directly (e.g. `node index.js`), not when the
+// app is imported by tests via supertest.
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Backend listening on port ${PORT} (${process.env.NODE_ENV || 'development'})`);
+  });
+}
 
 module.exports = app;
