@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 
 import { api, apiOrigin, ApiResponse } from '../services/api';
 
@@ -91,10 +91,6 @@ export function useTrainingPlan() {
       setGenerating(false);
     }
   }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
 
   return { name, lastRide, plan, loading, generating, error, refresh, generatePlan };
 }

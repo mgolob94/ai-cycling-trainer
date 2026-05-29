@@ -7,7 +7,9 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useTrainingPlan, type Ride, type Workout } from '../hooks/useTrainingPlan';
@@ -86,6 +88,14 @@ function WorkoutCard({ workout }: { workout: Workout }) {
 export default function DashboardScreen({ navigation }: Props) {
   const { name, lastRide, plan, loading, generating, error, refresh, generatePlan } =
     useTrainingPlan();
+
+  // Refetch whenever the dashboard comes into focus (e.g. after syncing rides
+  // or connecting Strava on another screen).
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
   const workouts = plan?.plan_json?.workouts ?? [];
 
