@@ -18,7 +18,7 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/users', usersRoutes);
-app.use('/api/strava', stravaRoutes);
+app.use('/auth/strava', stravaRoutes);
 app.use('/api/plans', plansRoutes);
 
 // Fallback 404 handler — keeps the standard response shape

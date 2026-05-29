@@ -10,10 +10,26 @@ if (!SUPABASE_JWT_SECRET) {
 }
 
 /**
- * Validates the Supabase JWT from the Authorization header and attaches the
- * authenticated user to `req.user`. Verification is done locally by checking the
- * token signature against the project's JWT secret (HS256) — no network call to
- * Supabase. Responses follow the { success, data, error } convention.
+ * Verify a Supabase JWT locally (HS256, audience "authenticated") and return a
+ * normalized user object. Throws if the token is missing, malformed, or expired.
+ */
+function verifyToken(token) {
+  const payload = jwt.verify(token, SUPABASE_JWT_SECRET, {
+    algorithms: ['HS256'],
+    audience: 'authenticated',
+  });
+  return {
+    id: payload.sub,
+    email: payload.email,
+    role: payload.role,
+    ...payload,
+  };
+}
+
+/**
+ * Express middleware: pull the bearer token from the Authorization header,
+ * verify it, and attach the user to `req.user`. Returns 401 on any failure.
+ * Responses follow the { success, data, error } convention.
  */
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
@@ -26,19 +42,7 @@ function requireAuth(req, res, next) {
   }
 
   try {
-    // Verifies signature + expiry. Supabase signs auth tokens with HS256 and
-    // sets the audience to "authenticated".
-    const payload = jwt.verify(token, SUPABASE_JWT_SECRET, {
-      algorithms: ['HS256'],
-      audience: 'authenticated',
-    });
-
-    req.user = {
-      id: payload.sub,
-      email: payload.email,
-      role: payload.role,
-      ...payload,
-    };
+    req.user = verifyToken(token);
     req.accessToken = token;
     next();
   } catch (err) {
@@ -49,3 +53,4 @@ function requireAuth(req, res, next) {
 }
 
 module.exports = requireAuth;
+module.exports.verifyToken = verifyToken;

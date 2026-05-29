@@ -1,53 +1,105 @@
+const jwt = require('jsonwebtoken');
+
 const strava = require('../services/strava');
 const { supabaseAdmin } = require('../db/supabase');
+const { verifyToken } = require('../middleware/auth');
 
-/** Redirect the user to Strava's OAuth consent screen. */
-async function authorize(req, res, next) {
+const { SUPABASE_JWT_SECRET, APP_OAUTH_SUCCESS_REDIRECT } = process.env;
+const STATE_TTL = '10m';
+
+/** Pull the Supabase access token from the bearer header or a `token` query param. */
+function extractAccessToken(req) {
+  const header = req.headers.authorization || '';
+  if (header.startsWith('Bearer ')) return header.slice(7).trim();
+  if (typeof req.query.token === 'string') return req.query.token;
+  return null;
+}
+
+/**
+ * GET /auth/strava — begin the OAuth flow.
+ * Identifies the signed-in user (a top-level browser navigation can't send an
+ * Authorization header, so the access token may arrive as ?token=...), signs a
+ * short-lived state JWT binding the flow to that user, and redirects to Strava.
+ */
+function authorize(req, res, next) {
   try {
-    const url = strava.buildAuthorizeUrl(req.user.id);
-    res.json({ success: true, data: { url }, error: null });
+    const accessToken = extractAccessToken(req);
+    if (!accessToken) {
+      return res
+        .status(401)
+        .json({ success: false, data: null, error: 'Missing access token' });
+    }
+
+    let user;
+    try {
+      user = verifyToken(accessToken);
+    } catch {
+      return res
+        .status(401)
+        .json({ success: false, data: null, error: 'Invalid or expired token' });
+    }
+
+    const state = jwt.sign({ sub: user.id }, SUPABASE_JWT_SECRET, {
+      expiresIn: STATE_TTL,
+    });
+
+    res.redirect(strava.buildAuthorizeUrl(state));
   } catch (err) {
     next(err);
   }
 }
 
-/** OAuth callback — exchange the code and store tokens. `state` carries user id. */
+/**
+ * GET /auth/strava/callback — Strava redirects here with `code` and our `state`.
+ * Verifies state, exchanges the code, and saves encrypted tokens for the user.
+ */
 async function callback(req, res, next) {
   try {
-    const { code, state: userId } = req.query;
-    if (!code || !userId) {
+    const { code, state, error: oauthError } = req.query;
+
+    if (oauthError) {
+      return res
+        .status(400)
+        .json({ success: false, data: null, error: `Strava denied: ${oauthError}` });
+    }
+    if (!code || !state) {
       return res
         .status(400)
         .json({ success: false, data: null, error: 'Missing code or state' });
     }
 
+    let userId;
+    try {
+      ({ sub: userId } = jwt.verify(state, SUPABASE_JWT_SECRET));
+    } catch {
+      return res
+        .status(400)
+        .json({ success: false, data: null, error: 'Invalid or expired state' });
+    }
+
     const token = await strava.exchangeCodeForToken(code);
+    await strava.saveConnection(userId, token);
 
-    await supabaseAdmin.from('strava_connections').upsert(
-      {
-        user_id: userId,
-        access_token: token.access_token,
-        refresh_token: token.refresh_token,
-        expires_at: new Date(token.expires_at * 1000).toISOString(),
-      },
-      { onConflict: 'user_id' }
-    );
-
+    // Bounce back into the app if a deep link is configured; otherwise confirm.
+    if (APP_OAUTH_SUCCESS_REDIRECT) {
+      return res.redirect(APP_OAUTH_SUCCESS_REDIRECT);
+    }
     res.json({ success: true, data: { connected: true }, error: null });
   } catch (err) {
     next(err);
   }
 }
 
-/** Pull recent activities from Strava and upsert them into rides. */
+/** POST /auth/strava/sync — pull recent rides and upsert them into `rides`. */
 async function syncRides(req, res, next) {
   try {
-    const rides = await strava.fetchActivities(req.user.id);
+    const rides = await strava.fetchRecentActivities(req.user.id);
 
     if (rides.length) {
-      await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('rides')
         .upsert(rides, { onConflict: 'strava_id' });
+      if (error) throw error;
     }
 
     res.json({ success: true, data: { synced: rides.length }, error: null });

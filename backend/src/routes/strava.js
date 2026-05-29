@@ -4,14 +4,16 @@ const router = express.Router();
 const requireAuth = require('../middleware/auth');
 const stravaController = require('../controllers/stravaController');
 
-// OAuth flow
-router.get('/authorize', requireAuth, stravaController.authorize);
-router.get('/callback', stravaController.callback);
+// Mounted at /auth/strava (see index.js).
 
-// Ride sync
+// OAuth flow — browser navigations, so auth is resolved inside the handlers.
+router.get('/', stravaController.authorize); // GET /auth/strava
+router.get('/callback', stravaController.callback); // GET /auth/strava/callback
+
+// Ride sync — protected API call from the app.
 router.post('/sync', requireAuth, stravaController.syncRides);
 
-// Webhook subscription (Strava push events)
+// Strava push subscription (webhooks for new rides).
 router.get('/webhook', stravaController.verifyWebhook);
 router.post('/webhook', stravaController.handleWebhook);
 
