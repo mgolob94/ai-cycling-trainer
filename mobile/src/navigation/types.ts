@@ -2,7 +2,9 @@
 // typed navigation props.
 
 export type AuthStackParamList = {
-  Onboarding: undefined;
+  Welcome: undefined;
+  SignUp: undefined;
+  ProfileSetup: undefined;
   Login: undefined;
 };
 
