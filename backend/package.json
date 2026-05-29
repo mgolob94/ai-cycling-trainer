@@ -11,7 +11,9 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["**/tests/**/*.js"],
+    "testMatch": [
+      "**/tests/**/*.js"
+    ],
     "testTimeout": 30000
   },
   "keywords": [
@@ -27,7 +29,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.0",
     "express": "^4.19.0",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^4.0.1"
   },
   "devDependencies": {
     "jest": "^29.7.0",

@@ -21,7 +21,7 @@ function extractAccessToken(req) {
  * Authorization header, so the access token may arrive as ?token=...), signs a
  * short-lived state JWT binding the flow to that user, and redirects to Strava.
  */
-function authorize(req, res, next) {
+async function authorize(req, res, next) {
   try {
     const accessToken = extractAccessToken(req);
     if (!accessToken) {
@@ -32,7 +32,7 @@ function authorize(req, res, next) {
 
     let user;
     try {
-      user = verifyToken(accessToken);
+      user = await verifyToken(accessToken);
     } catch {
       return res
         .status(401)
