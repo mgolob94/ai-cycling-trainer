@@ -1,9 +1,9 @@
 const plans = require('../services/plans');
-const { supabase } = require('../db/supabase');
+const { supabaseAdmin } = require('../db/supabase');
 
 async function listPlans(req, res, next) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('training_plans')
       .select('*')
       .eq('user_id', req.user.id)
@@ -19,7 +19,7 @@ async function listPlans(req, res, next) {
 async function getCurrentPlan(req, res, next) {
   try {
     const weekStart = plans.currentWeekStart();
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('training_plans')
       .select('*')
       .eq('user_id', req.user.id)

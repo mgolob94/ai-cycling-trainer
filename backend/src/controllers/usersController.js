@@ -1,10 +1,10 @@
-const { supabase } = require('../db/supabase');
+const { supabaseAdmin } = require('../db/supabase');
 
 const EDITABLE_FIELDS = ['age', 'weight_kg', 'fitness_level', 'goal'];
 
 async function getProfile(req, res, next) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('id', req.user.id)
@@ -24,7 +24,7 @@ async function updateProfile(req, res, next) {
       if (req.body[field] !== undefined) updates[field] = req.body[field];
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('users')
       .update(updates)
       .eq('id', req.user.id)
