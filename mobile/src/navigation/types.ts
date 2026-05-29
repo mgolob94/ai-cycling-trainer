@@ -1,0 +1,14 @@
+// Route param lists for the two navigation stacks. Screens import these for
+// typed navigation props.
+
+export type AuthStackParamList = {
+  Onboarding: undefined;
+  Login: undefined;
+};
+
+export type AppStackParamList = {
+  Dashboard: undefined;
+  TrainingPlan: undefined;
+  Profile: undefined;
+  StravaConnect: undefined;
+};

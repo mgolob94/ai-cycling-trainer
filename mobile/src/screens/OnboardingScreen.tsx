@@ -1,9 +1,9 @@
 import { View, Text, Button, StyleSheet } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { AuthStackParamList } from '../navigation/types';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Onboarding'>;
+type Props = NativeStackScreenProps<AuthStackParamList, 'Onboarding'>;
 
 export default function OnboardingScreen({ navigation }: Props) {
   return (
@@ -12,7 +12,7 @@ export default function OnboardingScreen({ navigation }: Props) {
       <Text style={styles.subtitle}>
         Your personal AI coach, powered by your real Strava rides.
       </Text>
-      <Button title="Get started" onPress={() => navigation.replace('Dashboard')} />
+      <Button title="Get started" onPress={() => navigation.navigate('Login')} />
     </View>
   );
 }
