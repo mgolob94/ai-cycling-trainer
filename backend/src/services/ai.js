@@ -101,21 +101,31 @@ async function generateWeeklyPlan(profile, rides) {
   const rideSummary = summarizeRides(rides);
   const messages = buildPlanPrompt(profile, rideSummary);
 
-  const { data } = await axios.post(
-    `${OPENAI_API_BASE}/chat/completions`,
-    {
-      model: MODEL,
-      messages,
-      response_format: { type: 'json_object' },
-      temperature: 0.4,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
+  let data;
+  try {
+    ({ data } = await axios.post(
+      `${OPENAI_API_BASE}/chat/completions`,
+      {
+        model: MODEL,
+        messages,
+        response_format: { type: 'json_object' },
+        temperature: 0.4,
       },
-    }
-  );
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    ));
+  } catch (err) {
+    // Map any AI-provider failure to a clean upstream error — never leak the
+    // provider's HTTP status (e.g. 429) as if it were our API's status.
+    const providerMessage = err.response?.data?.error?.message || err.message;
+    const wrapped = new Error(`AI provider request failed: ${providerMessage}`);
+    wrapped.statusCode = 502;
+    throw wrapped;
+  }
 
   const content = data.choices?.[0]?.message?.content;
   if (!content) {

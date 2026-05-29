@@ -32,10 +32,12 @@ app.use((req, res) => {
   res.status(404).json({ success: false, data: null, error: 'Not found' });
 });
 
-// Centralized error handler
+// Centralized error handler. Use only a status we set intentionally
+// (err.statusCode) — never err.status, which axios copies from upstream
+// responses and would leak a third party's status as if it were ours.
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(err.status || 500).json({
+  res.status(err.statusCode || 500).json({
     success: false,
     data: null,
     error: err.message || 'Internal server error',
