@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 
 const stravaRoutes = require('./src/routes/strava');
+const syncRoutes = require('./src/routes/sync');
 const plansRoutes = require('./src/routes/plans');
 const usersRoutes = require('./src/routes/users');
 
@@ -19,6 +20,7 @@ app.get('/health', (req, res) => {
 
 app.use('/api/users', usersRoutes);
 app.use('/auth/strava', stravaRoutes);
+app.use('/sync', syncRoutes);
 app.use('/api/plans', plansRoutes);
 
 // Fallback 404 handler — keeps the standard response shape

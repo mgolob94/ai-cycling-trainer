@@ -128,7 +128,7 @@ export default function StravaConnectScreen(_props: Props) {
     setSyncing(true);
     try {
       const { data } = await api.post<ApiResponse<{ synced: number }>>(
-        `${apiOrigin}/auth/strava/sync`
+        `${apiOrigin}/sync/strava`
       );
       setSyncMessage(`Synced ${data.data?.synced ?? 0} rides.`);
     } catch (e) {
