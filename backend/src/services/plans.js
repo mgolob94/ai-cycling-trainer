@@ -49,16 +49,25 @@ async function generateAndStorePlan(userId) {
   ]);
 
   const planJson = await ai.generateWeeklyPlan(profile, rides);
-  const weekStart = planJson.week_start || currentWeekStart();
 
+  // The model doesn't reliably know today's date, so compute week_start
+  // server-side and normalize the stored JSON to match.
+  const weekStart = currentWeekStart();
+  planJson.week_start = weekStart;
+
+  // Upsert so regenerating ("Generate new plan") replaces the current week's
+  // plan instead of colliding with the (user_id, week_start) unique constraint.
   const { data, error } = await supabaseAdmin
     .from('training_plans')
-    .insert({
-      user_id: userId,
-      week_start: weekStart,
-      plan_json: planJson,
-      generated_at: new Date().toISOString(),
-    })
+    .upsert(
+      {
+        user_id: userId,
+        week_start: weekStart,
+        plan_json: planJson,
+        generated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,week_start' }
+    )
     .select()
     .single();
 
