@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "AI Cycling Trainer",
+    "slug": "cycling-ai-trainer",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cyclingaitrainer.app"
+    },
+    "android": {
+      "package": "com.cyclingaitrainer.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "scheme": "cyclingaitrainer",
+    "extra": {
+      "apiBaseUrl": "http://localhost:3000/api"
+    }
+  }
+}

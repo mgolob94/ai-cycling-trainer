@@ -1,0 +1,25 @@
+{
+  "name": "cycling-ai-trainer-backend",
+  "version": "0.1.0",
+  "description": "API server for the AI Cycling Trainer app",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "keywords": [
+    "cycling",
+    "ai",
+    "strava",
+    "training"
+  ],
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "axios": "^1.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "express": "^4.19.0"
+  }
+}
