@@ -103,6 +103,15 @@ async function getValidAccessToken(userId) {
   return refreshed.access_token;
 }
 
+/** Fetch the authenticated athlete's Strava profile (name, avatar, etc.). */
+async function fetchAthlete(userId) {
+  const accessToken = await getValidAccessToken(userId);
+  const { data } = await axios.get(`${STRAVA_API_BASE}/athlete`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return data;
+}
+
 /** Normalize a raw Strava activity into a row matching the `rides` schema. */
 function toRide(userId, activity) {
   return {
@@ -156,5 +165,6 @@ module.exports = {
   saveConnection,
   getConnection,
   getValidAccessToken,
+  fetchAthlete,
   fetchRecentActivities,
 };

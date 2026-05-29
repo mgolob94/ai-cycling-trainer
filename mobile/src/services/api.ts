@@ -4,6 +4,10 @@ import Constants from 'expo-constants';
 const baseURL =
   (Constants.expoConfig?.extra?.apiBaseUrl as string) ?? 'http://localhost:3000/api';
 
+// Server origin without the /api prefix — the Strava OAuth routes are mounted
+// at /auth/strava, outside /api.
+export const apiOrigin = baseURL.replace(/\/api\/?$/, '');
+
 export const api = axios.create({ baseURL });
 
 /** Attach the Supabase access token to every request once it's known. */

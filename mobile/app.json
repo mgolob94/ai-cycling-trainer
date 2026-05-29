@@ -30,7 +30,8 @@
     "extra": {
       "apiBaseUrl": "http://localhost:3000/api",
       "supabaseUrl": "",
-      "supabaseAnonKey": ""
+      "supabaseAnonKey": "",
+      "stravaClientId": ""
     }
   }
 }

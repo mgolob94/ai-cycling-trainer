@@ -10,6 +10,12 @@ const stravaController = require('../controllers/stravaController');
 router.get('/', stravaController.authorize); // GET /auth/strava
 router.get('/callback', stravaController.callback); // GET /auth/strava/callback
 
+// App-driven OAuth: the app handles the redirect and posts the code here.
+router.post('/callback', requireAuth, stravaController.connectWithCode);
+
+// Connection status + Strava profile for the connect screen.
+router.get('/athlete', requireAuth, stravaController.getAthlete);
+
 // Ride sync — protected API call from the app.
 router.post('/sync', requireAuth, stravaController.syncRides);
 

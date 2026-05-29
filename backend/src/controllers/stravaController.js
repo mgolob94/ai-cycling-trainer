@@ -90,6 +90,69 @@ async function callback(req, res, next) {
   }
 }
 
+/** Trim a raw Strava athlete to the public fields the app displays. */
+function publicAthlete(athlete) {
+  if (!athlete) return null;
+  return {
+    id: athlete.id,
+    firstname: athlete.firstname,
+    lastname: athlete.lastname,
+    profile: athlete.profile,
+    profile_medium: athlete.profile_medium,
+  };
+}
+
+/**
+ * POST /auth/strava/callback — app-driven OAuth.
+ * The app handles the Strava redirect itself (deep link), then sends the
+ * authorization code here. Authenticated, so the code is tied to req.user.
+ */
+async function connectWithCode(req, res, next) {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res
+        .status(400)
+        .json({ success: false, data: null, error: 'Missing authorization code' });
+    }
+
+    const token = await strava.exchangeCodeForToken(code);
+    await strava.saveConnection(req.user.id, token);
+
+    res.json({
+      success: true,
+      data: { connected: true, athlete: publicAthlete(token.athlete) },
+      error: null,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /auth/strava/athlete — connection status + profile.
+ * Returns { connected: false } (not an error) when the user hasn't linked yet.
+ */
+async function getAthlete(req, res, next) {
+  try {
+    const athlete = await strava.fetchAthlete(req.user.id);
+    res.json({
+      success: true,
+      data: { connected: true, athlete: publicAthlete(athlete) },
+      error: null,
+    });
+  } catch (err) {
+    if (err.message && err.message.includes('No Strava connection')) {
+      return res.json({
+        success: true,
+        data: { connected: false, athlete: null },
+        error: null,
+      });
+    }
+    next(err);
+  }
+}
+
 /** POST /auth/strava/sync — pull recent rides and upsert them into `rides`. */
 async function syncRides(req, res, next) {
   try {
@@ -131,6 +194,8 @@ async function handleWebhook(req, res, next) {
 module.exports = {
   authorize,
   callback,
+  connectWithCode,
+  getAthlete,
   syncRides,
   verifyWebhook,
   handleWebhook,
