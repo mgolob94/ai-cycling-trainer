@@ -17,7 +17,7 @@ import { useNudges } from '../hooks/useNudges';
 import PowerCurveChart from '../components/PowerCurveChart';
 import FTPChart from '../components/FTPChart';
 import AIAnalysisBadge from '../components/AIAnalysisBadge';
-import { Text, Card, Badge, StatCard, SectionHeader, Button, SkeletonLoader } from '../components/ui';
+import { Text, Card, Badge, StatCard, SectionHeader, Button, SkeletonLoader, Emoji } from '../components/ui';
 import MetricTooltip from '../components/metrics/MetricTooltip';
 import { scheduleWeeklySummary } from '../services/notifications';
 import { palette, spacing, radius } from '../theme/tokens';
@@ -144,8 +144,9 @@ export default function ProgressScreen() {
         {/* Low-priority nudge chip */}
         {low[0] ? (
           <View style={[styles.nudgeChip, { backgroundColor: colors.surfaceRaised }]}>
+            <Emoji size={13}>{low[0].icon}</Emoji>
             <Text variant="caption" color={colors.textPrimary}>
-              {low[0].icon} {low[0].message}
+              {low[0].message}
             </Text>
           </View>
         ) : null}
@@ -305,7 +306,7 @@ export default function ProgressScreen() {
         {/* AI coach */}
         <Card variant="raised">
           <View style={styles.coachHeader}>
-            <Text style={styles.coachIcon}>🤖</Text>
+            <Emoji style={styles.coachIcon}>🤖</Emoji>
             <View style={styles.flex}>
               <Text variant="label">AI COACH</Text>
             </View>
@@ -398,7 +399,7 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   syncPill: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   dot: { width: 7, height: 7, borderRadius: radius.full },
-  nudgeChip: { alignSelf: 'flex-start', borderRadius: radius.full, paddingHorizontal: spacing[3], paddingVertical: 6 },
+  nudgeChip: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], alignSelf: 'flex-start', borderRadius: radius.full, paddingHorizontal: spacing[3], paddingVertical: 6 },
 
   ftpHeroRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   ftpValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing[1] },

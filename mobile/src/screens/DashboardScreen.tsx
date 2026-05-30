@@ -319,7 +319,7 @@ export default function DashboardScreen() {
               <Text variant="label" color={palette.slate400}>
                 FORM TODAY
               </Text>
-              <Badge label={`${tsbInfo.emoji} ${tsbInfo.status === 'optimal' ? 'Optimal' : tsbInfo.label.split(' ')[0]}`} color={tsbInfo.color} />
+              <Badge label={tsbInfo.status === 'optimal' ? 'Optimal' : tsbInfo.label.split(' ')[0]} color={tsbInfo.color} />
             </View>
             <Text variant="heading2" color="#FFFFFF" style={styles.heroStatus}>
               {tsbInfo.label}

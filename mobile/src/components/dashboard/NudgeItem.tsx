@@ -1,6 +1,6 @@
 import { View, Pressable, StyleSheet } from 'react-native';
 
-import { Text, Card } from '../ui';
+import { Text, Card, Emoji } from '../ui';
 import type { Nudge } from '../../services/nudgeService';
 import { palette, spacing } from '../../theme/tokens';
 import { useTheme } from '../../theme/useTheme';
@@ -16,7 +16,7 @@ export default function NudgeItem({ nudge, onAction, onDismiss }: Props) {
   const { colors } = useTheme();
   return (
     <Card variant="tinted" style={styles.card}>
-      <Text style={styles.icon}>{nudge.icon}</Text>
+      <Emoji style={styles.icon}>{nudge.icon}</Emoji>
       <View style={styles.body}>
         <Text variant="body" color={colors.textPrimary} style={styles.message}>
           {nudge.message}

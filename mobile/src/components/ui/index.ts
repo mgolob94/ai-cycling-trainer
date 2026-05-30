@@ -1,6 +1,7 @@
 // Core UI kit — import components from here, e.g.
 //   import { Card, Button, StatCard, Text } from '../components/ui';
 export { default as Text } from './Text';
+export { default as Emoji } from './Emoji';
 export { default as Card } from './Card';
 export { default as Badge } from './Badge';
 export { default as Button } from './Button';

@@ -7,7 +7,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useWeeklyMetrics } from '../hooks/useWeeklyMetrics';
 import { useFtp } from '../hooks/useFtp';
 import { useProfile } from '../hooks/useProfile';
-import { Text, Button, Badge } from '../components/ui';
+import { Text, Button, Badge, Emoji } from '../components/ui';
 import TrainingScaleBar, { type ScaleZone } from '../components/metrics/TrainingScaleBar';
 import { interpretTSB, interpretFTP } from '../services/metricsInterpreter';
 import { markMetricsIntroSeen } from '../services/metricsIntro';
@@ -75,7 +75,7 @@ export default function MetricsIntroScreen() {
       >
         {/* Card 1 — Form */}
         <View style={[styles.card, { width }]}>
-          <Text style={styles.emoji}>🎯</Text>
+          <Emoji style={styles.emoji}>🎯</Emoji>
           <Text variant="heading1" color={colors.textPrimary} style={styles.title}>
             Your form today
           </Text>
@@ -92,7 +92,7 @@ export default function MetricsIntroScreen() {
 
         {/* Card 2 — Fitness vs Fatigue */}
         <View style={[styles.card, { width }]}>
-          <Text style={styles.emoji}>📈</Text>
+          <Emoji style={styles.emoji}>📈</Emoji>
           <Text variant="heading1" color={colors.textPrimary} style={styles.title}>
             Fitness rises slowly, fatigue fast
           </Text>
@@ -118,7 +118,7 @@ export default function MetricsIntroScreen() {
 
         {/* Card 3 — FTP */}
         <View style={[styles.card, { width }]}>
-          <Text style={styles.emoji}>⚡</Text>
+          <Emoji style={styles.emoji}>⚡</Emoji>
           <Text variant="heading1" color={colors.textPrimary} style={styles.title}>
             Your engine — FTP
           </Text>

@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 
-import { Text, Card, SectionHeader } from '../ui';
+import { Text, Card, SectionHeader, Emoji } from '../ui';
 import { interpretWeeklyTSS } from '../../services/metricsInterpreter';
 import type { WeeklyMetric } from '../../hooks/useWeeklyMetrics';
 import { palette, spacing, radius } from '../../theme/tokens';
@@ -93,8 +93,9 @@ export default function WeekSummaryCard({ week, prevWeek = null, avgTss = 0, tss
 
       {needsRecovery ? (
         <View style={[styles.recoveryChip, { backgroundColor: colors.surfaceRaised }]}>
+          <Emoji size={13}>💡</Emoji>
           <Text variant="caption" color={colors.textPrimary}>
-            💡 Next week: consider a recovery week
+            Next week: consider a recovery week
           </Text>
         </View>
       ) : null}
@@ -111,5 +112,5 @@ const styles = StyleSheet.create({
   barTrack: { height: 8, borderRadius: radius.full, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: radius.full },
   goalLabel: { marginTop: spacing[2] },
-  recoveryChip: { marginTop: spacing[3], borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[2], alignSelf: 'flex-start' },
+  recoveryChip: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[3], borderRadius: radius.md, paddingHorizontal: spacing[3], paddingVertical: spacing[2], alignSelf: 'flex-start' },
 });
