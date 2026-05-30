@@ -13,6 +13,7 @@ const ftpRoutes = require('./src/routes/ftp');
 const metricsRoutes = require('./src/routes/metrics');
 const recordsRoutes = require('./src/routes/records');
 const aiRoutes = require('./src/routes/ai');
+const pdcRoutes = require('./src/routes/pdc');
 const usersRoutes = require('./src/routes/users');
 
 const app = express();
@@ -34,6 +35,7 @@ app.use('/ftp', ftpRoutes);
 app.use('/metrics', metricsRoutes);
 app.use('/records', recordsRoutes);
 app.use('/ai', aiRoutes);
+app.use('/pdc', pdcRoutes);
 
 // Fallback 404 handler — keeps the standard response shape
 app.use((req, res) => {
