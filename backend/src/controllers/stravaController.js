@@ -186,6 +186,14 @@ async function syncRides(req, res, next) {
 
 /** Recompute FTP + weekly performance metrics after a sync; never throws. */
 async function recomputeDerived(userId) {
+  // Backfill advanced power metrics (NP/xPower/VI/EF/PDC) for rides missing
+  // them, by fetching power streams from Strava. Runs first so weekly TSS can
+  // use the freshly-computed normalized power. Capped per run for rate limits.
+  try {
+    await metrics.recalcAllRidesPower(userId, { onlyMissing: true });
+  } catch (err) {
+    console.warn('[sync] power recalc skipped:', err.message);
+  }
   try {
     await ftp.recalculateForUser(userId, { recordOnlyIfChanged: true });
   } catch (err) {
