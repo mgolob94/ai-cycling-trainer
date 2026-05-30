@@ -5,6 +5,7 @@ import { useFonts } from 'expo-font';
 
 import Navigation from './src/navigation';
 import { useAuthStore } from './src/store/useAuthStore';
+import { ThemeProvider } from './src/theme/useTheme';
 import { fontAssets } from './src/theme/typography';
 import {
   initNotifications,
@@ -38,9 +39,11 @@ export default function App() {
   if (!fontsLoaded && !fontError) return null;
 
   return (
-    <SafeAreaProvider>
-      <Navigation />
-      <StatusBar style="light" />
-    </SafeAreaProvider>
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <Navigation />
+        <StatusBar style="auto" />
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 }
