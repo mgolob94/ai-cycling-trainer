@@ -176,6 +176,14 @@ export default function DashboardScreen({ navigation }: Props) {
         >
           <Text style={styles.secondaryButtonText}>View progress & records</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('Periodization')}
+        >
+          <Text style={styles.secondaryButtonText}>Season plan structure</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );

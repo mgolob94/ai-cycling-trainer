@@ -16,4 +16,5 @@ export type AppStackParamList = {
   Progress: undefined;
   WeeklyComparison: undefined;
   RideDetail: { stravaId: string };
+  Periodization: undefined;
 };

@@ -301,6 +301,7 @@ module.exports = {
   analyzeWeek,
   analyzeTrend,
   analyzeRide,
+  callOpenAI,
   saveInsight,
   // exported for testing / reuse
   describeFitnessState,
