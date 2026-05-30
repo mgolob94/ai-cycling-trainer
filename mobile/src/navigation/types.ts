@@ -18,4 +18,5 @@ export type AppStackParamList = {
   RideDetail: { stravaId: string };
   Periodization: undefined;
   FTPTestWizard: undefined;
+  AIReport: undefined;
 };

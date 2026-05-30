@@ -9,6 +9,7 @@ import WeeklyComparisonScreen from '../screens/WeeklyComparisonScreen';
 import RideDetailScreen from '../screens/RideDetailScreen';
 import PeriodizationScreen from '../screens/PeriodizationScreen';
 import FTPTestWizard from '../screens/FTPTestWizard';
+import AIReportScreen from '../screens/AIReportScreen';
 import type { AppStackParamList } from './types';
 import { lightColors } from '../theme';
 
@@ -63,6 +64,11 @@ export default function AppStack() {
         name="FTPTestWizard"
         component={FTPTestWizard}
         options={{ title: 'FTP test', ...lightHeader }}
+      />
+      <Stack.Screen
+        name="AIReport"
+        component={AIReportScreen}
+        options={{ title: 'AI analiza', ...lightHeader }}
       />
     </Stack.Navigator>
   );
