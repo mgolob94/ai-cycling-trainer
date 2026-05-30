@@ -31,6 +31,11 @@ function formatDuration(sec: number | null): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+function avgSpeed(distanceKm: number | null, durationSec: number | null): string {
+  if (!distanceKm || !durationSec) return '—';
+  return `${(distanceKm / (durationSec / 3600)).toFixed(1)} km/h`;
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.stat}>
@@ -88,6 +93,7 @@ export default function RideDetailScreen({ route }: Props) {
               <View style={styles.statsGrid}>
                 <Stat label="Distance" value={analysis.ride.distance_km != null ? `${analysis.ride.distance_km.toFixed(1)} km` : '—'} />
                 <Stat label="Duration" value={formatDuration(analysis.ride.duration_sec)} />
+                <Stat label="Avg speed" value={avgSpeed(analysis.ride.distance_km, analysis.ride.duration_sec)} />
                 <Stat label="Elevation" value={analysis.ride.elevation_m != null ? `${Math.round(analysis.ride.elevation_m)} m` : '—'} />
                 <Stat label="Avg power" value={analysis.ride.avg_power_w != null ? `${Math.round(analysis.ride.avg_power_w)} W` : '—'} />
                 <Stat label="Norm. power" value={analysis.normalized_power != null ? `${analysis.normalized_power} W` : '—'} />
