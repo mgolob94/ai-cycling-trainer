@@ -103,6 +103,22 @@ async function getValidAccessToken(userId) {
   return refreshed.access_token;
 }
 
+/**
+ * Fetch the 1-second power (watts) stream for an activity. Returns the array of
+ * watt values, or null if the activity has no power data.
+ */
+async function fetchActivityPowerStream(userId, activityId) {
+  const accessToken = await getValidAccessToken(userId);
+  const { data } = await axios.get(
+    `${STRAVA_API_BASE}/activities/${activityId}/streams`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      params: { keys: 'watts', key_by_type: true },
+    }
+  );
+  return data?.watts?.data ?? null;
+}
+
 /** Fetch the authenticated athlete's Strava profile (name, avatar, etc.). */
 async function fetchAthlete(userId) {
   const accessToken = await getValidAccessToken(userId);
@@ -166,5 +182,6 @@ module.exports = {
   getConnection,
   getValidAccessToken,
   fetchAthlete,
+  fetchActivityPowerStream,
   fetchRecentActivities,
 };
