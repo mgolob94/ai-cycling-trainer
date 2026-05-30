@@ -10,9 +10,10 @@ export interface FtpTest {
   created_at?: string;
 }
 
-/** Current FTP plus a runTest action that triggers a recalculation. */
+/** Current FTP + test history, plus a runTest action that recalculates. */
 export function useFtp() {
   const [ftp, setFtp] = useState<FtpTest | null>(null);
+  const [history, setHistory] = useState<FtpTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,8 +22,12 @@ export function useFtp() {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.get<ApiResponse<FtpTest | null>>(`${apiOrigin}/ftp/latest`);
-      setFtp(data.data ?? null);
+      const [latestRes, historyRes] = await Promise.all([
+        api.get<ApiResponse<FtpTest | null>>(`${apiOrigin}/ftp/latest`),
+        api.get<ApiResponse<FtpTest[]>>(`${apiOrigin}/ftp/history`),
+      ]);
+      setFtp(latestRes.data.data ?? null);
+      setHistory(historyRes.data.data ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load FTP.');
     } finally {
@@ -50,5 +55,5 @@ export function useFtp() {
     refresh();
   }, [refresh]);
 
-  return { ftp, loading, running, error, refresh, runTest };
+  return { ftp, history, loading, running, error, refresh, runTest };
 }

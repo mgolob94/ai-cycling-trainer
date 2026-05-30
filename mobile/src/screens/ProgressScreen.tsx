@@ -14,6 +14,7 @@ import { useFtp } from '../hooks/useFtp';
 import { useWeeklyMetrics, type WeeklyMetric } from '../hooks/useWeeklyMetrics';
 import { usePersonalRecords, type PersonalRecord } from '../hooks/usePersonalRecords';
 import MultiLineChart from '../components/MultiLineChart';
+import FTPChart from '../components/FTPChart';
 import { lightColors, spacing, radius, fontSize } from '../theme';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -52,7 +53,7 @@ function formatRecord(record: PersonalRecord): string {
 }
 
 function FtpCard() {
-  const { ftp, loading, running, error, runTest } = useFtp();
+  const { ftp, history, loading, running, error, runTest } = useFtp();
   return (
     <View style={[styles.card, styles.ftpCard]}>
       <Text style={styles.cardLabel}>FUNCTIONAL THRESHOLD POWER</Text>
@@ -70,6 +71,12 @@ function FtpCard() {
             </Text>
             <Text style={styles.ftpMeta}>Last test: {shortDate(ftp?.test_date ?? null)}</Text>
           </View>
+
+          {history.length > 0 ? (
+            <View style={styles.ftpChartWrap}>
+              <FTPChart history={history} />
+            </View>
+          ) : null}
         </>
       )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -252,6 +259,7 @@ const styles = StyleSheet.create({
   ftpUnit: { color: lightColors.textMuted, fontSize: fontSize.md, marginBottom: 10, marginLeft: 6 },
   ftpMetaRow: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.xs },
   ftpMeta: { color: lightColors.textMuted, fontSize: fontSize.sm, fontWeight: '600' },
+  ftpChartWrap: { alignSelf: 'stretch', marginTop: spacing.md },
 
   primaryButton: {
     backgroundColor: lightColors.primary,
