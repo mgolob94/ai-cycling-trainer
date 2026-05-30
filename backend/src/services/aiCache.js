@@ -128,19 +128,22 @@ async function saveCache(
 }
 
 /**
- * Mark cache entries invalid. With a cacheKey, just that entry; otherwise every
- * entry of that analysis type for the user. Returns { invalidated: count }.
+ * Mark cache entries invalid.
+ *   - analysisType null  → all of the user's entries
+ *   - cacheKey provided  → just that entry of the given type
+ *   - otherwise          → every entry of that type for the user
+ * `reason` is logged for debugging. Returns { invalidated: count }.
  */
-async function invalidateCache(userId, analysisType, cacheKey = null) {
-  let query = supabaseAdmin
-    .from(TABLE)
-    .update({ is_valid: false })
-    .eq('user_id', userId)
-    .eq('analysis_type', analysisType);
+async function invalidateCache(userId, analysisType = null, cacheKey = null, reason = null) {
+  let query = supabaseAdmin.from(TABLE).update({ is_valid: false }).eq('user_id', userId);
+  if (analysisType) query = query.eq('analysis_type', analysisType);
   if (cacheKey) query = query.eq('cache_key', cacheKey);
 
   const { data, error } = await query.select('id');
   if (error) throw error;
+  console.log(
+    `[CACHE INVALIDATED] type=${analysisType ?? 'ALL'} user=${userId} reason=${reason ?? 'n/a'}`
+  );
   return { invalidated: (data || []).length };
 }
 

@@ -4,6 +4,7 @@ const strava = require('../services/strava');
 const ftp = require('../services/ftp');
 const metrics = require('../services/metrics');
 const { supabaseAdmin } = require('../db/supabase');
+const { invalidateCache, isoWeek } = require('../services/aiCache');
 const { verifyToken } = require('../middleware/auth');
 
 const { SUPABASE_JWT_SECRET, APP_OAUTH_SUCCESS_REDIRECT } = process.env;
@@ -176,11 +177,26 @@ async function syncRides(req, res, next) {
       // Refresh derived data from the new rides. Best-effort: a failure here
       // (e.g. progress-tracking tables not yet migrated) must not fail the sync.
       await recomputeDerived(req.user.id);
+      await invalidateOnSync(req.user.id, rides.length);
     }
 
     res.json({ success: true, data: { synced: rides.length }, error: null });
   } catch (err) {
     next(err);
+  }
+}
+
+/** Invalidate AI caches affected by newly synced rides; never throws. */
+async function invalidateOnSync(userId, syncedCount) {
+  try {
+    await invalidateCache(userId, 'weekly_summary', `week_${isoWeek()}`, 'strava_sync');
+    await invalidateCache(userId, 'recommendations', null, 'strava_sync');
+    if (syncedCount > 5) {
+      await invalidateCache(userId, 'trend_analysis', null, 'strava_sync_large');
+      await invalidateCache(userId, 'rider_profile', null, 'strava_sync_large');
+    }
+  } catch (err) {
+    console.warn('[sync] cache invalidation skipped:', err.message);
   }
 }
 

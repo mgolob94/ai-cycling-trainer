@@ -2,6 +2,7 @@ const ftp = require('../services/ftp');
 const ftpTest = require('../services/ftpTest');
 const strava = require('../services/strava');
 const { supabaseAdmin } = require('../db/supabase');
+const { invalidateCache } = require('../services/aiCache');
 
 /**
  * POST /ftp/calculate — estimate FTP from the user's last 90 days of rides,
@@ -121,6 +122,13 @@ async function testAnalyze(req, res, next) {
       notes: `${testType === 'ramp' ? 'Ramp test' : '20-min test'} (quality: ${result.test_quality})`,
     });
     if (insertError) throw insertError;
+
+    // A new FTP changes every analysis — invalidate all caches for this user.
+    try {
+      await invalidateCache(req.user.id, null, null, 'ftp_test');
+    } catch (e) {
+      console.warn('[ftp test] cache invalidation skipped:', e.message);
+    }
 
     res.json({
       success: true,

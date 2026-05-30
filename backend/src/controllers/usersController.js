@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../db/supabase');
+const { invalidateCache } = require('../services/aiCache');
 
 const EDITABLE_FIELDS = [
   'age',
@@ -40,6 +41,19 @@ async function updateProfile(req, res, next) {
       .single();
 
     if (error) throw error;
+
+    // Profile changes (weight/goal/level) affect periodization & recommendations;
+    // a W' change affects the rider profile & recommendations. Invalidate all of
+    // those (best-effort).
+    const reason = updates.w_prime_total !== undefined ? 'wprime_update' : 'profile_update';
+    try {
+      await invalidateCache(req.user.id, 'periodization', null, reason);
+      await invalidateCache(req.user.id, 'recommendations', null, reason);
+      await invalidateCache(req.user.id, 'rider_profile', null, reason);
+    } catch (e) {
+      console.warn('[profile] cache invalidation skipped:', e.message);
+    }
+
     res.json({ success: true, data, error: null });
   } catch (err) {
     next(err);
