@@ -1,8 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, Dimensions, Pressable, Alert, Animated, Easing } from 'react-native';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  RefreshControl,
+  Dimensions,
+  Pressable,
+  Alert,
+  Animated,
+  Easing,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Feather } from '@expo/vector-icons';
 
 import { useProfile } from '../hooks/useProfile';
 import { useWeeklyMetrics } from '../hooks/useWeeklyMetrics';
@@ -11,30 +25,44 @@ import { useRiderProfile } from '../hooks/useRiderProfile';
 import { usePowerCurve } from '../hooks/usePowerCurve';
 import { useWeekAnalysis } from '../hooks/useWeekAnalysis';
 import { useRecommendations } from '../hooks/useRecommendations';
-import { usePersonalRecords, type PersonalRecord } from '../hooks/usePersonalRecords';
+import { usePersonalRecords } from '../hooks/usePersonalRecords';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useNudges } from '../hooks/useNudges';
 import { useKnowledgeLevel } from '../context/KnowledgeLevelContext';
+import type { KnowledgeLevel } from '../services/userLevel';
+import {
+  interpretCTL,
+  interpretATL,
+  interpretTSB,
+  interpretFTP,
+  interpretWeeklyTSS,
+} from '../services/metricsInterpreter';
 import PowerCurveChart from '../components/PowerCurveChart';
 import FTPChart from '../components/FTPChart';
 import AIAnalysisBadge from '../components/AIAnalysisBadge';
-import { Text, Card, Badge, StatCard, SectionHeader, Button, SkeletonLoader, Emoji } from '../components/ui';
-import MetricTooltip from '../components/metrics/MetricTooltip';
+import { Text, Card, Badge, SectionHeader, Button, SkeletonLoader, Emoji } from '../components/ui';
+import MetricTooltip, { useMetricTooltip } from '../components/metrics/MetricTooltip';
 import { scheduleWeeklySummary } from '../services/notifications';
 import { palette, spacing, radius } from '../theme/tokens';
 import { useThemeColors } from '../theme/useThemeColors';
 import type { AppStackParamList } from '../navigation/types';
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 type BadgeColor = 'default' | 'indigo' | 'emerald' | 'amber' | 'rose' | 'sky';
 
-function riderCategory(wkg: number | null): { label: string; color: BadgeColor } {
-  if (wkg == null) return { label: '—', color: 'default' };
-  if (wkg < 2.0) return { label: 'Recreational', color: 'default' };
-  if (wkg < 3.0) return { label: 'Fitness', color: 'sky' };
-  if (wkg < 4.0) return { label: 'Amateur', color: 'indigo' };
-  if (wkg < 5.0) return { label: 'Advanced', color: 'emerald' };
-  return { label: 'Elite', color: 'amber' };
+const LEVELS: KnowledgeLevel[] = ['beginner', 'intermediate', 'advanced'];
+
+function riderBadgeColor(wkg: number | null): BadgeColor {
+  if (wkg == null) return 'default';
+  if (wkg < 2.0) return 'default';
+  if (wkg < 3.0) return 'sky';
+  if (wkg < 4.0) return 'indigo';
+  if (wkg < 5.0) return 'emerald';
+  return 'amber';
 }
 
 const RECORD_LABELS: Record<string, string> = {
@@ -44,6 +72,12 @@ const RECORD_LABELS: Record<string, string> = {
   longest_ride_km: 'Longest ride',
   most_elevation_m: 'Most elevation',
 };
+
+function trendWord(delta: number): string {
+  if (delta > 1) return 'rising';
+  if (delta < -1) return 'dropping';
+  return 'steady';
+}
 
 export default function ProgressScreen() {
   const navigation = useNavigation<Nav>();
@@ -58,11 +92,20 @@ export default function ProgressScreen() {
   const prs = usePersonalRecords();
   const sync = useSyncStatus();
   const { low } = useNudges();
-  const { track } = useKnowledgeLevel();
+  const { level, setLevel, track } = useKnowledgeLevel();
+  const { show } = useMetricTooltip();
 
   const [pdcRange, setPdcRange] = useState<'alltime' | '90d' | '30d'>('alltime');
   const [showFtpChart, setShowFtpChart] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
+  // Screen view level — follows the global knowledge level, overridable here.
+  const [viewLevel, setViewLevel] = useState<KnowledgeLevel>(level);
+  useEffect(() => {
+    setViewLevel(level);
+  }, [level]);
+
+  const showNumbers = viewLevel !== 'beginner';
+  const showAdvanced = viewLevel === 'advanced';
 
   const weeks = metrics.weeks;
   const current = weeks[weeks.length - 1];
@@ -86,21 +129,43 @@ export default function ProgressScreen() {
 
   const chartWidth = Dimensions.get('window').width - spacing[5] * 2 - spacing[5] * 2;
   const pdcData = pdcRange === 'alltime' ? pdc.alltime : pdcRange === '90d' ? pdc.last90 : pdc.last30;
-  const wkg = ftp.ftp?.watts_per_kg ?? null;
-  const cat = riderCategory(wkg);
 
-  // FTP delta vs the previous recorded test.
+  // FTP interpretation.
+  const ftpWatts = ftp.ftp?.ftp_watts ?? 0;
+  const weightKg = profile.profile?.weight_kg ?? 0;
   const ftpHist = ftp.history;
-  const ftpDelta =
-    ftpHist.length >= 2 && ftp.ftp ? ftp.ftp.ftp_watts - ftpHist[ftpHist.length - 2].ftp_watts : null;
+  const prevFtp = ftpHist.length >= 2 ? ftpHist[ftpHist.length - 2].ftp_watts : null;
+  const ftpInfo = interpretFTP(ftpWatts, weightKg, prevFtp);
+  const badgeColor = riderBadgeColor(ftpInfo.wattsPerKg || null);
+  const ftpDelta = prevFtp != null && ftp.ftp ? ftp.ftp.ftp_watts - prevFtp : null;
 
   const ftpStale =
     !ftp.ftp?.test_date ||
     Date.now() - new Date(`${ftp.ftp.test_date}T00:00:00`).getTime() > 42 * 24 * 3600 * 1000;
 
+  // Training-load interpretation.
+  const ctl = current?.ctl ?? 0;
+  const atl = current?.atl ?? 0;
+  const tsb = current?.tsb ?? 0;
+  const prior4 = weeks.length >= 5 ? weeks[weeks.length - 5] : null;
+  const priorWeek = weeks.length >= 2 ? weeks[weeks.length - 2] : null;
+  const ctlTrend = prior4 ? ctl - prior4.ctl : 0;
+  const atlTrend = priorWeek ? atl - priorWeek.atl : 0;
+  const ctlInfo = interpretCTL(ctl, ctlTrend);
+  const atlInfo = interpretATL(atl, atlTrend, ctl);
+  const tsbInfo = interpretTSB(tsb);
+
   const synced = sync.connected && !sync.syncError && !sync.newActivitiesAvailable;
-  const tssWeeks = weeks.slice(-8);
+  const tssWeeks = weeks.slice(-5);
   const maxTss = Math.max(1, ...tssWeeks.map((w) => w.tss));
+  const avgTss = weeks.length ? weeks.slice(-8).reduce((s, w) => s + w.tss, 0) / weeks.slice(-8).length : 0;
+
+  const relLabel = (i: number) => {
+    const offset = tssWeeks.length - 1 - i;
+    return offset === 0 ? 'This week' : `W-${offset}`;
+  };
+  const selWeek = selectedWeek != null ? tssWeeks[selectedWeek] : null;
+  const selInfo = selWeek ? interpretWeeklyTSS(selWeek.tss, avgTss) : null;
 
   // Staggered grow-in for the TSS bars.
   const barAnims = useRef<Animated.Value[]>([]).current;
@@ -110,12 +175,7 @@ export default function ProgressScreen() {
     Animated.stagger(
       50,
       tssWeeks.map((_, i) =>
-        Animated.timing(barAnims[i], {
-          toValue: 1,
-          duration: 600,
-          easing: Easing.out(Easing.exp),
-          useNativeDriver: false,
-        })
+        Animated.timing(barAnims[i], { toValue: 1, duration: 600, easing: Easing.out(Easing.exp), useNativeDriver: false })
       )
     ).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,6 +183,27 @@ export default function ProgressScreen() {
 
   const goldRecord = prs.records.find((r) => r.record_type === 'best_5min_power');
   const otherRecords = prs.records.filter((r) => r.record_type !== 'best_5min_power');
+
+  // --- level controls ---
+  const cycleLevel = () => {
+    const next = LEVELS[(LEVELS.indexOf(viewLevel) + 1) % LEVELS.length];
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setViewLevel(next);
+    setLevel(next); // persists to AsyncStorage + Supabase
+    track('level_change');
+  };
+  const expandToIntermediate = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setViewLevel('intermediate');
+    track('show_more');
+  };
+
+  // Fitness/Fatigue/Form plain phrases + numbers.
+  const fitnessCards = [
+    { key: 'ctl' as const, title: 'Fitness', phrase: `${ctlInfo.category}, ${trendWord(ctlTrend)}`, value: Math.round(ctl) },
+    { key: 'atl' as const, title: 'Fatigue', phrase: `${atlInfo.label}${atlInfo.isHigh ? ', ease off' : ', normal'}`, value: Math.round(atl) },
+    { key: 'tsb' as const, title: 'Form', phrase: tsbInfo.label, value: Math.round(tsb) },
+  ];
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
@@ -143,6 +224,14 @@ export default function ProgressScreen() {
           </View>
         </View>
 
+        {/* Level toggle (subtle) */}
+        <Pressable style={styles.levelToggle} onPress={cycleLevel} hitSlop={8}>
+          <Feather name="sliders" size={12} color={palette.slate400} />
+          <Text variant="caption" color={palette.slate400}>
+            {viewLevel === 'beginner' ? 'Beginner view' : viewLevel === 'intermediate' ? 'Standard view' : 'Advanced view'}
+          </Text>
+        </Pressable>
+
         {/* Low-priority nudge chip */}
         {low[0] ? (
           <View style={[styles.nudgeChip, { backgroundColor: colors.surfaceRaised }]}>
@@ -153,82 +242,105 @@ export default function ProgressScreen() {
           </View>
         ) : null}
 
-        {/* FTP hero */}
+        {/* FTP card */}
         {ftp.loading ? (
           <SkeletonLoader height={120} borderRadius={radius.lg} />
         ) : (
           <Card variant="dark" padding={20}>
-            <Pressable onPress={() => setShowFtpChart((v) => !v)} style={styles.ftpHeroRow}>
-              <View>
-                <View style={styles.ftpLabelRow}>
-                  <Text variant="label" color={palette.slate400}>
-                    FTP
-                  </Text>
-                  <MetricTooltip metric="ftp" value={ftp.ftp?.ftp_watts ?? undefined} />
-                </View>
-                <View style={styles.ftpValueRow}>
-                  <Text variant="stat" color="#FFFFFF">
-                    {ftp.ftp?.ftp_watts ?? '—'}
-                  </Text>
-                  <Text variant="caption" color={palette.slate400} style={styles.ftpUnit}>
-                    watts
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.ftpRight}>
-                <Text variant="statMd" color="#FFFFFF">
-                  {wkg != null ? wkg.toFixed(2) : '—'}
+            <Text variant="label" color={palette.slate400}>
+              YOUR ENGINE
+            </Text>
+            <View style={styles.ftpHeadRow}>
+              <View style={styles.ftpValueRow}>
+                <Text variant="stat" color="#FFFFFF">
+                  {ftpWatts || '—'}
                 </Text>
-                <Text variant="label" color={palette.slate400}>
-                  W/kg
+                <Text variant="caption" color={palette.slate400} style={styles.ftpUnit}>
+                  watts
                 </Text>
-                <View style={styles.catBadge}>
-                  <Badge label={cat.label} color={cat.color} />
-                </View>
               </View>
-            </Pressable>
-            {ftpDelta != null && ftpDelta !== 0 ? (
-              <Text variant="caption" color={ftpDelta > 0 ? palette.emerald400 : palette.rose400} style={styles.ftpChip}>
-                {ftpDelta > 0 ? `+${ftpDelta}W since last test ↑` : `${ftpDelta}W since last test ↓`}
+              <View style={styles.ftpBadge}>
+                <Emoji size={14}>🎖️</Emoji>
+                <Badge label={ftpInfo.category} color={badgeColor} />
+              </View>
+            </View>
+            {ftpInfo.changeLabel ? (
+              <Text variant="caption" color={ftpDelta && ftpDelta > 0 ? palette.emerald400 : palette.slate200} style={styles.ftpChange}>
+                {ftpInfo.changeLabel}
+                {ftpDelta && ftpDelta > 0 ? ' — visible progress!' : ''}
               </Text>
             ) : null}
+
+            {showNumbers ? (
+              <View style={styles.ftpFooter}>
+                <Text variant="statSm" color="rgba(255,255,255,0.7)">
+                  {ftpInfo.wattsPerKg ? `${ftpInfo.wattsPerKg} W/kg` : '—'}
+                </Text>
+                <View style={styles.flex} />
+                {ftpHist.length ? (
+                  <Pressable onPress={() => setShowFtpChart((v) => !v)} hitSlop={8} style={styles.ftpHistoryBtn}>
+                    <Text variant="caption" color={palette.indigo100}>
+                      {showFtpChart ? 'Hide history' : 'History'}
+                    </Text>
+                    <Feather name={showFtpChart ? 'chevron-up' : 'chevron-down'} size={14} color={palette.indigo100} />
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : (
+              <Pressable onPress={() => show('ftp', ftpWatts || undefined)} hitSlop={8} style={styles.ftpLink}>
+                <Text variant="caption" color={palette.indigo100} style={styles.bold}>
+                  What does FTP mean? →
+                </Text>
+              </Pressable>
+            )}
           </Card>
         )}
-        {showFtpChart && ftpHist.length ? (
+        {showNumbers && showFtpChart && ftpHist.length ? (
           <Card variant="default">
             <SectionHeader title="FTP HISTORY" />
             <FTPChart history={ftpHist} />
           </Card>
         ) : null}
 
-        {/* Fitness triad */}
+        {/* Fitness overview — plain language, numbers gated */}
         {metrics.loading ? (
-          <SkeletonLoader height={90} borderRadius={radius.lg} />
+          <SkeletonLoader height={120} borderRadius={radius.lg} />
         ) : (
-          <View style={styles.triad}>
-            <Card variant="tinted" style={styles.triadCard}>
-              <StatCard size="md" value={Math.round(current?.ctl ?? 0)} label="Fitness" tooltipMetric="ctl" />
-            </Card>
-            <Card variant="tinted" style={styles.triadCard}>
-              <StatCard size="md" value={Math.round(current?.atl ?? 0)} label="Fatigue" tooltipMetric="atl" />
-            </Card>
-            <Card variant="tinted" style={styles.triadCard}>
-              <View style={styles.tsbWrap}>
-                <Text variant="statMd" color={(current?.tsb ?? 0) >= 0 ? palette.emerald600 : palette.rose600}>
-                  {Math.round(current?.tsb ?? 0)}
-                </Text>
-                <View style={styles.tsbLabelRow}>
-                  <Text variant="label">Form</Text>
-                  <MetricTooltip metric="tsb" value={current?.tsb ?? 0} />
+          <View style={styles.fitnessList}>
+            {fitnessCards.map((c) => (
+              <Card key={c.key} variant="tinted" style={styles.fitnessCard}>
+                <View style={styles.flex}>
+                  <Text variant="label" color={palette.slate400}>
+                    {c.title}
+                  </Text>
+                  <Text variant="body" color={colors.textPrimary} style={styles.fitnessPhrase}>
+                    {c.phrase}
+                  </Text>
                 </View>
-              </View>
-            </Card>
+                {showNumbers ? (
+                  <View style={styles.fitnessNumber}>
+                    <Text variant="statSm" color={colors.textSecondary}>
+                      {c.value}
+                    </Text>
+                    <MetricTooltip metric={c.key} value={c.value} />
+                  </View>
+                ) : null}
+              </Card>
+            ))}
+            {!showNumbers ? (
+              <Pressable style={styles.showNumbers} onPress={expandToIntermediate} hitSlop={6}>
+                <Text variant="label" color={palette.indigo600}>
+                  Show numbers
+                </Text>
+                <Feather name="chevron-down" size={16} color={palette.indigo600} />
+              </Pressable>
+            ) : null}
           </View>
         )}
 
-        {/* Weekly TSS chart */}
+        {/* Weekly chart */}
         <Card variant="default">
-          <SectionHeader title="WEEKLY TSS" />
+          <SectionHeader title="WEEKLY TRAINING" />
           {metrics.loading ? (
             <SkeletonLoader height={140} />
           ) : (
@@ -243,8 +355,8 @@ export default function ProgressScreen() {
                       style={styles.barCol}
                       onPress={() => setSelectedWeek(selectedWeek === i ? null : i)}
                     >
-                      {selectedWeek === i ? (
-                        <Text variant="caption" color={colors.textPrimary} style={styles.barValue}>
+                      {showNumbers ? (
+                        <Text variant="caption" color={colors.textSecondary} style={styles.barValue}>
                           {Math.round(w.tss)}
                         </Text>
                       ) : null}
@@ -258,17 +370,26 @@ export default function ProgressScreen() {
                         ]}
                       />
                       <Text variant="caption" color={palette.slate400} style={styles.barLabel}>
-                        {w.week_start.slice(5)}
+                        {relLabel(i)}
                       </Text>
                     </Pressable>
                   );
                 })}
               </View>
+              {selInfo ? (
+                <Text variant="caption" color={colors.textPrimary} style={styles.chartCaption}>
+                  {relLabel(selectedWeek as number)}: {selInfo.label}, {selInfo.vsAverage}
+                </Text>
+              ) : (
+                <Text variant="caption" color={palette.slate400} style={styles.chartCaption}>
+                  Tap a bar for details
+                </Text>
+              )}
             </>
           )}
         </Card>
 
-        {/* Personal records */}
+        {/* Personal records — always visible */}
         <View style={styles.section}>
           <SectionHeader title="PERSONAL RECORDS" />
           {prs.loading ? (
@@ -281,10 +402,7 @@ export default function ProgressScreen() {
                 <View style={[styles.prCard, styles.goldCard]}>
                   <Text variant="statMd" color={palette.amber600}>
                     {goldRecord.value}
-                    <Text variant="caption" color={palette.amber600}>
-                      {' '}
-                      {goldRecord.unit === 'watts' ? 'W' : goldRecord.unit}
-                    </Text>
+                    <Text variant="caption" color={palette.amber600}>{` ${goldRecord.unit === 'watts' ? 'W' : goldRecord.unit}`}</Text>
                   </Text>
                   <Text variant="caption">{RECORD_LABELS[goldRecord.record_type] ?? goldRecord.record_type}</Text>
                 </View>
@@ -293,10 +411,7 @@ export default function ProgressScreen() {
                 <Card key={r.record_type} variant="default" style={styles.prCard}>
                   <Text variant="statMd" color={colors.textPrimary}>
                     {r.value}
-                    <Text variant="caption" color={colors.textSecondary}>
-                      {' '}
-                      {r.unit === 'watts' ? 'W' : r.unit}
-                    </Text>
+                    <Text variant="caption" color={colors.textSecondary}>{` ${r.unit === 'watts' ? 'W' : r.unit}`}</Text>
                   </Text>
                   <Text variant="caption">{RECORD_LABELS[r.record_type] ?? r.record_type}</Text>
                 </Card>
@@ -313,21 +428,12 @@ export default function ProgressScreen() {
               <Text variant="label">AI COACH</Text>
             </View>
             {week.analysis ? (
-              <AIAnalysisBadge
-                isCached={!!week.analysis._cached}
-                generatedAt={week.analysis._generated_at}
-                onRefresh={week.regenerate}
-              />
+              <AIAnalysisBadge isCached={!!week.analysis._cached} generatedAt={week.analysis._generated_at} onRefresh={week.regenerate} />
             ) : null}
           </View>
           <Text variant="body" color={colors.textPrimary} style={styles.coachText}>
             {week.analysis?.summary ?? 'Sync your rides to get coach analysis.'}
           </Text>
-          {week.analysis?.warning ? (
-            <Text variant="caption" color={palette.rose600} style={styles.coachWarn}>
-              ⚠︎ {week.analysis.warning}
-            </Text>
-          ) : null}
           {!recs.loading && recs.recommendations.length ? (
             <View style={styles.chipRow}>
               {recs.recommendations.map((r, i) => (
@@ -344,44 +450,57 @@ export default function ProgressScreen() {
           </View>
         </Card>
 
-        {/* Power curve (retained analytics) */}
-        <Card variant="default">
-          <SectionHeader title="POWER CURVE" />
-          <View style={styles.toggleRow}>
-            {(['alltime', '90d', '30d'] as const).map((r) => (
-              <Pressable
-                key={r}
-                style={[styles.toggle, pdcRange === r && styles.toggleActive]}
-                onPress={() => {
-                  setPdcRange(r);
-                  track('power_curve'); // engaging the power curve auto-upgrades to advanced
-                }}
-              >
-                <Text
-                  variant="caption"
-                  color={pdcRange === r ? '#FFFFFF' : colors.textSecondary}
-                  style={styles.bold}
-                >
-                  {r === 'alltime' ? 'All' : r === '90d' ? '90 days' : '30 days'}
-                </Text>
+        {/* Advanced-only: W' card */}
+        {showAdvanced ? (
+          <Card variant="default">
+            <View style={styles.cardHeadRow}>
+              <SectionHeader title="ANAEROBIC CAPACITY (W′)" />
+              <Pressable hitSlop={10} onPress={() => show('wprime', profile.profile?.w_prime_total ?? 20000)}>
+                <Feather name="info" size={14} color={palette.slate400} />
               </Pressable>
-            ))}
-          </View>
-          {pdc.loading ? (
-            <SkeletonLoader height={200} />
-          ) : (
-            <PowerCurveChart
-              width={chartWidth}
-              points={pdcData.map((p) => ({ duration_sec: p.duration_sec, power_watts: p.power_watts }))}
-              reference={
-                pdcRange !== 'alltime'
-                  ? pdc.alltime.map((p) => ({ duration_sec: p.duration_sec, power_watts: p.power_watts }))
-                  : undefined
-              }
-              typeLabel={rider.profile && rider.profile.rider_type !== 'unknown' ? rider.profile.label : undefined}
-            />
-          )}
-        </Card>
+            </View>
+            <Text variant="stat" color={colors.textPrimary}>
+              {((profile.profile?.w_prime_total ?? 20000) / 1000).toFixed(1)}
+              <Text variant="statSm" color={colors.textSecondary}> kJ</Text>
+            </Text>
+            <Text variant="caption" color={colors.textSecondary} style={styles.wprimeHint}>
+              Your battery for efforts above FTP.
+            </Text>
+          </Card>
+        ) : null}
+
+        {/* Advanced-only: Power curve */}
+        {showAdvanced ? (
+          <Card variant="default">
+            <SectionHeader title="POWER CURVE" />
+            <View style={styles.toggleRow}>
+              {(['alltime', '90d', '30d'] as const).map((r) => (
+                <Pressable
+                  key={r}
+                  style={[styles.toggle, pdcRange === r && styles.toggleActive]}
+                  onPress={() => {
+                    setPdcRange(r);
+                    track('power_curve');
+                  }}
+                >
+                  <Text variant="caption" color={pdcRange === r ? '#FFFFFF' : colors.textSecondary} style={styles.bold}>
+                    {r === 'alltime' ? 'All' : r === '90d' ? '90 days' : '30 days'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {pdc.loading ? (
+              <SkeletonLoader height={200} />
+            ) : (
+              <PowerCurveChart
+                width={chartWidth}
+                points={pdcData.map((p) => ({ duration_sec: p.duration_sec, power_watts: p.power_watts }))}
+                reference={pdcRange !== 'alltime' ? pdc.alltime.map((p) => ({ duration_sec: p.duration_sec, power_watts: p.power_watts })) : undefined}
+                typeLabel={rider.profile && rider.profile.rider_type !== 'unknown' ? rider.profile.label : undefined}
+              />
+            )}
+          </Card>
+        ) : null}
 
         {/* Bottom CTAs */}
         <View style={styles.cta}>
@@ -404,47 +523,45 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   syncPill: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   dot: { width: 7, height: 7, borderRadius: radius.full },
+  levelToggle: { flexDirection: 'row', alignItems: 'center', gap: spacing[1], alignSelf: 'flex-end', marginTop: -spacing[2] },
   nudgeChip: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], alignSelf: 'flex-start', borderRadius: radius.full, paddingHorizontal: spacing[3], paddingVertical: 6 },
 
-  ftpHeroRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  ftpHeadRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   ftpValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing[1] },
   ftpUnit: { marginBottom: 2 },
-  ftpRight: { alignItems: 'flex-end', gap: 2 },
-  catBadge: { marginTop: spacing[2] },
-  ftpChip: { marginTop: spacing[3], fontWeight: '600' },
+  ftpBadge: { alignItems: 'flex-end', gap: spacing[1], flexDirection: 'row' },
+  ftpChange: { marginTop: spacing[2], fontWeight: '600' },
+  ftpFooter: { flexDirection: 'row', alignItems: 'center', marginTop: spacing[4] },
+  ftpHistoryBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+  ftpLink: { marginTop: spacing[4] },
 
-  triad: { flexDirection: 'row', gap: spacing[2] },
-  triadCard: { flex: 1, padding: spacing[4] },
-  tsbWrap: { gap: spacing[1] },
-  tsbLabelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
-  ftpLabelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+  fitnessList: { gap: spacing[2] },
+  fitnessCard: { flexDirection: 'row', alignItems: 'center', padding: spacing[4] },
+  fitnessPhrase: { fontWeight: '600', marginTop: 2 },
+  fitnessNumber: { alignItems: 'flex-end', flexDirection: 'row', gap: spacing[2] },
+  showNumbers: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[1], paddingVertical: spacing[2] },
 
   chart: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 160, paddingTop: spacing[4] },
   barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: spacing[1] },
-  bar: { width: '60%', borderRadius: radius.xs },
-  barValue: { fontWeight: '700' },
+  bar: { width: '55%', borderRadius: radius.xs },
+  barValue: { fontWeight: '700', fontSize: 10 },
   barLabel: { fontSize: 10 },
+  chartCaption: { marginTop: spacing[3] },
 
   section: { gap: spacing[3] },
   prScroll: { gap: spacing[3], paddingVertical: spacing[1] },
   prCard: { minWidth: 130, gap: spacing[1] },
-  goldCard: {
-    minWidth: 130,
-    gap: spacing[1],
-    backgroundColor: palette.amber50,
-    borderLeftColor: palette.amber600,
-    borderLeftWidth: 3,
-    borderRadius: radius.md,
-    padding: 16,
-  },
+  goldCard: { minWidth: 130, gap: spacing[1], backgroundColor: palette.amber50, borderLeftColor: palette.amber600, borderLeftWidth: 3, borderRadius: radius.md, padding: 16 },
 
   coachHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3] },
   coachIcon: { fontSize: 20 },
   coachText: { lineHeight: 23 },
-  coachWarn: { marginTop: spacing[2] },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[3] },
   chip: { backgroundColor: palette.indigo50, borderRadius: radius.full, paddingHorizontal: spacing[3], paddingVertical: 6 },
   coachActions: { alignItems: 'flex-end', marginTop: spacing[2] },
+
+  cardHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  wprimeHint: { marginTop: spacing[2] },
 
   toggleRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[3] },
   toggle: { flex: 1, paddingVertical: 6, borderRadius: radius.full, borderWidth: 1, borderColor: palette.slate200, alignItems: 'center' },
