@@ -284,7 +284,12 @@ async function processWebhookEvent(event) {
       console.warn('[webhook] ride processing failed:', e.message);
     }
     await supabaseAdmin.from('rides').update({ is_processed: true }).eq('id', ride.id);
-    // New processed ride → refresh full-history CTL/ATL/TSB + personal records.
+    // New processed ride → refresh FTP, full-history CTL/ATL/TSB, and records.
+    try {
+      await ftp.recalculateForUser(userId, { recordOnlyIfChanged: true });
+    } catch (e) {
+      console.warn('[webhook] FTP recalc skipped:', e.message);
+    }
     try {
       await metrics.calculateFullHistory(userId);
     } catch (e) {

@@ -3,6 +3,7 @@ const { supabaseAdmin } = require('../db/supabase');
 const strava = require('./strava');
 const metrics = require('./metrics');
 const records = require('./records');
+const ftp = require('./ftp');
 
 const STRAVA_API_BASE = 'https://www.strava.com/api/v3';
 const PER_PAGE = 200; // Strava max
@@ -265,9 +266,14 @@ async function processUnprocessedRides(userId, { batchSize = 50, maxRides = 100 
     if (rides.length < batchSize) break;
   }
 
-  // Newly-processed rides have finalized TSS + power-duration bests — refresh
-  // the full-history PMC and personal records.
+  // Newly-processed rides have finalized power-duration bests. Recompute FTP
+  // first (it feeds TSS), then the full-history PMC and personal records.
   if (processed > 0) {
+    try {
+      await ftp.recalculateForUser(userId, { recordOnlyIfChanged: true });
+    } catch (e) {
+      console.warn('[sync] FTP recalc skipped:', e.message);
+    }
     try {
       await metrics.calculateFullHistory(userId);
     } catch (e) {

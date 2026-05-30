@@ -18,7 +18,7 @@ function recalcMetricsInBackground(userId) {
 }
 
 /**
- * POST /ftp/calculate — estimate FTP from the user's last 90 days of rides,
+ * POST /ftp/calculate — estimate FTP from the user's all-time best 20-min power,
  * persist it to ftp_tests, and return the result.
  */
 async function calculate(req, res, next) {
@@ -32,7 +32,7 @@ async function calculate(req, res, next) {
         success: false,
         data: null,
         error:
-          'Not enough power data to estimate FTP — need at least one ride of 20+ minutes with power in the last 90 days.',
+          'Not enough power data to estimate FTP — need at least one ride of 20+ minutes with power.',
       });
     }
 

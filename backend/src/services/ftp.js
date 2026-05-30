@@ -87,8 +87,26 @@ async function calculateAndStore(userId, rides, weightKg) {
 }
 
 /**
- * Recompute FTP for a user from their last 90 days of power rides and store it.
- * Fetches the rides and weight itself.
+ * The exact all-time best 20-minute power for a user, taken from the
+ * power-duration curve (computed from ride power streams). Returns
+ * { power, date } or null.
+ */
+async function getBest20MinFromCurve(userId) {
+  const { data } = await supabaseAdmin
+    .from('power_duration_bests')
+    .select('power_watts, achieved_date')
+    .eq('user_id', userId)
+    .eq('duration_sec', TWENTY_MIN_SEC)
+    .maybeSingle();
+  return data ? { power: data.power_watts, date: data.achieved_date } : null;
+}
+
+/**
+ * Recompute FTP for a user from their ENTIRE ride history and store it.
+ *
+ * Uses the exact all-time best 20-minute effort from the power-duration curve;
+ * if no curve data exists yet, falls back to the best whole-ride average power
+ * across all rides (no time window). FTP ≈ 95% of that.
  *
  * With `recordOnlyIfChanged` (used by the post-sync hook), skips inserting a new
  * ftp_tests row when the estimate matches the latest stored one — so syncing
@@ -96,17 +114,6 @@ async function calculateAndStore(userId, rides, weightKg) {
  * `recorded` flag, or null if there isn't enough power data.
  */
 async function recalculateForUser(userId, { recordOnlyIfChanged = false } = {}) {
-  const ninetyDaysAgo = new Date();
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-
-  const { data: rides, error: ridesError } = await supabaseAdmin
-    .from('rides')
-    .select('*')
-    .eq('user_id', userId)
-    .gte('ride_date', ninetyDaysAgo.toISOString().slice(0, 10))
-    .not('avg_power_w', 'is', null);
-  if (ridesError) throw ridesError;
-
   const { data: profile } = await supabaseAdmin
     .from('users')
     .select('weight_kg')
@@ -114,21 +121,52 @@ async function recalculateForUser(userId, { recordOnlyIfChanged = false } = {}) 
     .single();
   const weightKg = profile?.weight_kg ?? null;
 
-  const estimate = estimateFtp(rides || [], weightKg);
-  if (!estimate) return null;
+  // Prefer the exact best 20-min effort; fall back to scanning ALL rides.
+  let best = await getBest20MinFromCurve(userId);
+  if (!best) {
+    const { data: rides, error: ridesError } = await supabaseAdmin
+      .from('rides')
+      .select('*')
+      .eq('user_id', userId)
+      .not('avg_power_w', 'is', null);
+    if (ridesError) throw ridesError;
+    const fallback = findBest20MinEffort(rides || []);
+    best = fallback ? { power: fallback.power, date: fallback.date } : null;
+  }
+  if (!best) return null;
+
+  const ftpWatts = Math.round(best.power * FTP_FACTOR);
+  const wattsPerKg = weightKg ? Math.round((ftpWatts / weightKg) * 100) / 100 : null;
+  // The estimate is dated today (when computed) so it surfaces as the latest
+  // FTP; the underlying effort's date is kept in the note.
+  const today = new Date().toISOString().slice(0, 10);
+  const estimate = {
+    ftp_watts: ftpWatts,
+    watts_per_kg: wattsPerKg,
+    best_20min_power_w: Math.round(best.power),
+    best_effort_date: today,
+    strava_activity_id: null,
+  };
 
   const prior = await getLatest(userId);
 
-  if (
-    recordOnlyIfChanged &&
-    prior &&
-    prior.ftp_watts === estimate.ftp_watts &&
-    prior.test_date === estimate.best_effort_date
-  ) {
+  if (recordOnlyIfChanged && prior && prior.ftp_watts === estimate.ftp_watts) {
     return { ...estimate, recorded: false };
   }
 
-  const stored = await calculateAndStore(userId, rides || [], weightKg);
+  const { data, error: insertError } = await supabaseAdmin
+    .from('ftp_tests')
+    .insert({
+      user_id: userId,
+      ftp_watts: ftpWatts,
+      weight_kg: weightKg,
+      watts_per_kg: wattsPerKg,
+      test_date: today,
+      notes: `Estimated from all-time best 20-min power (95%)${best.date ? `, set ${best.date}` : ''}.`,
+    })
+    .select()
+    .single();
+  if (insertError) throw insertError;
 
   // Notify when FTP improved versus the previous test (best-effort).
   if (prior && estimate.ftp_watts > prior.ftp_watts) {
@@ -143,7 +181,7 @@ async function recalculateForUser(userId, { recordOnlyIfChanged = false } = {}) 
       .catch((e) => console.warn('[ftp push]', e.message));
   }
 
-  return { ...stored, recorded: true };
+  return { ...estimate, id: data.id, recorded: true };
 }
 
 /** All of the user's FTP tests, oldest first (for history/charting). */
