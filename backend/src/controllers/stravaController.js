@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 
 const strava = require('../services/strava');
+const ftp = require('../services/ftp');
+const metrics = require('../services/metrics');
 const { supabaseAdmin } = require('../db/supabase');
 const { verifyToken } = require('../middleware/auth');
 
@@ -170,11 +172,29 @@ async function syncRides(req, res, next) {
         .from('rides')
         .upsert(rides, { onConflict: 'strava_id' });
       if (error) throw error;
+
+      // Refresh derived data from the new rides. Best-effort: a failure here
+      // (e.g. progress-tracking tables not yet migrated) must not fail the sync.
+      await recomputeDerived(req.user.id);
     }
 
     res.json({ success: true, data: { synced: rides.length }, error: null });
   } catch (err) {
     next(err);
+  }
+}
+
+/** Recompute FTP + weekly performance metrics after a sync; never throws. */
+async function recomputeDerived(userId) {
+  try {
+    await ftp.recalculateForUser(userId, { recordOnlyIfChanged: true });
+  } catch (err) {
+    console.warn('[sync] FTP recompute skipped:', err.message);
+  }
+  try {
+    await metrics.calculateAndStore(userId);
+  } catch (err) {
+    console.warn('[sync] metrics recompute skipped:', err.message);
   }
 }
 

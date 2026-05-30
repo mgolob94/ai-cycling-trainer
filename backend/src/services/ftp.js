@@ -85,4 +85,57 @@ async function calculateAndStore(userId, rides, weightKg) {
   return { ...result, id: data.id };
 }
 
-module.exports = { findBest20MinEffort, estimateFtp, calculateAndStore };
+/**
+ * Recompute FTP for a user from their last 90 days of power rides and store it.
+ * Fetches the rides and weight itself.
+ *
+ * With `recordOnlyIfChanged` (used by the post-sync hook), skips inserting a new
+ * ftp_tests row when the estimate matches the latest stored one — so syncing
+ * repeatedly doesn't pile up identical FTP records. Returns the estimate with a
+ * `recorded` flag, or null if there isn't enough power data.
+ */
+async function recalculateForUser(userId, { recordOnlyIfChanged = false } = {}) {
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+  const { data: rides, error: ridesError } = await supabaseAdmin
+    .from('rides')
+    .select('*')
+    .eq('user_id', userId)
+    .gte('ride_date', ninetyDaysAgo.toISOString().slice(0, 10))
+    .not('avg_power_w', 'is', null);
+  if (ridesError) throw ridesError;
+
+  const { data: profile } = await supabaseAdmin
+    .from('users')
+    .select('weight_kg')
+    .eq('id', userId)
+    .single();
+  const weightKg = profile?.weight_kg ?? null;
+
+  const estimate = estimateFtp(rides || [], weightKg);
+  if (!estimate) return null;
+
+  if (recordOnlyIfChanged) {
+    const { data: latest } = await supabaseAdmin
+      .from('ftp_tests')
+      .select('ftp_watts, test_date')
+      .eq('user_id', userId)
+      .order('test_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (
+      latest &&
+      latest.ftp_watts === estimate.ftp_watts &&
+      latest.test_date === estimate.best_effort_date
+    ) {
+      return { ...estimate, recorded: false };
+    }
+  }
+
+  const stored = await calculateAndStore(userId, rides || [], weightKg);
+  return { ...stored, recorded: true };
+}
+
+module.exports = { findBest20MinEffort, estimateFtp, calculateAndStore, recalculateForUser };

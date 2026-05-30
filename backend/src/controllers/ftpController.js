@@ -1,4 +1,3 @@
-const { supabaseAdmin } = require('../db/supabase');
 const ftp = require('../services/ftp');
 
 /**
@@ -7,31 +6,7 @@ const ftp = require('../services/ftp');
  */
 async function calculate(req, res, next) {
   try {
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-
-    const { data: rides, error: ridesError } = await supabaseAdmin
-      .from('rides')
-      .select('*')
-      .eq('user_id', req.user.id)
-      .gte('ride_date', ninetyDaysAgo.toISOString().slice(0, 10))
-      .not('avg_power_w', 'is', null);
-
-    if (ridesError) throw ridesError;
-
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('users')
-      .select('weight_kg')
-      .eq('id', req.user.id)
-      .single();
-
-    if (profileError) throw profileError;
-
-    const result = await ftp.calculateAndStore(
-      req.user.id,
-      rides || [],
-      profile?.weight_kg ?? null
-    );
+    const result = await ftp.recalculateForUser(req.user.id);
 
     if (!result) {
       return res.status(422).json({
