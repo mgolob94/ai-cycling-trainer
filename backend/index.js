@@ -22,6 +22,7 @@ const webhookRoutes = require('./src/routes/webhooks');
 const usersRoutes = require('./src/routes/users');
 const recoveryRoutes = require('./src/routes/recovery');
 const trainingRoutes = require('./src/routes/training');
+const integrationsRoutes = require('./src/routes/integrations');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,6 +49,7 @@ app.use('/periodization', periodizationRoutes);
 app.use('/profile', profileRoutes);
 app.use('/recovery', recoveryRoutes);
 app.use('/training', trainingRoutes);
+app.use('/integrations', integrationsRoutes);
 app.use(cacheRoutes);
 app.use('/webhooks', webhookRoutes);
 
