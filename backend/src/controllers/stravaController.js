@@ -283,6 +283,12 @@ async function processWebhookEvent(event) {
       console.warn('[webhook] ride processing failed:', e.message);
     }
     await supabaseAdmin.from('rides').update({ is_processed: true }).eq('id', ride.id);
+    // New processed ride → refresh full-history CTL/ATL/TSB.
+    try {
+      await metrics.calculateFullHistory(userId);
+    } catch (e) {
+      console.warn('[webhook] full-history recalc skipped:', e.message);
+    }
   }
 
   // Fresh ride → invalidate weekly summary + recommendations.

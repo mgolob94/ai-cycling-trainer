@@ -1,8 +1,21 @@
 const ftp = require('../services/ftp');
 const ftpTest = require('../services/ftpTest');
 const strava = require('../services/strava');
+const metrics = require('../services/metrics');
 const { supabaseAdmin } = require('../db/supabase');
 const { invalidateCache } = require('../services/aiCache');
+
+/**
+ * A new FTP shifts every ride's TSS, so the full-history PMC must be recomputed.
+ * Fire-and-forget so the FTP response returns immediately.
+ */
+function recalcMetricsInBackground(userId) {
+  setImmediate(() => {
+    metrics
+      .calculateFullHistory(userId)
+      .catch((e) => console.warn('[ftp] full-history recalc skipped:', e.message));
+  });
+}
 
 /**
  * POST /ftp/calculate — estimate FTP from the user's last 90 days of rides,
@@ -23,6 +36,7 @@ async function calculate(req, res, next) {
       });
     }
 
+    recalcMetricsInBackground(req.user.id);
     res.status(201).json({ success: true, data: result, error: null });
   } catch (err) {
     next(err);
@@ -129,6 +143,8 @@ async function testAnalyze(req, res, next) {
     } catch (e) {
       console.warn('[ftp test] cache invalidation skipped:', e.message);
     }
+
+    recalcMetricsInBackground(req.user.id);
 
     res.json({
       success: true,

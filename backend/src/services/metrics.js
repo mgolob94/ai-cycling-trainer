@@ -149,6 +149,101 @@ function computeWeeklyMetrics(rides, { ftp, thresholdHr } = {}) {
   return weeks;
 }
 
+/**
+ * Compute the full-history Performance Management Chart from a set of rides:
+ * day-by-day CTL (fitness) / ATL (fatigue) / TSB (form) across the entire span
+ * from the first ride to today, then aggregated into weekly rows.
+ *
+ * TSB convention: form is "yesterday's" balance — for each day TSB is recorded
+ * BEFORE that day's TSS is folded into CTL/ATL, i.e. TSB = CTL_prev − ATL_prev.
+ * This matches TrainingPeaks (today's form reflects yesterday's fitness/fatigue).
+ *
+ * Returns { weeks, current } where `current` is today's { ctl, atl, tsb }.
+ */
+function computeFullHistory(rides, { ftp, thresholdHr } = {}) {
+  const dated = rides.filter((r) => r.ride_date);
+  if (!dated.length) return { weeks: [], current: { ctl: 0, atl: 0, tsb: 0 } };
+
+  // 2. Daily TSS map — days with no ride are implicitly 0.
+  const dailyTss = {};
+  for (const ride of dated) {
+    dailyTss[ride.ride_date] = (dailyTss[ride.ride_date] || 0) + rideTss(ride, ftp, thresholdHr);
+  }
+
+  const firstDate = dated.reduce(
+    (min, r) => (r.ride_date < min ? r.ride_date : min),
+    dated[0].ride_date
+  );
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const todayKey = isoDate(today);
+
+  // 3. Walk every day from the first ride to today, evolving CTL/ATL.
+  const dayMetrics = {};
+  let atl = 0;
+  let ctl = 0;
+  for (let d = new Date(`${firstDate}T00:00:00Z`); d <= today; d = addDays(d, 1)) {
+    const key = isoDate(d);
+    const tss = dailyTss[key] || 0;
+    const tsb = ctl - atl; // yesterday's form — before folding in today's TSS
+    ctl += (tss - ctl) / CTL_DAYS;
+    atl += (tss - atl) / ATL_DAYS;
+    dayMetrics[key] = { tss, atl, ctl, tsb };
+  }
+
+  const todayPmc = dayMetrics[todayKey] || { ctl, atl, tsb: ctl - atl };
+  const current = {
+    ctl: round1(todayPmc.ctl),
+    atl: round1(todayPmc.atl),
+    tsb: round1(todayPmc.tsb),
+  };
+
+  // 4. Aggregate into Monday-based weeks; carry the current snapshot on each row.
+  const weeks = [];
+  for (
+    let wk = mondayOf(`${firstDate}T00:00:00Z`);
+    wk <= mondayOf(today);
+    wk = addDays(wk, 7)
+  ) {
+    const weekStart = isoDate(wk);
+    const weekEnd = addDays(wk, 6);
+
+    let weekTss = 0;
+    for (let d = new Date(wk); d <= weekEnd && d <= today; d = addDays(d, 1)) {
+      weekTss += dayMetrics[isoDate(d)]?.tss || 0;
+    }
+
+    const weekRides = dated.filter(
+      (r) => r.ride_date >= weekStart && r.ride_date <= isoDate(weekEnd)
+    );
+    const powerRides = weekRides.filter((r) => r.avg_power_w != null);
+
+    // PMC values as of the end of the week (clamped to today for the current week).
+    const sampleDay = isoDate(weekEnd <= today ? weekEnd : today);
+    const pmc = dayMetrics[sampleDay] || { atl: 0, ctl: 0, tsb: 0 };
+
+    weeks.push({
+      week_start: weekStart,
+      tss: round1(weekTss),
+      atl: round1(pmc.atl),
+      ctl: round1(pmc.ctl),
+      tsb: round1(pmc.tsb),
+      total_distance_km: round1(weekRides.reduce((s, r) => s + (r.distance_km || 0), 0)),
+      total_duration_sec: weekRides.reduce((s, r) => s + (r.duration_sec || 0), 0),
+      total_elevation_m: round1(weekRides.reduce((s, r) => s + (r.elevation_m || 0), 0)),
+      avg_power_w: powerRides.length
+        ? round1(powerRides.reduce((s, r) => s + r.avg_power_w, 0) / powerRides.length)
+        : null,
+      ride_count: weekRides.length,
+      current_ctl: current.ctl,
+      current_atl: current.atl,
+      current_tsb: current.tsb,
+    });
+  }
+
+  return { weeks, current };
+}
+
 /** Latest recorded FTP for a user, or null. */
 async function getLatestFtp(userId) {
   const { data } = await supabaseAdmin
@@ -162,32 +257,60 @@ async function getLatestFtp(userId) {
 }
 
 /**
- * Compute weekly metrics for a user from their ride history and persist them to
- * performance_metrics (upsert per week). Returns the weekly metrics array.
+ * Load the inputs the PMC needs: a user's rides (optionally only processed ones,
+ * so TSS is computed from finalized power data), their threshold HR, and FTP.
  */
-async function calculateAndStore(userId) {
+async function loadMetricInputs(userId, { processedOnly = false } = {}) {
+  let ridesQuery = supabaseAdmin
+    .from('rides')
+    .select('*')
+    .eq('user_id', userId)
+    .order('ride_date', { ascending: true });
+  if (processedOnly) ridesQuery = ridesQuery.eq('is_processed', true);
+
   const [{ data: rides, error: ridesError }, { data: profile }, ftp] = await Promise.all([
-    supabaseAdmin
-      .from('rides')
-      .select('*')
-      .eq('user_id', userId)
-      .order('ride_date', { ascending: true }),
+    ridesQuery,
     supabaseAdmin.from('users').select('age').eq('id', userId).single(),
     getLatestFtp(userId),
   ]);
   if (ridesError) throw ridesError;
 
-  const thresholdHr = estimateThresholdHr(profile?.age);
-  const weeks = computeWeeklyMetrics(rides || [], { ftp, thresholdHr });
+  return { rides: rides || [], thresholdHr: estimateThresholdHr(profile?.age), ftp };
+}
 
-  if (weeks.length) {
-    const rows = weeks.map((w) => ({ user_id: userId, ...w }));
-    const { error } = await supabaseAdmin
-      .from('performance_metrics')
-      .upsert(rows, { onConflict: 'user_id,week_start' });
-    if (error) throw error;
-  }
+/** Upsert weekly PMC rows (one per week) for a user. */
+async function persistWeeklyMetrics(userId, weeks) {
+  if (!weeks.length) return;
+  const rows = weeks.map((w) => ({ user_id: userId, ...w }));
+  const { error } = await supabaseAdmin
+    .from('performance_metrics')
+    .upsert(rows, { onConflict: 'user_id,week_start' });
+  if (error) throw error;
+}
 
+/**
+ * Recalculate CTL/ATL/TSB from a user's FULL ride history (processed rides only)
+ * and persist one weekly row each — including today's current_ctl/atl/tsb.
+ *
+ * Call after: initial sync completes, new rides are processed, or FTP changes
+ * (any of which shift TSS values). Returns { weeks, current }.
+ */
+async function calculateFullHistory(userId) {
+  const { rides, thresholdHr, ftp } = await loadMetricInputs(userId, { processedOnly: true });
+  const { weeks, current } = computeFullHistory(rides, { ftp, thresholdHr });
+  await persistWeeklyMetrics(userId, weeks);
+  return { weeks, current };
+}
+
+/**
+ * Compute weekly metrics for a user from their ride history and persist them to
+ * performance_metrics (upsert per week). Considers all rides (not just processed
+ * ones) so it stays usable mid-import. Returns the weekly metrics array.
+ */
+async function calculateAndStore(userId) {
+  const { rides, thresholdHr, ftp } = await loadMetricInputs(userId);
+  const { weeks } = computeFullHistory(rides, { ftp, thresholdHr });
+  await persistWeeklyMetrics(userId, weeks);
   return weeks;
 }
 
@@ -408,7 +531,9 @@ module.exports = {
   rideTss,
   estimateThresholdHr,
   computeWeeklyMetrics,
+  computeFullHistory,
   calculateAndStore,
+  calculateFullHistory,
   normalizedPower,
   xPower,
   powerDurationCurve,

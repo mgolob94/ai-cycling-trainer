@@ -78,4 +78,26 @@ async function wprimeAnalysis(req, res, next) {
   }
 }
 
-module.exports = { weekly, wprimeAnalysis };
+/**
+ * POST /metrics/recalculate — recompute CTL/ATL/TSB from the user's full ride
+ * history. Runs in the background (can take a few seconds) and returns 202.
+ */
+async function recalculate(req, res, next) {
+  try {
+    const userId = req.user.id;
+    setImmediate(() => {
+      metrics
+        .calculateFullHistory(userId)
+        .catch((e) => console.warn('[metrics recalculate]', e.message));
+    });
+    res.status(202).json({
+      success: true,
+      data: { started: true, message: 'Full-history recalculation started' },
+      error: null,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { weekly, wprimeAnalysis, recalculate };

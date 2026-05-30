@@ -257,6 +257,15 @@ async function processUnprocessedRides(userId, { batchSize = 50, maxRides = 100 
     if (rides.length < batchSize) break;
   }
 
+  // Newly-processed rides have finalized TSS — refresh the full-history PMC.
+  if (processed > 0) {
+    try {
+      await metrics.calculateFullHistory(userId);
+    } catch (e) {
+      console.warn('[sync] full-history recalc skipped:', e.message);
+    }
+  }
+
   return { processed };
 }
 
