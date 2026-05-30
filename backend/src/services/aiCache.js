@@ -30,6 +30,21 @@ function md5(str) {
   return crypto.createHash('md5').update(str).digest('hex');
 }
 
+/** ISO week key, e.g. '2026-W22'. */
+function isoWeek(d = new Date()) {
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((date - yearStart) / 86400000 + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+/** Year-month key, e.g. '2026-05'. */
+function monthKey(d = new Date()) {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
 /**
  * Look up a valid, non-expired cache entry.
  * Returns { hit: true, data, generated_at, tokens_used } or { hit: false }.
@@ -155,4 +170,12 @@ async function getCacheStats(userId) {
   };
 }
 
-module.exports = { getCached, saveCache, invalidateCache, getCacheStats, TTL_DEFAULTS };
+module.exports = {
+  getCached,
+  saveCache,
+  invalidateCache,
+  getCacheStats,
+  TTL_DEFAULTS,
+  isoWeek,
+  monthKey,
+};

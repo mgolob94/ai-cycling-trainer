@@ -41,31 +41,14 @@ async function weeklySummary(req, res, next) {
 }
 
 /**
- * GET /ai/week-analysis — structured analysis of the current week. Cached: if a
- * 'week' insight was generated in the last 3 days, return it instead of calling
- * the AI again.
+ * GET /ai/week-analysis — structured analysis of the current week. Caching is
+ * handled inside aiCoach.analyzeWeek via the ai_analysis_cache layer.
  */
 async function weekAnalysis(req, res, next) {
   try {
     const { profile, rides, ftp, weekly } = await gatherContext(req.user.id);
     const current = weekly[weekly.length - 1];
     if (!current) return res.json({ success: true, data: null, error: null });
-
-    try {
-      const { data: cached } = await supabaseAdmin
-        .from('ai_insights')
-        .select('content_json, created_at')
-        .eq('user_id', req.user.id)
-        .eq('insight_type', 'week')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (cached && Date.now() - new Date(cached.created_at).getTime() < 3 * 24 * 3600 * 1000) {
-        return res.json({ success: true, data: cached.content_json, error: null });
-      }
-    } catch {
-      // ai_insights table not migrated yet — just generate fresh.
-    }
 
     const ridesThisWeek = rides.filter((r) => r.ride_date && r.ride_date >= current.week_start);
     const result = await aiCoach.analyzeWeek(profile, current, ridesThisWeek, ftp ? [ftp] : []);

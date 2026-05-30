@@ -1,6 +1,7 @@
 const { supabaseAdmin } = require('../db/supabase');
 const metrics = require('./metrics');
 const ftpService = require('./ftp');
+const { getCached, saveCache, TTL_DEFAULTS, isoWeek } = require('./aiCache');
 
 const PRIORITY_WEIGHT = { high: 3, medium: 2, low: 1 };
 
@@ -168,8 +169,23 @@ function buildRecommendations({ weeklyMetrics = [], rides = [], ftp = null, toda
     .map(({ r }) => r);
 }
 
-/** Gather a user's data and produce their current recommendations. */
+/**
+ * Gather a user's data and produce their current recommendations. Cached per
+ * ISO week. (Rule-based, so no tokens are spent — caching mainly skips the data
+ * fetch + recompute.) Returns the recommendation array; the cache hit/miss is
+ * logged but not surfaced (the response stays an array).
+ */
 async function generateRecommendations(userId) {
+  const cacheKey = `rec_${isoWeek()}`;
+  if (userId) {
+    const cached = await getCached(userId, 'recommendations', cacheKey);
+    if (cached.hit) {
+      console.log(`[CACHE HIT] recommendations for user ${userId}, ${cacheKey}`);
+      return cached.data;
+    }
+    console.log(`[CACHE MISS] Generating recommendations for user ${userId}`);
+  }
+
   const [{ data: rides }, { data: profile }, ftp] = await Promise.all([
     supabaseAdmin.from('rides').select('*').eq('user_id', userId).order('ride_date', { ascending: true }),
     supabaseAdmin.from('users').select('age').eq('id', userId).single(),
@@ -181,7 +197,11 @@ async function generateRecommendations(userId) {
     thresholdHr: metrics.estimateThresholdHr(profile?.age),
   });
 
-  return buildRecommendations({ weeklyMetrics, rides: rides || [], ftp });
+  const result = buildRecommendations({ weeklyMetrics, rides: rides || [], ftp });
+  if (userId) {
+    await saveCache(userId, 'recommendations', cacheKey, result, 0, 'rule-based', TTL_DEFAULTS.recommendations);
+  }
+  return result;
 }
 
 module.exports = { buildRecommendations, generateRecommendations, classifyIntensity };

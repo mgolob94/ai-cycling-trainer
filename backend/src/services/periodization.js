@@ -1,4 +1,5 @@
 const aiCoach = require('./aiCoach');
+const { getCached, saveCache, TTL_DEFAULTS, monthKey } = require('./aiCache');
 
 const DEFAULT_BLOCK_WEEKS = 12;
 
@@ -76,6 +77,18 @@ async function generatePlan({ userProfile = {}, ftpHistory = [], recentMetrics =
   const days = userProfile.training_days_per_week ?? 4;
   const current = recentMetrics[recentMetrics.length - 1] || {};
 
+  const userId = userProfile?.id;
+  const goal = userProfile.goal ?? 'general';
+  const cacheKey = `period_${goal}_${monthKey()}`;
+  if (userId) {
+    const cached = await getCached(userId, 'periodization', cacheKey);
+    if (cached.hit) {
+      console.log(`[CACHE HIT] periodization for user ${userId}, ${cacheKey}`);
+      return { ...cached.data, _cached: true, _generated_at: cached.generated_at };
+    }
+    console.log(`[CACHE MISS] Generating periodization for user ${userId}`);
+  }
+
   const system = aiCoach.generateSystemPrompt(userProfile, ftpHistory, recentMetrics);
   const user = [
     `Design a one-week training structure for the ${phase.name} phase of this athlete's plan.`,
@@ -91,7 +104,7 @@ async function generatePlan({ userProfile = {}, ftpHistory = [], recentMetrics =
       '"tss_target": number (weekly TSS), "key_workouts": [{ "name": string, "description": string, "goal": string }], "avoid": string[] }',
   ].join('\n');
 
-  const content = await aiCoach.callOpenAI(
+  const { content, tokens } = await aiCoach.callOpenAI(
     [
       { role: 'system', content: system },
       { role: 'user', content: user },
@@ -114,8 +127,11 @@ async function generatePlan({ userProfile = {}, ftpHistory = [], recentMetrics =
     ...normalizePlan(parsed, phase),
   };
 
-  await aiCoach.saveInsight(userProfile.id, 'periodization', plan);
-  return plan;
+  await aiCoach.saveInsight(userId, 'periodization', plan);
+  if (userId) {
+    await saveCache(userId, 'periodization', cacheKey, plan, tokens, 'gpt-4o', TTL_DEFAULTS.periodization);
+  }
+  return { ...plan, _cached: false };
 }
 
 module.exports = { weeksUntil, determinePhase, generatePlan };

@@ -1,6 +1,7 @@
 const axios = require('axios');
 const { supabaseAdmin } = require('../db/supabase');
 const { summarizeRides } = require('./ai');
+const { getCached, saveCache, TTL_DEFAULTS, isoWeek, monthKey } = require('./aiCache');
 
 const OPENAI_API_BASE = 'https://api.openai.com/v1';
 const MODEL = 'gpt-4o';
@@ -29,7 +30,7 @@ async function callOpenAI(messages, { json = false, maxTokens = 450, temperature
     );
     const content = data.choices?.[0]?.message?.content;
     if (!content) throw new Error('OpenAI returned an empty response');
-    return content;
+    return { content, tokens: data.usage?.total_tokens ?? null };
   } catch (err) {
     if (err.statusCode) throw err;
     const providerMessage = err.response?.data?.error?.message || err.message;
@@ -154,6 +155,18 @@ function normalizeWeek(parsed, weekMetrics) {
 }
 
 async function analyzeWeek(userProfile, weekMetrics, rides, ftpData) {
+  const userId = userProfile?.id;
+  const cacheKey = `week_${isoWeek()}`;
+
+  if (userId) {
+    const cached = await getCached(userId, 'weekly_summary', cacheKey);
+    if (cached.hit) {
+      console.log(`[CACHE HIT] weekly_summary for user ${userId}, ${cacheKey}`);
+      return { ...cached.data, _cached: true, _generated_at: cached.generated_at };
+    }
+    console.log(`[CACHE MISS] Generating weekly_summary for user ${userId}`);
+  }
+
   const system = generateSystemPrompt(userProfile, ftpData, weekMetrics);
   const user = [
     'Analyze this training week. Respond with JSON only, exactly this shape:',
@@ -165,7 +178,7 @@ async function analyzeWeek(userProfile, weekMetrics, rides, ftpData) {
     `Rides summary: ${JSON.stringify(summarizeRides(rides || []))}`,
   ].join('\n');
 
-  const content = await callOpenAI(
+  const { content, tokens } = await callOpenAI(
     [
       { role: 'system', content: system },
       { role: 'user', content: user },
@@ -181,14 +194,29 @@ async function analyzeWeek(userProfile, weekMetrics, rides, ftpData) {
   }
 
   const result = normalizeWeek(parsed, weekMetrics);
-  await saveInsight(userProfile?.id, 'week', result);
-  return result;
+  await saveInsight(userId, 'week', result);
+  if (userId) {
+    await saveCache(userId, 'weekly_summary', cacheKey, result, tokens, MODEL, TTL_DEFAULTS.weekly_summary);
+  }
+  return { ...result, _cached: false };
 }
 
 // ---------------------------------------------------------------------------
 // 3. Long-term trend analysis
 // ---------------------------------------------------------------------------
 async function analyzeTrend(userProfile, last12WeeksMetrics, ftpHistory) {
+  const userId = userProfile?.id;
+  const cacheKey = `trend_${monthKey()}`;
+
+  if (userId) {
+    const cached = await getCached(userId, 'trend_analysis', cacheKey);
+    if (cached.hit) {
+      console.log(`[CACHE HIT] trend_analysis for user ${userId}, ${cacheKey}`);
+      return { ...cached.data, _cached: true, _generated_at: cached.generated_at };
+    }
+    console.log(`[CACHE MISS] Generating trend_analysis for user ${userId}`);
+  }
+
   const system = generateSystemPrompt(userProfile, ftpHistory, last12WeeksMetrics);
   const user = [
     'Analyze the athlete\'s last 12 weeks of training and FTP history. Respond with JSON only:',
@@ -198,7 +226,7 @@ async function analyzeTrend(userProfile, last12WeeksMetrics, ftpHistory) {
     `FTP history (oldest first): ${JSON.stringify(ftpHistory)}`,
   ].join('\n');
 
-  const content = await callOpenAI(
+  const { content, tokens } = await callOpenAI(
     [
       { role: 'system', content: system },
       { role: 'user', content: user },
@@ -222,14 +250,29 @@ async function analyzeTrend(userProfile, last12WeeksMetrics, ftpHistory) {
       : [],
   };
 
-  await saveInsight(userProfile?.id, 'trend', result);
-  return result;
+  await saveInsight(userId, 'trend', result);
+  if (userId) {
+    await saveCache(userId, 'trend_analysis', cacheKey, result, tokens, MODEL, TTL_DEFAULTS.trend_analysis);
+  }
+  return { ...result, _cached: false };
 }
 
 // ---------------------------------------------------------------------------
 // Single-ride analysis
 // ---------------------------------------------------------------------------
 async function analyzeRide({ userProfile = {}, ftpHistory = [], ride = {}, power = {}, zones = [], wprime = {} }) {
+  const userId = userProfile?.id;
+  const cacheKey = `ride_${ride.strava_id}`;
+
+  if (userId && ride.strava_id) {
+    const cached = await getCached(userId, 'ride_analysis', cacheKey);
+    if (cached.hit) {
+      console.log(`[CACHE HIT] ride_analysis for user ${userId}, ${cacheKey}`);
+      return { ...cached.data, _cached: true, _generated_at: cached.generated_at };
+    }
+    console.log(`[CACHE MISS] Generating ride_analysis for user ${userId}`);
+  }
+
   const system = generateSystemPrompt(userProfile, ftpHistory, []);
 
   const stats =
@@ -254,7 +297,7 @@ async function analyzeRide({ userProfile = {}, ftpHistory = [], ride = {}, power
     `W' depletion profile: ${wpStr}`,
   ].join('\n');
 
-  const content = await callOpenAI(
+  const { content, tokens } = await callOpenAI(
     [
       { role: 'system', content: system },
       { role: 'user', content: user },
@@ -275,7 +318,7 @@ async function analyzeRide({ userProfile = {}, ftpHistory = [], ride = {}, power
   let score = Number(parsed.execution_score);
   score = Number.isFinite(score) ? Math.max(1, Math.min(10, Math.round(score))) : null;
 
-  return {
+  const result = {
     ride_summary: String(parsed.ride_summary ?? ''),
     execution_score: score,
     power_zones_feedback: String(parsed.power_zones_feedback ?? ''),
@@ -283,6 +326,11 @@ async function analyzeRide({ userProfile = {}, ftpHistory = [], ride = {}, power
     improvement_tip: String(parsed.improvement_tip ?? ''),
     fatigue_impact: fatigue,
   };
+
+  if (userId && ride.strava_id) {
+    await saveCache(userId, 'ride_analysis', cacheKey, result, tokens, MODEL, TTL_DEFAULTS.ride_analysis);
+  }
+  return { ...result, _cached: false };
 }
 
 // ---------------------------------------------------------------------------
