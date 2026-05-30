@@ -7,12 +7,14 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useTrainingPlan, type Ride, type Workout } from '../hooks/useTrainingPlan';
+import { useSyncStatus } from '../hooks/useSyncStatus';
+import SyncIndicator from '../components/SyncIndicator';
 import type { AppStackParamList } from '../navigation/types';
 import { colors, spacing, radius, fontSize } from '../theme';
 
@@ -89,6 +91,8 @@ function WorkoutCard({ workout }: { workout: Workout }) {
 export default function DashboardScreen({ navigation }: Props) {
   const { name, lastRide, plan, loading, generating, error, refresh, generatePlan } =
     useTrainingPlan();
+  const { isSyncing, newActivitiesAvailable, syncError, acknowledge } = useSyncStatus();
+  const [bannerVisible, setBannerVisible] = useState(false);
 
   // Refetch whenever the dashboard comes into focus (e.g. after syncing rides
   // or connecting Strava on another screen).
@@ -97,6 +101,24 @@ export default function DashboardScreen({ navigation }: Props) {
       refresh();
     }, [refresh])
   );
+
+  // Surface a banner when a new ride lands while the user is here; auto-dismiss
+  // after 10s. The icon's badge dot stays until the data is actually reloaded.
+  useEffect(() => {
+    if (!newActivitiesAvailable) {
+      setBannerVisible(false);
+      return undefined;
+    }
+    setBannerVisible(true);
+    const id = setTimeout(() => setBannerVisible(false), 10_000);
+    return () => clearTimeout(id);
+  }, [newActivitiesAvailable]);
+
+  const handleBannerRefresh = useCallback(() => {
+    setBannerVisible(false);
+    acknowledge();
+    refresh();
+  }, [acknowledge, refresh]);
 
   const workouts = plan?.plan_json?.workouts ?? [];
 
@@ -113,10 +135,25 @@ export default function DashboardScreen({ navigation }: Props) {
             <Text style={styles.greeting}>Welcome back,</Text>
             <Text style={styles.name}>{name || '…'}</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Profile')} hitSlop={8}>
-            <Text style={styles.headerLink}>Profile</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <SyncIndicator
+              isSyncing={isSyncing}
+              newActivitiesAvailable={newActivitiesAvailable}
+              syncError={!!syncError}
+              onPress={() => navigation.navigate('StravaConnect')}
+            />
+            <TouchableOpacity onPress={() => navigation.navigate('Profile')} hitSlop={8}>
+              <Text style={styles.headerLink}>Profile</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {bannerVisible ? (
+          <TouchableOpacity style={styles.banner} activeOpacity={0.8} onPress={handleBannerRefresh}>
+            <Text style={styles.bannerText}>New activity synced</Text>
+            <Text style={styles.bannerAction}>Refresh</Text>
+          </TouchableOpacity>
+        ) : null}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -193,10 +230,25 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   container: { padding: spacing.lg, paddingBottom: spacing.xl, gap: spacing.md },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.xs },
   greeting: { color: colors.textMuted, fontSize: fontSize.md },
   name: { color: colors.text, fontSize: fontSize.xxl, fontWeight: '800' },
-  headerLink: { color: colors.primary, fontSize: fontSize.md, fontWeight: '600', marginTop: spacing.sm },
+  headerLink: { color: colors.primary, fontSize: fontSize.md, fontWeight: '600' },
   error: { color: colors.danger, fontSize: fontSize.sm },
+
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(252,76,2,0.12)',
+    borderColor: colors.primary,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  bannerText: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
+  bannerAction: { color: colors.primary, fontSize: fontSize.sm, fontWeight: '800' },
 
   card: {
     backgroundColor: colors.surface,
