@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Animated, StyleSheet } from 'react-native';
 
 import Text from '../ui/Text';
-import { spacing, radius } from '../../theme/tokens';
+import { spacing, radius, palette } from '../../theme/tokens';
 import { useTheme } from '../../theme/useTheme';
 
 export interface ScaleZone {
@@ -18,6 +18,8 @@ interface Props {
   max: number;
   zones: ScaleZone[];
   showValue?: boolean;
+  /** Use light label colors for placement on a dark surface (e.g. the hero card). */
+  onDark?: boolean;
 }
 
 /**
@@ -25,8 +27,10 @@ interface Props {
  * The indicator slides to position on mount (built-in Animated spring, since
  * reanimated is intentionally not installed).
  */
-export default function TrainingScaleBar({ value, min, max, zones, showValue = false }: Props) {
+export default function TrainingScaleBar({ value, min, max, zones, showValue = false, onDark = false }: Props) {
   const { colors } = useTheme();
+  const mutedColor = onDark ? palette.slate400 : colors.textTertiary;
+  const strongColor = onDark ? '#FFFFFF' : colors.textPrimary;
   const span = max - min || 1;
   const fraction = Math.max(0, Math.min(1, (value - min) / span));
 
@@ -68,14 +72,14 @@ export default function TrainingScaleBar({ value, min, max, zones, showValue = f
       </View>
 
       <View style={styles.labels}>
-        <Text variant="caption" color={colors.textTertiary}>
+        <Text variant="caption" color={mutedColor}>
           {zones[0]?.label}
         </Text>
-        <Text variant="label" color={colors.textPrimary} style={styles.currentLabel}>
+        <Text variant="label" color={strongColor} style={styles.currentLabel}>
           {current?.label}
           {showValue ? ` · ${Math.round(value)}` : ''}
         </Text>
-        <Text variant="caption" color={colors.textTertiary}>
+        <Text variant="caption" color={mutedColor}>
           {zones[zones.length - 1]?.label}
         </Text>
       </View>

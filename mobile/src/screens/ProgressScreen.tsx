@@ -17,6 +17,7 @@ import PowerCurveChart from '../components/PowerCurveChart';
 import FTPChart from '../components/FTPChart';
 import AIAnalysisBadge from '../components/AIAnalysisBadge';
 import { Text, Card, Badge, StatCard, SectionHeader, Button, SkeletonLoader } from '../components/ui';
+import MetricTooltip from '../components/metrics/MetricTooltip';
 import { scheduleWeeklySummary } from '../services/notifications';
 import { palette, spacing, radius } from '../theme/tokens';
 import { useThemeColors } from '../theme/useThemeColors';
@@ -145,9 +146,12 @@ export default function ProgressScreen() {
           <Card variant="dark" padding={20}>
             <Pressable onPress={() => setShowFtpChart((v) => !v)} style={styles.ftpHeroRow}>
               <View>
-                <Text variant="label" color={palette.slate400}>
-                  FTP
-                </Text>
+                <View style={styles.ftpLabelRow}>
+                  <Text variant="label" color={palette.slate400}>
+                    FTP
+                  </Text>
+                  <MetricTooltip metric="ftp" value={ftp.ftp?.ftp_watts ?? undefined} />
+                </View>
                 <View style={styles.ftpValueRow}>
                   <Text variant="stat" color="#FFFFFF">
                     {ftp.ftp?.ftp_watts ?? '—'}
@@ -189,17 +193,20 @@ export default function ProgressScreen() {
         ) : (
           <View style={styles.triad}>
             <Card variant="tinted" style={styles.triadCard}>
-              <StatCard size="md" value={Math.round(current?.ctl ?? 0)} label="Fitness" />
+              <StatCard size="md" value={Math.round(current?.ctl ?? 0)} label="Fitness" tooltipMetric="ctl" />
             </Card>
             <Card variant="tinted" style={styles.triadCard}>
-              <StatCard size="md" value={Math.round(current?.atl ?? 0)} label="Fatigue" />
+              <StatCard size="md" value={Math.round(current?.atl ?? 0)} label="Fatigue" tooltipMetric="atl" />
             </Card>
             <Card variant="tinted" style={styles.triadCard}>
               <View style={styles.tsbWrap}>
                 <Text variant="statMd" color={(current?.tsb ?? 0) >= 0 ? palette.emerald600 : palette.rose600}>
                   {Math.round(current?.tsb ?? 0)}
                 </Text>
-                <Text variant="label">Form</Text>
+                <View style={styles.tsbLabelRow}>
+                  <Text variant="label">Form</Text>
+                  <MetricTooltip metric="tsb" value={current?.tsb ?? 0} />
+                </View>
               </View>
             </Card>
           </View>
@@ -391,6 +398,8 @@ const styles = StyleSheet.create({
   triad: { flexDirection: 'row', gap: spacing[2] },
   triadCard: { flex: 1, padding: spacing[4] },
   tsbWrap: { gap: spacing[1] },
+  tsbLabelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+  ftpLabelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
 
   chart: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 160, paddingTop: spacing[4] },
   barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: spacing[1] },
