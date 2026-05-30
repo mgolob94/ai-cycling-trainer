@@ -6,6 +6,7 @@ import { useFonts } from 'expo-font';
 import Navigation from './src/navigation';
 import { useAuthStore } from './src/store/useAuthStore';
 import { ThemeProvider } from './src/theme/useTheme';
+import { MetricTooltipProvider } from './src/components/metrics/MetricTooltip';
 import { fontAssets } from './src/theme/typography';
 import {
   initNotifications,
@@ -41,8 +42,10 @@ export default function App() {
   return (
     <ThemeProvider>
       <SafeAreaProvider>
-        <Navigation />
-        <StatusBar style="auto" />
+        <MetricTooltipProvider>
+          <Navigation />
+          <StatusBar style="auto" />
+        </MetricTooltipProvider>
       </SafeAreaProvider>
     </ThemeProvider>
   );
