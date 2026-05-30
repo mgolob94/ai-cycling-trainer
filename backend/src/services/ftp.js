@@ -138,6 +138,17 @@ async function recalculateForUser(userId, { recordOnlyIfChanged = false } = {}) 
   return { ...stored, recorded: true };
 }
 
+/** All of the user's FTP tests, oldest first (for history/charting). */
+async function getHistory(userId) {
+  const { data, error } = await supabaseAdmin
+    .from('ftp_tests')
+    .select('ftp_watts, watts_per_kg, weight_kg, test_date, created_at')
+    .eq('user_id', userId)
+    .order('test_date', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
 /** The user's most recent FTP test, or null. */
 async function getLatest(userId) {
   const { data, error } = await supabaseAdmin
@@ -157,4 +168,5 @@ module.exports = {
   calculateAndStore,
   recalculateForUser,
   getLatest,
+  getHistory,
 };

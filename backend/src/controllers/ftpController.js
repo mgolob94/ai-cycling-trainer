@@ -33,4 +33,14 @@ async function latest(req, res, next) {
   }
 }
 
-module.exports = { calculate, latest };
+/** GET /ftp/history — all of the user's FTP tests, oldest first. */
+async function history(req, res, next) {
+  try {
+    const data = await ftp.getHistory(req.user.id);
+    res.json({ success: true, data, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { calculate, latest, history };
