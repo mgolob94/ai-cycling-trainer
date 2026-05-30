@@ -1,7 +1,14 @@
 const crypto = require('crypto');
 const { supabaseAdmin } = require('../db/supabase');
+const { PLAN_LIMITS } = require('../config/subscriptionLimits');
 
 const TABLE = 'ai_analysis_cache';
+
+// Analysis types gated behind a plan capability.
+const PLAN_GATED = {
+  ride_analysis: 'can_refresh_ride_analysis',
+  periodization: 'can_refresh_periodization',
+};
 
 // Default time-to-live per analysis type, in hours.
 const TTL_DEFAULTS = {
@@ -91,7 +98,7 @@ async function saveCache(
   ttlHours,
   inputHash = null
 ) {
-  const ttl = ttlHours ?? TTL_DEFAULTS[analysisType] ?? FALLBACK_TTL;
+  const baseTtl = ttlHours ?? TTL_DEFAULTS[analysisType] ?? FALLBACK_TTL;
   const now = Date.now();
 
   // Plan at generation time (users.subscription_plan may not exist → 'free').
@@ -102,6 +109,10 @@ async function saveCache(
   } catch {
     // keep default
   }
+
+  // Higher tiers get fresher analyses (shorter TTL) via the plan multiplier.
+  const multiplier = (PLAN_LIMITS[plan] ?? PLAN_LIMITS.free).cache_ttl_multiplier ?? 1;
+  const ttl = baseTtl * multiplier;
 
   const row = {
     user_id: userId,
@@ -173,6 +184,75 @@ async function getCacheStats(userId) {
   };
 }
 
+/** First day of next month (UTC) as ISO — when the monthly refresh count resets. */
+function firstDayOfNextMonth(d = new Date()) {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)).toISOString();
+}
+
+/** Cheapest plan that allows a gated capability. */
+function requiredPlanFor(capability) {
+  for (const plan of ['free', 'basic', 'pro']) {
+    if (PLAN_LIMITS[plan][capability]) return plan;
+  }
+  return 'pro';
+}
+
+/**
+ * Whether a user may trigger a manual refresh of analysisType, given their plan
+ * and monthly usage. (Placeholder enforcement — billing not implemented.)
+ *   - over the monthly limit  → { allowed:false, reason:'limit_reached', limit, used }
+ *   - type not allowed on plan → { allowed:false, reason:'plan_required', required_plan }
+ *   - otherwise               → { allowed:true }
+ * Pass analysisType=null to check the limit without the per-type plan gate.
+ *
+ * TODO: Wire this into DELETE /cache/invalidate when billing is implemented.
+ */
+async function checkRefreshAllowed(userId, analysisType) {
+  let user = {};
+  try {
+    const { data } = await supabaseAdmin.from('users').select('*').eq('id', userId).single();
+    user = data || {};
+  } catch {
+    // treat as free / no usage
+  }
+
+  const plan = user.subscription_plan ?? 'free';
+  const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
+
+  // Usage resets at the start of each month.
+  const resetAt = user.ai_refreshes_reset_at ? new Date(user.ai_refreshes_reset_at) : null;
+  const used = resetAt && Date.now() < resetAt.getTime() ? user.ai_refreshes_used_this_month ?? 0 : 0;
+
+  if (used >= limits.ai_refreshes_per_month) {
+    return { allowed: false, reason: 'limit_reached', limit: limits.ai_refreshes_per_month, used };
+  }
+
+  const capability = PLAN_GATED[analysisType];
+  if (capability && !limits[capability]) {
+    return { allowed: false, reason: 'plan_required', required_plan: requiredPlanFor(capability) };
+  }
+
+  return { allowed: true };
+}
+
+/** Count a refresh against the user's monthly allowance (resets monthly). */
+async function incrementRefreshUsed(userId) {
+  const { data: user } = await supabaseAdmin
+    .from('users')
+    .select('ai_refreshes_used_this_month, ai_refreshes_reset_at')
+    .eq('id', userId)
+    .single();
+
+  const resetAt = user?.ai_refreshes_reset_at ? new Date(user.ai_refreshes_reset_at) : null;
+  const expired = !resetAt || Date.now() >= resetAt.getTime();
+
+  const update = expired
+    ? { ai_refreshes_used_this_month: 1, ai_refreshes_reset_at: firstDayOfNextMonth() }
+    : { ai_refreshes_used_this_month: (user?.ai_refreshes_used_this_month ?? 0) + 1 };
+
+  await supabaseAdmin.from('users').update(update).eq('id', userId);
+}
+
 /** Aggregate in-process hit/miss/tokens-saved across all users (for admin stats). */
 function getGlobalRuntime() {
   let hits = 0;
@@ -192,6 +272,8 @@ module.exports = {
   invalidateCache,
   getCacheStats,
   getGlobalRuntime,
+  checkRefreshAllowed,
+  incrementRefreshUsed,
   TTL_DEFAULTS,
   isoWeek,
   monthKey,

@@ -1,5 +1,11 @@
 const { supabaseAdmin } = require('../db/supabase');
-const { getCacheStats, invalidateCache, getGlobalRuntime } = require('../services/aiCache');
+const {
+  getCacheStats,
+  invalidateCache,
+  getGlobalRuntime,
+  checkRefreshAllowed,
+  incrementRefreshUsed,
+} = require('../services/aiCache');
 
 /** GET /cache/stats — the authenticated user's cache stats + per-type breakdown. */
 async function userStats(req, res, next) {
@@ -55,25 +61,41 @@ async function invalidate(req, res, next) {
   try {
     const { analysis_type: analysisType, cache_key: cacheKey, all } = req.body || {};
 
-    // { all: true } clears every analysis type for the user (Profile "refresh all").
-    if (all === true) {
-      await invalidateCache(req.user.id, null, null, 'manual_user_all');
-      return res.json({
-        success: true,
-        data: { invalidated: true, message: 'All analyses will be regenerated on the next request.' },
-        error: null,
+    if (all !== true && !analysisType) {
+      return res.status(400).json({ success: false, data: null, error: 'analysis_type is required' });
+    }
+
+    // Subscription gate: enforce plan-based monthly refresh limits.
+    const check = await checkRefreshAllowed(req.user.id, all === true ? null : analysisType);
+    if (!check.allowed) {
+      return res.status(403).json({
+        success: false,
+        error: 'refresh_limit_reached',
+        message: 'You have reached your monthly refresh limit. Upgrade your plan for more.',
+        data: check,
       });
     }
 
-    if (!analysisType) {
-      return res.status(400).json({ success: false, data: null, error: 'analysis_type is required' });
+    if (all === true) {
+      await invalidateCache(req.user.id, null, null, 'manual_user_all');
+    } else {
+      await invalidateCache(req.user.id, analysisType, cacheKey ?? null, 'manual_user');
     }
-    await invalidateCache(req.user.id, analysisType, cacheKey ?? null, 'manual_user');
+
+    // Count this refresh against the user's monthly allowance (best-effort).
+    try {
+      await incrementRefreshUsed(req.user.id);
+    } catch (e) {
+      console.warn('[cache] could not increment refresh count:', e.message);
+    }
+
     res.json({
       success: true,
       data: {
         invalidated: true,
-        message: 'Analysis will be regenerated on the next request.',
+        message: all === true
+          ? 'All analyses will be regenerated on the next request.'
+          : 'Analysis will be regenerated on the next request.',
       },
       error: null,
     });
