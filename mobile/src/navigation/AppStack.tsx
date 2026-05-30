@@ -6,6 +6,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import StravaConnectScreen from '../screens/StravaConnectScreen';
 import ProgressScreen from '../screens/ProgressScreen';
 import WeeklyComparisonScreen from '../screens/WeeklyComparisonScreen';
+import RideDetailScreen from '../screens/RideDetailScreen';
 import type { AppStackParamList } from './types';
 import { lightColors } from '../theme';
 
@@ -45,6 +46,11 @@ export default function AppStack() {
         name="WeeklyComparison"
         component={WeeklyComparisonScreen}
         options={{ title: 'Weekly comparison', ...lightHeader }}
+      />
+      <Stack.Screen
+        name="RideDetail"
+        component={RideDetailScreen}
+        options={{ title: 'Ride analysis', ...lightHeader }}
       />
     </Stack.Navigator>
   );

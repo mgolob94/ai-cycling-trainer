@@ -19,6 +19,7 @@ export interface TrainingPlan {
 
 export interface Ride {
   id: string;
+  strava_id: string;
   distance_km: number | null;
   duration_sec: number | null;
   avg_power_w: number | null;

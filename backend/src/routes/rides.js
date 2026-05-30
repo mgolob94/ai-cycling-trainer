@@ -6,5 +6,6 @@ const ridesController = require('../controllers/ridesController');
 
 router.get('/', requireAuth, ridesController.listRides);
 router.get('/latest', requireAuth, ridesController.getLatestRide);
+router.post('/:strava_id/analyze', requireAuth, ridesController.analyze);
 
 module.exports = router;

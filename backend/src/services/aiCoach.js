@@ -227,6 +227,65 @@ async function analyzeTrend(userProfile, last12WeeksMetrics, ftpHistory) {
 }
 
 // ---------------------------------------------------------------------------
+// Single-ride analysis
+// ---------------------------------------------------------------------------
+async function analyzeRide({ userProfile = {}, ftpHistory = [], ride = {}, power = {}, zones = [], wprime = {} }) {
+  const system = generateSystemPrompt(userProfile, ftpHistory, []);
+
+  const stats =
+    `Distance ${ride.distance_km ?? '?'} km, ${Math.round((ride.duration_sec || 0) / 60)} min, ` +
+    `avg power ${ride.avg_power_w ?? '?'} W, NP ${power.normalized_power ?? '?'} W, ` +
+    `xPower ${power.xpower ?? '?'} W, VI ${power.variability_index ?? '?'}, ` +
+    `EF ${power.efficiency_factor ?? '?'}, avg HR ${ride.avg_heart_rate ?? '?'} bpm, ` +
+    `elevation ${ride.elevation_m ?? '?'} m`;
+  const zoneStr = zones.map((z) => `${z.zone}/${z.label} ${z.pct}%`).join(', ');
+  const wpStr =
+    `min W' balance ${wprime.min_w_prime_balance ?? '?'} J, ` +
+    `depletion ${wprime.w_prime_depletion_percent ?? '?'}%, matches burned ${wprime.match_count ?? '?'}`;
+
+  const user = [
+    'Analyze this single ride and respond with JSON only, exactly this shape:',
+    '{ "ride_summary": string, "execution_score": number (1-10, how well the session was executed), ' +
+      '"power_zones_feedback": string, "top_moment": string, "improvement_tip": string, ' +
+      '"fatigue_impact": "low"|"medium"|"high" }',
+    '',
+    `Ride stats: ${stats}`,
+    `Power distribution (% time per zone): ${zoneStr}`,
+    `W' depletion profile: ${wpStr}`,
+  ].join('\n');
+
+  const content = await callOpenAI(
+    [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ],
+    { json: true, maxTokens: 500 }
+  );
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error('OpenAI returned invalid JSON for the ride analysis');
+  }
+
+  const fatigue = ['low', 'medium', 'high'].includes(parsed.fatigue_impact)
+    ? parsed.fatigue_impact
+    : 'medium';
+  let score = Number(parsed.execution_score);
+  score = Number.isFinite(score) ? Math.max(1, Math.min(10, Math.round(score))) : null;
+
+  return {
+    ride_summary: String(parsed.ride_summary ?? ''),
+    execution_score: score,
+    power_zones_feedback: String(parsed.power_zones_feedback ?? ''),
+    top_moment: String(parsed.top_moment ?? ''),
+    improvement_tip: String(parsed.improvement_tip ?? ''),
+    fatigue_impact: fatigue,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Persistence
 // ---------------------------------------------------------------------------
 async function saveInsight(userId, insightType, content) {
@@ -241,6 +300,7 @@ module.exports = {
   generateSystemPrompt,
   analyzeWeek,
   analyzeTrend,
+  analyzeRide,
   saveInsight,
   // exported for testing / reuse
   describeFitnessState,

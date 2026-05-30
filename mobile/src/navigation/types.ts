@@ -15,4 +15,5 @@ export type AppStackParamList = {
   StravaConnect: undefined;
   Progress: undefined;
   WeeklyComparison: undefined;
+  RideDetail: { stravaId: string };
 };

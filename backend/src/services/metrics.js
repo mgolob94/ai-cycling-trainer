@@ -271,6 +271,37 @@ function powerDurationCurve(stream) {
   return curve;
 }
 
+// Coggan power zones as fractions of FTP (upper bounds; Z6 is open-ended).
+const POWER_ZONES = [
+  { zone: 'Z1', label: 'Recovery', max: 0.55 },
+  { zone: 'Z2', label: 'Endurance', max: 0.75 },
+  { zone: 'Z3', label: 'Tempo', max: 0.9 },
+  { zone: 'Z4', label: 'Threshold', max: 1.05 },
+  { zone: 'Z5', label: 'VO2max', max: 1.2 },
+  { zone: 'Z6', label: 'Anaerobic', max: Infinity },
+];
+
+/** Percentage of time spent in each power zone, given the stream and FTP. */
+function powerZoneDistribution(stream, ftp) {
+  const counts = POWER_ZONES.map(() => 0);
+  let total = 0;
+  if (ftp) {
+    for (const p of stream) {
+      if (!Number.isFinite(p)) continue;
+      total += 1;
+      const frac = p / ftp;
+      let idx = POWER_ZONES.findIndex((z) => frac < z.max);
+      if (idx === -1) idx = POWER_ZONES.length - 1;
+      counts[idx] += 1;
+    }
+  }
+  return POWER_ZONES.map((z, i) => ({
+    zone: z.zone,
+    label: z.label,
+    pct: total ? Math.round((counts[i] / total) * 1000) / 10 : 0,
+  }));
+}
+
 /**
  * Full power analysis for one ride from its power stream + avg HR.
  * Returns the values to store on the ride row.
@@ -381,6 +412,7 @@ module.exports = {
   normalizedPower,
   xPower,
   powerDurationCurve,
+  powerZoneDistribution,
   analyzeRidePower,
   recalcRidePower,
   recalcAllRidesPower,

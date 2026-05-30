@@ -39,9 +39,9 @@ function formatDuration(seconds: number | null): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-function LastRideCard({ ride }: { ride: Ride }) {
+function LastRideCard({ ride, onPress }: { ride: Ride; onPress: () => void }) {
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} activeOpacity={0.7} onPress={onPress}>
       <Text style={styles.cardLabel}>LAST RIDE</Text>
       <Text style={styles.cardDate}>{ride.ride_date ?? ''}</Text>
       <View style={styles.statsRow}>
@@ -49,7 +49,8 @@ function LastRideCard({ ride }: { ride: Ride }) {
         <Stat label="Duration" value={formatDuration(ride.duration_sec)} />
         <Stat label="Avg power" value={ride.avg_power_w != null ? `${Math.round(ride.avg_power_w)} W` : '—'} />
       </View>
-    </View>
+      <Text style={styles.tapHint}>Tap for AI analysis →</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -120,7 +121,10 @@ export default function DashboardScreen({ navigation }: Props) {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {lastRide ? (
-          <LastRideCard ride={lastRide} />
+          <LastRideCard
+            ride={lastRide}
+            onPress={() => navigation.navigate('RideDetail', { stravaId: lastRide.strava_id })}
+          />
         ) : (
           <TouchableOpacity
             style={styles.emptyCard}
@@ -195,6 +199,7 @@ const styles = StyleSheet.create({
   },
   cardLabel: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700', letterSpacing: 1 },
   cardDate: { color: colors.textMuted, fontSize: fontSize.sm, marginTop: 2 },
+  tapHint: { color: colors.primary, fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing.sm },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.md },
   stat: { alignItems: 'flex-start' },
   statValue: { color: colors.text, fontSize: fontSize.lg, fontWeight: '700' },
