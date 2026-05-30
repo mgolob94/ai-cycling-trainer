@@ -182,7 +182,7 @@ export default function FTPTestWizard() {
   const regeneratePlan = async () => {
     try {
       await api.post('/plans/generate');
-      navigation.navigate('Dashboard');
+      navigation.navigate('Tabs', { screen: 'Dashboard' });
     } catch {
       goTo(4);
     }
@@ -192,7 +192,7 @@ export default function FTPTestWizard() {
     setSavingWprime(true);
     try {
       await api.patch('/users/me', { w_prime_total: Math.round(wprime) });
-      navigation.navigate('Dashboard');
+      navigation.navigate('Tabs', { screen: 'Dashboard' });
     } catch {
       // ignore — best effort
     } finally {

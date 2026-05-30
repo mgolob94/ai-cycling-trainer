@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useTrainingPlan, type Ride, type Workout } from '../hooks/useTrainingPlan';
 import { useSyncStatus } from '../hooks/useSyncStatus';
@@ -18,7 +18,7 @@ import { palette, spacing, radius } from '../theme/tokens';
 import { useThemeColors } from '../theme/useThemeColors';
 import type { AppStackParamList } from '../navigation/types';
 
-type Props = NativeStackScreenProps<AppStackParamList, 'Dashboard'>;
+type Nav = NativeStackNavigationProp<AppStackParamList>;
 
 type BadgeColor = 'emerald' | 'indigo' | 'amber' | 'rose';
 
@@ -92,7 +92,8 @@ function WorkoutRow({ workout, isToday }: { workout: Workout; isToday: boolean }
   );
 }
 
-export default function DashboardScreen({ navigation }: Props) {
+export default function DashboardScreen() {
+  const navigation = useNavigation<Nav>();
   const { colors } = useThemeColors();
   const { name, lastRide, plan, loading, error, refresh } = useTrainingPlan();
   const { weeks } = useWeeklyMetrics();

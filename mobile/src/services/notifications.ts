@@ -201,11 +201,19 @@ export function addNotificationListeners(): () => void {
 
   // App in background / killed: fired when the user taps a notification.
   // If the notification carries a `screen`, deep-link to it.
+  const TAB_ROUTES = ['Dashboard', 'Progress', 'Rides', 'Profile'];
   const response = Notifications.addNotificationResponseReceivedListener((res) => {
     const data = res.notification.request.content.data as { screen?: string } | undefined;
     if (data?.screen && navigationRef.isReady()) {
-      // @ts-expect-error screen name is validated at the navigator level
-      navigationRef.navigate(data.screen);
+      // Tab destinations live in the nested Tabs navigator; everything else is a
+      // top-level stack route.
+      if (TAB_ROUTES.includes(data.screen)) {
+        // @ts-expect-error nested screen name is validated at the navigator level
+        navigationRef.navigate('Tabs', { screen: data.screen });
+      } else {
+        // @ts-expect-error screen name is validated at the navigator level
+        navigationRef.navigate(data.screen);
+      }
     }
   });
 

@@ -9,12 +9,28 @@ export type AuthStackParamList = {
   Login: undefined;
 };
 
-export type AppStackParamList = {
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
+// Bottom-tab navigator routes.
+export type TabParamList = {
   Dashboard: undefined;
-  TrainingPlan: undefined;
-  Profile: undefined;
-  StravaConnect: undefined;
   Progress: undefined;
+  Rides: undefined;
+  Profile: undefined;
+};
+
+export type AppStackParamList = {
+  // Nested bottom-tab navigator
+  Tabs: NavigatorScreenParams<TabParamList>;
+  // Tab routes are also listed here so screens typed against AppStackParamList
+  // can navigate to them directly (resolved via the nested navigator at runtime).
+  Dashboard: undefined;
+  Progress: undefined;
+  Rides: undefined;
+  Profile: undefined;
+  // Stack-only detail routes
+  TrainingPlan: undefined;
+  StravaConnect: undefined;
   WeeklyComparison: undefined;
   RideDetail: { stravaId: string };
   Periodization: undefined;
