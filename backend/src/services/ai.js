@@ -146,4 +146,57 @@ async function generateWeeklyPlan(profile, rides) {
   return plan;
 }
 
-module.exports = { buildPlanPrompt, summarizeRides, generateWeeklyPlan };
+/**
+ * Generate a short (2-sentence) training summary from recent weekly metrics.
+ * Returns plain text. Maps AI-provider failures to a 502 (statusCode).
+ */
+async function generateWeeklySummary(weeks) {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY is not set');
+  }
+
+  const messages = [
+    {
+      role: 'system',
+      content:
+        'You are an encouraging, knowledgeable cycling coach. Given the athlete\'s recent ' +
+        'weekly training metrics (TSS, distance, elevation, ride count, and CTL/ATL/TSB), ' +
+        'write exactly two sentences: one summarizing the recent trend, one with specific, ' +
+        'actionable guidance for the coming week. Be motivating and concrete. Plain text only.',
+    },
+    {
+      role: 'user',
+      content: JSON.stringify({ recent_weeks: weeks }),
+    },
+  ];
+
+  try {
+    const { data } = await axios.post(
+      `${OPENAI_API_BASE}/chat/completions`,
+      { model: MODEL, messages, temperature: 0.6, max_tokens: 150 },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    const content = data.choices?.[0]?.message?.content?.trim();
+    if (!content) throw new Error('OpenAI returned an empty response');
+    return content;
+  } catch (err) {
+    if (err.statusCode) throw err; // already mapped
+    const providerMessage = err.response?.data?.error?.message || err.message;
+    const wrapped = new Error(`AI provider request failed: ${providerMessage}`);
+    wrapped.statusCode = 502;
+    throw wrapped;
+  }
+}
+
+module.exports = {
+  buildPlanPrompt,
+  summarizeRides,
+  generateWeeklyPlan,
+  generateWeeklySummary,
+};

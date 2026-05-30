@@ -5,8 +5,17 @@ import PlanScreen from '../screens/PlanScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import StravaConnectScreen from '../screens/StravaConnectScreen';
 import ProgressScreen from '../screens/ProgressScreen';
+import WeeklyComparisonScreen from '../screens/WeeklyComparisonScreen';
 import type { AppStackParamList } from './types';
 import { lightColors } from '../theme';
+
+const lightHeader = {
+  headerStyle: { backgroundColor: lightColors.surface },
+  headerTintColor: lightColors.text,
+  headerTitleStyle: { color: lightColors.text },
+  headerShadowVisible: true,
+  contentStyle: { backgroundColor: lightColors.background },
+};
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
@@ -26,18 +35,16 @@ export default function AppStack() {
         component={StravaConnectScreen}
         options={{ title: 'Connect Strava' }}
       />
-      {/* Light-themed screen — override the dark stack header to match. */}
+      {/* Light-themed screens — override the dark stack header to match. */}
       <Stack.Screen
         name="Progress"
         component={ProgressScreen}
-        options={{
-          title: 'Progress',
-          headerStyle: { backgroundColor: lightColors.surface },
-          headerTintColor: lightColors.text,
-          headerTitleStyle: { color: lightColors.text },
-          headerShadowVisible: true,
-          contentStyle: { backgroundColor: lightColors.background },
-        }}
+        options={{ title: 'Progress', ...lightHeader }}
+      />
+      <Stack.Screen
+        name="WeeklyComparison"
+        component={WeeklyComparisonScreen}
+        options={{ title: 'Weekly comparison', ...lightHeader }}
       />
     </Stack.Navigator>
   );

@@ -9,7 +9,10 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
+import type { AppStackParamList } from '../navigation/types';
 import { useFtp } from '../hooks/useFtp';
 import { useWeeklyMetrics, type WeeklyMetric } from '../hooks/useWeeklyMetrics';
 import { usePersonalRecords, type PersonalRecord } from '../hooks/usePersonalRecords';
@@ -204,6 +207,7 @@ function RecordsGrid({ records }: { records: PersonalRecord[] }) {
 }
 
 export default function ProgressScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const ftp = useFtp();
   const metrics = useWeeklyMetrics();
   const records = usePersonalRecords();
@@ -224,6 +228,13 @@ export default function ProgressScreen() {
         }
       >
         <FtpCard />
+        <TouchableOpacity
+          style={styles.compareButton}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('WeeklyComparison')}
+        >
+          <Text style={styles.compareButtonText}>Compare weeks →</Text>
+        </TouchableOpacity>
         <FitnessChart weeks={metrics.weeks} loading={metrics.loading} />
         {metrics.loading ? null : <WeeklyCards weeks={metrics.weeks} />}
         {records.loading ? (
@@ -260,6 +271,11 @@ const styles = StyleSheet.create({
   ftpMetaRow: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.xs },
   ftpMeta: { color: lightColors.textMuted, fontSize: fontSize.sm, fontWeight: '600' },
   ftpChartWrap: { alignSelf: 'stretch', marginTop: spacing.md },
+  compareButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: spacing.xs,
+  },
+  compareButtonText: { color: lightColors.primary, fontSize: fontSize.md, fontWeight: '700' },
 
   primaryButton: {
     backgroundColor: lightColors.primary,
