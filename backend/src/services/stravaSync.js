@@ -2,6 +2,7 @@ const axios = require('axios');
 const { supabaseAdmin } = require('../db/supabase');
 const strava = require('./strava');
 const metrics = require('./metrics');
+const records = require('./records');
 
 const STRAVA_API_BASE = 'https://www.strava.com/api/v3';
 const PER_PAGE = 200; // Strava max
@@ -264,12 +265,18 @@ async function processUnprocessedRides(userId, { batchSize = 50, maxRides = 100 
     if (rides.length < batchSize) break;
   }
 
-  // Newly-processed rides have finalized TSS — refresh the full-history PMC.
+  // Newly-processed rides have finalized TSS + power-duration bests — refresh
+  // the full-history PMC and personal records.
   if (processed > 0) {
     try {
       await metrics.calculateFullHistory(userId);
     } catch (e) {
       console.warn('[sync] full-history recalc skipped:', e.message);
+    }
+    try {
+      await records.scanAndUpsert(userId);
+    } catch (e) {
+      console.warn('[sync] records recalc skipped:', e.message);
     }
   }
 

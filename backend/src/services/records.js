@@ -1,7 +1,7 @@
 const { supabaseAdmin } = require('../db/supabase');
 const pushNotifications = require('./pushNotifications');
 
-// Slovenian labels for personal-record notifications.
+// Labels for personal-record notifications.
 const RECORD_LABELS = {
   best_5min_power: 'Best 5-min power',
   best_20min_power: 'Best 20-min power',
@@ -14,36 +14,24 @@ function unitLabel(unit) {
   return unit === 'watts' ? 'W' : unit;
 }
 
-// Personal record definitions. Power records approximate the best N-minute
-// effort with the highest whole-ride average power among rides at least that
-// long (we don't store power streams); a ride may carry an exact
-// `best_Nmin_power_w` field to be used instead. Distance/elevation use the
-// ride's stored totals directly.
+// Personal record definitions. Power records take the exact best N-minute effort
+// from power_duration_bests (computed from each ride's power stream) — keyed by
+// the matching power-duration-curve window in seconds. Distance/elevation use
+// the ride's stored totals directly.
 const RECORD_DEFS = [
-  { type: 'best_5min_power', unit: 'watts', minDuration: 300, field: 'avg_power_w', streamField: 'best_5min_power_w' },
-  { type: 'best_20min_power', unit: 'watts', minDuration: 1200, field: 'avg_power_w', streamField: 'best_20min_power_w' },
-  { type: 'best_60min_power', unit: 'watts', minDuration: 3600, field: 'avg_power_w', streamField: 'best_60min_power_w' },
+  { type: 'best_5min_power', unit: 'watts', pdcDuration: 300 },
+  { type: 'best_20min_power', unit: 'watts', pdcDuration: 1200 },
+  { type: 'best_60min_power', unit: 'watts', pdcDuration: 3600 },
   { type: 'longest_ride_km', unit: 'km', field: 'distance_km' },
   { type: 'most_elevation_m', unit: 'm', field: 'elevation_m' },
 ];
 
-/** Find the best value for a record definition across a set of rides. */
+/** Find the best value of a stored ride field (distance/elevation) across rides. */
 function bestCandidate(rides, def) {
   let best = null;
 
   for (const ride of rides) {
-    let value;
-    if (def.minDuration) {
-      value =
-        def.streamField && ride[def.streamField] != null
-          ? ride[def.streamField]
-          : (ride.duration_sec ?? 0) >= def.minDuration
-            ? ride[def.field]
-            : null;
-    } else {
-      value = ride[def.field];
-    }
-
+    const value = ride[def.field];
     if (value == null) continue;
 
     if (!best || value > best.value) {
@@ -80,16 +68,41 @@ async function getRecords(userId) {
  * (one row per record type is maintained). Returns the user's current records.
  */
 async function scanAndUpsert(userId) {
-  const { data: rides, error } = await supabaseAdmin
-    .from('rides')
-    .select('*')
-    .eq('user_id', userId);
+  const [{ data: rides, error }, { data: pdcBests, error: pdcError }] = await Promise.all([
+    supabaseAdmin.from('rides').select('*').eq('user_id', userId),
+    supabaseAdmin
+      .from('power_duration_bests')
+      .select('duration_sec, power_watts, achieved_date')
+      .eq('user_id', userId),
+  ]);
   if (error) throw error;
+  if (pdcError) throw pdcError;
+
+  const pdcByDuration = new Map((pdcBests || []).map((d) => [d.duration_sec, d]));
+  // Map a date → a ride's strava_id so power records can still link to a ride.
+  const stravaIdByDate = new Map();
+  for (const ride of rides || []) {
+    if (ride.ride_date && ride.strava_id && !stravaIdByDate.has(ride.ride_date)) {
+      stravaIdByDate.set(ride.ride_date, ride.strava_id);
+    }
+  }
 
   const beaten = [];
 
   for (const def of RECORD_DEFS) {
-    const candidate = bestCandidate(rides || [], def);
+    let candidate;
+    if (def.pdcDuration) {
+      const best = pdcByDuration.get(def.pdcDuration);
+      candidate = best
+        ? {
+            value: best.power_watts,
+            strava_activity_id: stravaIdByDate.get(best.achieved_date) ?? null,
+            achieved_date: best.achieved_date ?? null,
+          }
+        : null;
+    } else {
+      candidate = bestCandidate(rides || [], def);
+    }
     if (!candidate) continue;
 
     const value = roundValue(candidate.value, def.unit);

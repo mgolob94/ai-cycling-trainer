@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const strava = require('../services/strava');
 const ftp = require('../services/ftp');
 const metrics = require('../services/metrics');
+const records = require('../services/records');
 const stravaSync = require('../services/stravaSync');
 const { supabaseAdmin } = require('../db/supabase');
 const { invalidateCache, isoWeek } = require('../services/aiCache');
@@ -283,11 +284,16 @@ async function processWebhookEvent(event) {
       console.warn('[webhook] ride processing failed:', e.message);
     }
     await supabaseAdmin.from('rides').update({ is_processed: true }).eq('id', ride.id);
-    // New processed ride → refresh full-history CTL/ATL/TSB.
+    // New processed ride → refresh full-history CTL/ATL/TSB + personal records.
     try {
       await metrics.calculateFullHistory(userId);
     } catch (e) {
       console.warn('[webhook] full-history recalc skipped:', e.message);
+    }
+    try {
+      await records.scanAndUpsert(userId);
+    } catch (e) {
+      console.warn('[webhook] records recalc skipped:', e.message);
     }
   }
 
