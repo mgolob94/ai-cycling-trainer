@@ -4,7 +4,9 @@ import DashboardScreen from '../screens/DashboardScreen';
 import PlanScreen from '../screens/PlanScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import StravaConnectScreen from '../screens/StravaConnectScreen';
+import ProgressScreen from '../screens/ProgressScreen';
 import type { AppStackParamList } from './types';
+import { lightColors } from '../theme';
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
@@ -23,6 +25,19 @@ export default function AppStack() {
         name="StravaConnect"
         component={StravaConnectScreen}
         options={{ title: 'Connect Strava' }}
+      />
+      {/* Light-themed screen — override the dark stack header to match. */}
+      <Stack.Screen
+        name="Progress"
+        component={ProgressScreen}
+        options={{
+          title: 'Progress',
+          headerStyle: { backgroundColor: lightColors.surface },
+          headerTintColor: lightColors.text,
+          headerTitleStyle: { color: lightColors.text },
+          headerShadowVisible: true,
+          contentStyle: { backgroundColor: lightColors.background },
+        }}
       />
     </Stack.Navigator>
   );

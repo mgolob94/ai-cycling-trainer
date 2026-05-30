@@ -1,0 +1,54 @@
+import { useState, useEffect, useCallback } from 'react';
+
+import { api, apiOrigin, ApiResponse } from '../services/api';
+
+export interface FtpTest {
+  ftp_watts: number;
+  watts_per_kg: number | null;
+  weight_kg: number | null;
+  test_date: string;
+  created_at?: string;
+}
+
+/** Current FTP plus a runTest action that triggers a recalculation. */
+export function useFtp() {
+  const [ftp, setFtp] = useState<FtpTest | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await api.get<ApiResponse<FtpTest | null>>(`${apiOrigin}/ftp/latest`);
+      setFtp(data.data ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load FTP.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const runTest = useCallback(async () => {
+    setRunning(true);
+    setError(null);
+    try {
+      await api.post<ApiResponse<unknown>>(`${apiOrigin}/ftp/calculate`);
+      await refresh();
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+        (e instanceof Error ? e.message : 'FTP test failed.');
+      setError(msg);
+    } finally {
+      setRunning(false);
+    }
+  }, [refresh]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { ftp, loading, running, error, refresh, runTest };
+}

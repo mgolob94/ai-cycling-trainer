@@ -13,4 +13,5 @@ export type AppStackParamList = {
   TrainingPlan: undefined;
   Profile: undefined;
   StravaConnect: undefined;
+  Progress: undefined;
 };

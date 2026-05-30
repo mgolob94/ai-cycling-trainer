@@ -23,4 +23,14 @@ async function calculate(req, res, next) {
   }
 }
 
-module.exports = { calculate };
+/** GET /ftp/latest — the user's most recent FTP test. */
+async function latest(req, res, next) {
+  try {
+    const data = await ftp.getLatest(req.user.id);
+    res.json({ success: true, data, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { calculate, latest };

@@ -164,6 +164,14 @@ export default function DashboardScreen({ navigation }: Props) {
             </Text>
           )}
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('Progress')}
+        >
+          <Text style={styles.secondaryButtonText}>View progress & records</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -233,4 +241,6 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.5 },
   primaryButtonText: { color: '#fff', fontSize: fontSize.md, fontWeight: '700' },
+  secondaryButton: { paddingVertical: 14, alignItems: 'center', marginTop: spacing.sm },
+  secondaryButtonText: { color: colors.primary, fontSize: fontSize.md, fontWeight: '600' },
 });

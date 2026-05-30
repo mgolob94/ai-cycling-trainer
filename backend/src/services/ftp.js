@@ -138,4 +138,23 @@ async function recalculateForUser(userId, { recordOnlyIfChanged = false } = {}) 
   return { ...stored, recorded: true };
 }
 
-module.exports = { findBest20MinEffort, estimateFtp, calculateAndStore, recalculateForUser };
+/** The user's most recent FTP test, or null. */
+async function getLatest(userId) {
+  const { data, error } = await supabaseAdmin
+    .from('ftp_tests')
+    .select('ftp_watts, watts_per_kg, weight_kg, test_date, created_at')
+    .eq('user_id', userId)
+    .order('test_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+module.exports = {
+  findBest20MinEffort,
+  estimateFtp,
+  calculateAndStore,
+  recalculateForUser,
+  getLatest,
+};

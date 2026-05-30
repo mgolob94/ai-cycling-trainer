@@ -14,6 +14,21 @@ export const colors = {
   danger: '#FF5470',
 };
 
+// Clean light palette (used by the Progress screen). Chart colors map to the
+// Performance Management Chart conventions: fitness/fatigue/form.
+export const lightColors = {
+  background: '#F5F7FA',
+  surface: '#FFFFFF',
+  border: '#E3E8EF',
+  primary: '#FC4C02',
+  text: '#1A2230',
+  textMuted: '#6B7686',
+  gold: '#E0A106',
+  fitness: '#2D7DD2', // CTL — blue
+  fatigue: '#E2483D', // ATL — red
+  form: '#2E9E5B', // TSB — green
+};
+
 export const spacing = {
   xs: 4,
   sm: 8,
