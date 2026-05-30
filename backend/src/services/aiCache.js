@@ -173,11 +173,25 @@ async function getCacheStats(userId) {
   };
 }
 
+/** Aggregate in-process hit/miss/tokens-saved across all users (for admin stats). */
+function getGlobalRuntime() {
+  let hits = 0;
+  let misses = 0;
+  let tokensSaved = 0;
+  for (const s of runtimeStats.values()) {
+    hits += s.hits;
+    misses += s.misses;
+    tokensSaved += s.tokensSaved;
+  }
+  return { hits, misses, tokensSaved };
+}
+
 module.exports = {
   getCached,
   saveCache,
   invalidateCache,
   getCacheStats,
+  getGlobalRuntime,
   TTL_DEFAULTS,
   isoWeek,
   monthKey,
