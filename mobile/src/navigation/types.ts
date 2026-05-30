@@ -15,6 +15,7 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 export type TabParamList = {
   Dashboard: undefined;
   Progress: undefined;
+  Recovery: undefined;
   Rides: undefined;
   Profile: undefined;
 };
@@ -26,6 +27,7 @@ export type AppStackParamList = {
   // can navigate to them directly (resolved via the nested navigator at runtime).
   Dashboard: undefined;
   Progress: undefined;
+  Recovery: undefined;
   Rides: undefined;
   Profile: undefined;
   // Stack-only detail routes

@@ -17,6 +17,10 @@ interface Props {
   label?: string;
   /** Smaller caption under the label. */
   caption?: string;
+  /** Override the center label color (e.g. white on a dark card). */
+  labelColor?: string;
+  /** Override the caption color. */
+  captionColor?: string;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -33,6 +37,8 @@ export default function CircularProgress({
   trackColor = colors.surfaceAlt,
   label,
   caption,
+  labelColor,
+  captionColor,
   style,
 }: Props) {
   const clamped = Math.max(0, Math.min(100, percent));
@@ -80,8 +86,12 @@ export default function CircularProgress({
         />
       </Svg>
       <View style={styles.center} pointerEvents="none">
-        <Text style={styles.label}>{label ?? `${Math.round(clamped)}%`}</Text>
-        {caption ? <Text style={styles.caption}>{caption}</Text> : null}
+        <Text style={[styles.label, labelColor ? { color: labelColor } : null]}>
+          {label ?? `${Math.round(clamped)}%`}
+        </Text>
+        {caption ? (
+          <Text style={[styles.caption, captionColor ? { color: captionColor } : null]}>{caption}</Text>
+        ) : null}
       </View>
     </View>
   );

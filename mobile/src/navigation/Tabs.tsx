@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import ProgressScreen from '../screens/ProgressScreen';
+import RecoveryScreen from '../screens/RecoveryScreen';
 import RidesScreen from '../screens/RidesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { useSyncStatus } from '../hooks/useSyncStatus';
@@ -20,6 +21,7 @@ const Tab = createBottomTabNavigator<TabParamList>();
 const TABS: Record<string, { label: string; icon: keyof typeof Feather.glyphMap }> = {
   Dashboard: { label: 'Home', icon: 'home' },
   Progress: { label: 'Progress', icon: 'activity' },
+  Recovery: { label: 'Recovery', icon: 'heart' },
   Rides: { label: 'Rides', icon: 'map' },
   Profile: { label: 'Profile', icon: 'user' },
 };
@@ -101,6 +103,7 @@ export default function Tabs() {
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Progress" component={ProgressScreen} />
+      <Tab.Screen name="Recovery" component={RecoveryScreen} />
       <Tab.Screen name="Rides" component={RidesScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
