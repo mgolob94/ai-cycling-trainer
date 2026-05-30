@@ -18,6 +18,7 @@ const recommendationsRoutes = require('./src/routes/recommendations');
 const periodizationRoutes = require('./src/routes/periodization');
 const profileRoutes = require('./src/routes/profile');
 const cacheRoutes = require('./src/routes/cache');
+const webhookRoutes = require('./src/routes/webhooks');
 const usersRoutes = require('./src/routes/users');
 
 const app = express();
@@ -44,6 +45,7 @@ app.use('/recommendations', recommendationsRoutes);
 app.use('/periodization', periodizationRoutes);
 app.use('/profile', profileRoutes);
 app.use(cacheRoutes);
+app.use('/webhooks', webhookRoutes);
 
 // Fallback 404 handler — keeps the standard response shape
 app.use((req, res) => {

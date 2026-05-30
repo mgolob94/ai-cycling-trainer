@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const strava = require('../services/strava');
 const ftp = require('../services/ftp');
 const metrics = require('../services/metrics');
+const stravaSync = require('../services/stravaSync');
 const { supabaseAdmin } = require('../db/supabase');
 const { invalidateCache, isoWeek } = require('../services/aiCache');
 const { verifyToken } = require('../middleware/auth');
@@ -222,24 +223,88 @@ async function recomputeDerived(userId) {
   }
 }
 
-/** Strava webhook subscription validation handshake. */
+const STRAVA_API_BASE = 'https://www.strava.com/api/v3';
+
+/**
+ * GET /webhooks/strava — Strava webhook subscription validation handshake.
+ * Echoes hub.challenge only when hub.verify_token matches our secret.
+ */
 function verifyWebhook(req, res) {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
-  if (challenge) {
+  if (mode === 'subscribe' && token === process.env.STRAVA_WEBHOOK_VERIFY_TOKEN && challenge) {
     return res.json({ 'hub.challenge': challenge });
   }
-  res.status(400).json({ success: false, data: null, error: 'Missing challenge' });
+  return res.status(403).json({ success: false, data: null, error: 'Webhook verification failed' });
 }
 
-/** Receive a push event from Strava (new activity, etc.). */
-async function handleWebhook(req, res, next) {
-  try {
-    // TODO: enqueue a sync for req.body.owner_id / object_id.
-    console.log('[strava webhook]', JSON.stringify(req.body));
-    res.status(200).json({ success: true, data: { received: true }, error: null });
-  } catch (err) {
-    next(err);
+/** Process a Strava webhook event (runs after the 200 is sent). */
+async function processWebhookEvent(event) {
+  const { object_type: objectType, object_id: objectId, aspect_type: aspectType, owner_id: ownerId } = event || {};
+  if (objectType !== 'activity' || !ownerId || !objectId) return;
+
+  const { data: conn } = await supabaseAdmin
+    .from('strava_connections')
+    .select('user_id')
+    .eq('athlete_id', String(ownerId))
+    .maybeSingle();
+  if (!conn) return; // unknown athlete
+  const userId = conn.user_id;
+  const stravaId = String(objectId);
+
+  if (aspectType === 'delete') {
+    await supabaseAdmin.from('rides').delete().eq('user_id', userId).eq('strava_id', stravaId);
+    return;
   }
+
+  if (aspectType !== 'create') return; // ignore 'update' for now
+
+  const token = await strava.getValidAccessToken(userId);
+  const { data: activity } = await axios.get(`${STRAVA_API_BASE}/activities/${objectId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!['Ride', 'VirtualRide'].includes(activity.type)) return;
+
+  const row = stravaSync.toRideRow(userId, activity);
+  await supabaseAdmin.from('rides').upsert(row, { onConflict: 'strava_id' });
+
+  // Process metrics for this single ride.
+  const { data: ride } = await supabaseAdmin
+    .from('rides')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('strava_id', stravaId)
+    .maybeSingle();
+  if (ride) {
+    try {
+      await metrics.recalcRidePower(userId, ride);
+    } catch (e) {
+      console.warn('[webhook] ride processing failed:', e.message);
+    }
+    await supabaseAdmin.from('rides').update({ is_processed: true }).eq('id', ride.id);
+  }
+
+  // Fresh ride → invalidate weekly summary + recommendations.
+  await invalidateCache(userId, 'weekly_summary', `week_${isoWeek()}`, 'webhook').catch(() => {});
+  await invalidateCache(userId, 'recommendations', null, 'webhook').catch(() => {});
+
+  await supabaseAdmin
+    .from('strava_connections')
+    .update({ last_activity_sync_at: activity.start_date, last_sync_at: new Date().toISOString() })
+    .eq('user_id', userId);
+}
+
+/**
+ * POST /webhooks/strava — receive activity events. Responds 200 immediately
+ * (Strava requires a fast response) and processes asynchronously.
+ */
+function handleWebhook(req, res) {
+  res.status(200).json({ received: true });
+  const event = req.body;
+  setImmediate(() => {
+    processWebhookEvent(event).catch((e) => console.warn('[strava webhook]', e.message));
+  });
 }
 
 module.exports = {

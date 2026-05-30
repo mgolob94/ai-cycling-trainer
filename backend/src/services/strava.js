@@ -56,15 +56,19 @@ async function refreshAccessToken(refreshToken) {
  * Upserts on user_id so re-connecting overwrites the previous connection.
  */
 async function saveConnection(userId, token) {
-  const { error } = await supabaseAdmin.from('strava_connections').upsert(
-    {
-      user_id: userId,
-      access_token: encrypt(token.access_token),
-      refresh_token: encrypt(token.refresh_token),
-      expires_at: new Date(token.expires_at * 1000).toISOString(),
-    },
-    { onConflict: 'user_id' }
-  );
+  const row = {
+    user_id: userId,
+    access_token: encrypt(token.access_token),
+    refresh_token: encrypt(token.refresh_token),
+    expires_at: new Date(token.expires_at * 1000).toISOString(),
+  };
+  // The athlete is only present on the initial code exchange (not on refresh),
+  // so only set athlete_id when we have it — avoids clobbering it on refresh.
+  if (token.athlete?.id != null) row.athlete_id = String(token.athlete.id);
+
+  const { error } = await supabaseAdmin
+    .from('strava_connections')
+    .upsert(row, { onConflict: 'user_id' });
   if (error) throw error;
 }
 
