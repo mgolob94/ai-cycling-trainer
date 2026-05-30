@@ -17,6 +17,7 @@ export function useFtp() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -38,8 +39,19 @@ export function useFtp() {
   const runTest = useCallback(async () => {
     setRunning(true);
     setError(null);
+    setNotice(null);
     try {
-      await api.post<ApiResponse<unknown>>(`${apiOrigin}/ftp/calculate`);
+      const { data } = await api.post<ApiResponse<{ ftp_watts: number; recorded?: boolean } | null>>(
+        `${apiOrigin}/ftp/calculate`
+      );
+      const result = data.data;
+      if (result) {
+        setNotice(
+          result.recorded
+            ? `Updated — new FTP ${result.ftp_watts} W`
+            : `No change — FTP still ${result.ftp_watts} W. Sync more rides to improve it.`
+        );
+      }
       await refresh();
     } catch (e: unknown) {
       const msg =
@@ -55,5 +67,5 @@ export function useFtp() {
     refresh();
   }, [refresh]);
 
-  return { ftp, history, loading, running, error, refresh, runTest };
+  return { ftp, history, loading, running, error, notice, refresh, runTest };
 }

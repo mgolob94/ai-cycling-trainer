@@ -58,7 +58,7 @@ function formatRecord(record: PersonalRecord): string {
 }
 
 function FtpCard() {
-  const { ftp, history, loading, running, error, runTest } = useFtp();
+  const { ftp, history, loading, running, error, notice, runTest } = useFtp();
   return (
     <View style={[styles.card, styles.ftpCard]}>
       <Text style={styles.cardLabel}>FUNCTIONAL THRESHOLD POWER</Text>
@@ -85,6 +85,7 @@ function FtpCard() {
         </>
       )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {notice && !error ? <Text style={styles.notice}>{notice}</Text> : null}
       <TouchableOpacity
         style={[styles.primaryButton, running && styles.buttonDisabled]}
         activeOpacity={0.85}
@@ -274,6 +275,7 @@ const styles = StyleSheet.create({
   sectionHeading: { color: lightColors.text, fontSize: fontSize.lg, fontWeight: '700', marginBottom: spacing.sm },
   mutedText: { color: lightColors.textMuted, fontSize: fontSize.md },
   error: { color: lightColors.fatigue, fontSize: fontSize.sm, marginTop: spacing.sm },
+  notice: { color: lightColors.textMuted, fontSize: fontSize.sm, marginTop: spacing.sm, alignSelf: 'stretch' },
 
   ftpCard: { alignItems: 'flex-start' },
   ftpValueRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: spacing.sm },

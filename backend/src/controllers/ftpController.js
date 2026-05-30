@@ -6,7 +6,9 @@ const ftp = require('../services/ftp');
  */
 async function calculate(req, res, next) {
   try {
-    const result = await ftp.recalculateForUser(req.user.id);
+    // Estimated from existing rides, so re-running with unchanged data yields
+    // the same value — only record a new test row when it actually changes.
+    const result = await ftp.recalculateForUser(req.user.id, { recordOnlyIfChanged: true });
 
     if (!result) {
       return res.status(422).json({
