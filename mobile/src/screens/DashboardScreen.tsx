@@ -15,6 +15,11 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTrainingPlan, type Ride, type Workout } from '../hooks/useTrainingPlan';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import SyncIndicator from '../components/SyncIndicator';
+import {
+  shouldShowStravaPrompt,
+  dismissStravaPrompt,
+  clearStravaSkipped,
+} from '../services/stravaOnboarding';
 import type { AppStackParamList } from '../navigation/types';
 import { colors, spacing, radius, fontSize } from '../theme';
 
@@ -91,8 +96,17 @@ function WorkoutCard({ workout }: { workout: Workout }) {
 export default function DashboardScreen({ navigation }: Props) {
   const { name, lastRide, plan, loading, generating, error, refresh, generatePlan } =
     useTrainingPlan();
-  const { isSyncing, newActivitiesAvailable, syncError, acknowledge } = useSyncStatus();
+  const {
+    connected,
+    isSyncing,
+    isInitialSyncing,
+    progressPercent,
+    newActivitiesAvailable,
+    syncError,
+    acknowledge,
+  } = useSyncStatus();
   const [bannerVisible, setBannerVisible] = useState(false);
+  const [showSkipPrompt, setShowSkipPrompt] = useState(false);
 
   // Refetch whenever the dashboard comes into focus (e.g. after syncing rides
   // or connecting Strava on another screen).
@@ -101,6 +115,31 @@ export default function DashboardScreen({ navigation }: Props) {
       refresh();
     }, [refresh])
   );
+
+  // "Connect Strava" reminder for users who skipped onboarding. Once Strava is
+  // actually connected, clear the skip flag so the reminder never returns.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        if (connected) {
+          await clearStravaSkipped();
+          if (active) setShowSkipPrompt(false);
+          return;
+        }
+        const show = await shouldShowStravaPrompt();
+        if (active) setShowSkipPrompt(show);
+      })();
+      return () => {
+        active = false;
+      };
+    }, [connected])
+  );
+
+  const handleDismissSkip = useCallback(() => {
+    setShowSkipPrompt(false);
+    dismissStravaPrompt();
+  }, []);
 
   // Surface a banner when a new ride lands while the user is here; auto-dismiss
   // after 10s. The icon's badge dot stays until the data is actually reloaded.
@@ -148,11 +187,30 @@ export default function DashboardScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {bannerVisible ? (
+        {isInitialSyncing ? (
+          <View style={styles.banner}>
+            <Text style={styles.bannerText}>
+              Importing activities ({Math.round(progressPercent)}%)…
+            </Text>
+            <ActivityIndicator color={colors.primary} />
+          </View>
+        ) : bannerVisible ? (
           <TouchableOpacity style={styles.banner} activeOpacity={0.8} onPress={handleBannerRefresh}>
             <Text style={styles.bannerText}>New activity synced</Text>
             <Text style={styles.bannerAction}>Refresh</Text>
           </TouchableOpacity>
+        ) : showSkipPrompt ? (
+          <View style={styles.banner}>
+            <Text style={[styles.bannerText, styles.bannerTextFlex]}>
+              Connect Strava for more accurate training
+            </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('StravaConnect')} hitSlop={8}>
+              <Text style={styles.bannerAction}>Connect</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleDismissSkip} hitSlop={10}>
+              <Text style={styles.bannerDismiss}>✕</Text>
+            </TouchableOpacity>
+          </View>
         ) : null}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -248,7 +306,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   bannerText: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
+  bannerTextFlex: { flex: 1, marginRight: spacing.sm },
   bannerAction: { color: colors.primary, fontSize: fontSize.sm, fontWeight: '800' },
+  bannerDismiss: { color: colors.textMuted, fontSize: fontSize.md, fontWeight: '700', marginLeft: spacing.md },
 
   card: {
     backgroundColor: colors.surface,

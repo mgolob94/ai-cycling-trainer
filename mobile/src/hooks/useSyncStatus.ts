@@ -8,14 +8,22 @@ const IDLE_INTERVAL_MS = 30_000;
 const SYNCING_INTERVAL_MS = 3_000;
 
 interface SyncStatusPayload {
+  connected: boolean;
   sync_status: string;
   sync_error: string | null;
   last_sync_at: string | null;
   total_rides: number;
+  progress_percent: number;
+  initial_sync_completed: boolean;
 }
 
 export interface SyncStatusState {
+  connected: boolean;
   isSyncing: boolean;
+  /** The one-time historical import is running (vs. an incremental sync). */
+  isInitialSyncing: boolean;
+  /** 0–100 progress of the initial import. */
+  progressPercent: number;
   lastSyncAt: string | null;
   /** A new activity arrived (e.g. via webhook) since the UI last acknowledged. */
   newActivitiesAvailable: boolean;
@@ -36,7 +44,10 @@ export interface SyncStatusState {
  * was looking at the app — and stays true until acknowledge() is called.
  */
 export function useSyncStatus(): SyncStatusState {
+  const [connected, setConnected] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isInitialSyncing, setIsInitialSyncing] = useState(false);
+  const [progressPercent, setProgressPercent] = useState(0);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [newActivitiesAvailable, setNewActivitiesAvailable] = useState(false);
@@ -52,7 +63,10 @@ export function useSyncStatus(): SyncStatusState {
       const s = data.data;
       if (!s) return;
 
+      setConnected(!!s.connected);
       setIsSyncing(s.sync_status === 'syncing');
+      setIsInitialSyncing(s.sync_status === 'syncing' && !s.initial_sync_completed);
+      setProgressPercent(s.progress_percent ?? 0);
       setLastSyncAt(s.last_sync_at ?? null);
       setSyncError(s.sync_status === 'error' ? s.sync_error ?? 'Sync failed' : null);
 
@@ -112,5 +126,15 @@ export function useSyncStatus(): SyncStatusState {
     poll();
   }, [poll]);
 
-  return { isSyncing, lastSyncAt, newActivitiesAvailable, syncError, acknowledge, refreshNow: poll };
+  return {
+    connected,
+    isSyncing,
+    isInitialSyncing,
+    progressPercent,
+    lastSyncAt,
+    newActivitiesAvailable,
+    syncError,
+    acknowledge,
+    refreshNow: poll,
+  };
 }

@@ -96,6 +96,7 @@ async function status(req, res, next) {
     res.json({
       success: true,
       data: {
+        connected: base.connected ?? false,
         sync_status: base.sync_status,
         sync_error: base.sync_error ?? null,
         initial_sync_completed: base.initial_sync_completed,

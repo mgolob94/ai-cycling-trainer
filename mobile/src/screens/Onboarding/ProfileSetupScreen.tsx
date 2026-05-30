@@ -12,7 +12,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { supabase } from '../../services/supabase';
-import { useAuthStore } from '../../store/useAuthStore';
 import type { AuthStackParamList } from '../../navigation/types';
 import { colors, spacing, radius, fontSize } from '../../theme';
 
@@ -55,9 +54,7 @@ function OptionGroup<T extends string>({
   );
 }
 
-export default function ProfileSetupScreen(_props: Props) {
-  const setSession = useAuthStore((state) => state.setSession);
-
+export default function ProfileSetupScreen({ navigation }: Props) {
   const [age, setAge] = useState('');
   const [weight, setWeight] = useState('');
   const [fitnessLevel, setFitnessLevel] = useState<FitnessLevel | null>(null);
@@ -95,8 +92,9 @@ export default function ProfileSetupScreen(_props: Props) {
         return;
       }
 
-      // Setting the token flips navigation over to the app stack.
-      setSession(session.access_token, session.user.id);
+      // Profile saved — continue to the final onboarding step (connect Strava).
+      // The session is stored there, which is what flips us to the app stack.
+      navigation.navigate('StravaSetup');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
     } finally {
@@ -149,7 +147,7 @@ export default function ProfileSetupScreen(_props: Props) {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.primaryButtonText}>Start training</Text>
+            <Text style={styles.primaryButtonText}>Continue</Text>
           )}
         </TouchableOpacity>
       </ScrollView>

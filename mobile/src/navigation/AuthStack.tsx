@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import WelcomeScreen from '../screens/Onboarding/WelcomeScreen';
 import SignUpScreen from '../screens/Onboarding/SignUpScreen';
 import ProfileSetupScreen from '../screens/Onboarding/ProfileSetupScreen';
+import StravaSetupScreen from '../screens/Onboarding/StravaSetupScreen';
 import LoginScreen from '../screens/LoginScreen';
 import type { AuthStackParamList } from './types';
 import { colors } from '../theme';
@@ -32,6 +33,11 @@ export default function AuthStack() {
         name="ProfileSetup"
         component={ProfileSetupScreen}
         options={{ title: '', headerBackVisible: false }}
+      />
+      <Stack.Screen
+        name="StravaSetup"
+        component={StravaSetupScreen}
+        options={{ headerShown: false, gestureEnabled: false }}
       />
       <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Sign in' }} />
     </Stack.Navigator>

@@ -5,6 +5,7 @@ export type AuthStackParamList = {
   Welcome: undefined;
   SignUp: undefined;
   ProfileSetup: undefined;
+  StravaSetup: undefined;
   Login: undefined;
 };
 
