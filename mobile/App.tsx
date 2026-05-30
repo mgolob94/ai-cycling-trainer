@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useFonts } from 'expo-font';
 
 import Navigation from './src/navigation';
 import { useAuthStore } from './src/store/useAuthStore';
+import { fontAssets } from './src/theme/typography';
 import {
   initNotifications,
   addNotificationListeners,
@@ -12,6 +14,11 @@ import {
 
 export default function App() {
   const token = useAuthStore((state) => state.token);
+
+  // Load the custom UI + stat fonts before rendering so text doesn't flash in a
+  // system font first. Proceed on error too — falling back to system fonts is
+  // better than blocking the whole app.
+  const [fontsLoaded, fontError] = useFonts(fontAssets);
 
   // On start: request permissions, reschedule reminders, and wire foreground/
   // background notification listeners.
@@ -27,6 +34,8 @@ export default function App() {
       registerPushToken().catch(() => {});
     }
   }, [token]);
+
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <SafeAreaProvider>
