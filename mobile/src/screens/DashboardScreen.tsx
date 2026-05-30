@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, Pressable } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { View, ScrollView, StyleSheet, RefreshControl, Pressable, Animated, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -110,6 +110,24 @@ export default function DashboardScreen() {
 
   const [bannerVisible, setBannerVisible] = useState(false);
   const [showSkipPrompt, setShowSkipPrompt] = useState(false);
+
+  // Hero entrance: slide up + fade in, 100ms after mount.
+  const heroAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const id = setTimeout(() => {
+      Animated.timing(heroAnim, {
+        toValue: 1,
+        duration: 400,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }).start();
+    }, 100);
+    return () => clearTimeout(id);
+  }, [heroAnim]);
+  const heroStyle = {
+    opacity: heroAnim,
+    transform: [{ translateY: heroAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -239,6 +257,7 @@ export default function DashboardScreen() {
         ) : null}
 
         {/* Hero — form today */}
+        <Animated.View style={heroStyle}>
         <Card variant="dark" padding={20} style={styles.hero}>
           <View style={styles.heroTop}>
             <Text variant="label" color={palette.slate400}>
@@ -269,6 +288,7 @@ export default function DashboardScreen() {
             ))}
           </View>
         </Card>
+        </Animated.View>
 
         {/* This week */}
         <View style={styles.section}>

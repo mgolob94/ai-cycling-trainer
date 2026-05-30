@@ -1,4 +1,5 @@
-import { View, Pressable, StyleSheet } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, Pressable, Animated, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
@@ -36,6 +37,21 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const activeColor = isDark ? colors.textPrimary : palette.slate900;
   const inactiveColor = palette.slate400;
 
+  // Animated scaleX for each tab's top border (slides in on activation).
+  const borders = useRef<Record<string, Animated.Value>>({}).current;
+  state.routes.forEach((route, i) => {
+    if (!borders[route.key]) borders[route.key] = new Animated.Value(state.index === i ? 1 : 0);
+  });
+  useEffect(() => {
+    state.routes.forEach((route, i) => {
+      Animated.timing(borders[route.key], {
+        toValue: state.index === i ? 1 : 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+  });
+
   return (
     <View
       style={[
@@ -56,8 +72,11 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 
         return (
           <Pressable key={route.key} style={styles.tab} onPress={onPress} accessibilityRole="button">
-            <View
-              style={[styles.topBorder, { backgroundColor: focused ? activeColor : 'transparent' }]}
+            <Animated.View
+              style={[
+                styles.topBorder,
+                { backgroundColor: activeColor, transform: [{ scaleX: borders[route.key] }] },
+              ]}
             />
             <View>
               <Feather name={meta.icon} size={22} color={color} />

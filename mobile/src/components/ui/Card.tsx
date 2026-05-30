@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { View, Pressable, StyleSheet, type ViewStyle, type StyleProp } from 'react-native';
+import { useRef, type ReactNode } from 'react';
+import { View, Pressable, Animated, StyleSheet, type ViewStyle, type StyleProp } from 'react-native';
 
 import { palette, radius, shadows } from '../../theme/tokens';
 import { useThemeColors } from '../../theme/useThemeColors';
@@ -50,11 +50,16 @@ export default function Card({ variant = 'default', padding = 16, onPress, style
   })();
 
   const content = [styles.base, variantStyle, { padding }, style];
+  const scale = useRef(new Animated.Value(1)).current;
 
   if (onPress) {
+    const pressIn = () =>
+      Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 40, bounciness: 0 }).start();
+    const pressOut = () =>
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 40, bounciness: 6 }).start();
     return (
-      <Pressable onPress={onPress} style={({ pressed }) => [content, pressed && styles.pressed]}>
-        {children}
+      <Pressable onPress={onPress} onPressIn={pressIn} onPressOut={pressOut}>
+        <Animated.View style={[content, { transform: [{ scale }] }]}>{children}</Animated.View>
       </Pressable>
     );
   }
@@ -63,5 +68,4 @@ export default function Card({ variant = 'default', padding = 16, onPress, style
 
 const styles = StyleSheet.create({
   base: { overflow: 'hidden' },
-  pressed: { opacity: 0.9 },
 });

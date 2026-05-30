@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, Dimensions, Pressable, Alert } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, ScrollView, StyleSheet, RefreshControl, Dimensions, Pressable, Alert, Animated, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -96,6 +96,25 @@ export default function ProgressScreen() {
   const synced = sync.connected && !sync.syncError && !sync.newActivitiesAvailable;
   const tssWeeks = weeks.slice(-8);
   const maxTss = Math.max(1, ...tssWeeks.map((w) => w.tss));
+
+  // Staggered grow-in for the TSS bars.
+  const barAnims = useRef<Animated.Value[]>([]).current;
+  while (barAnims.length < tssWeeks.length) barAnims.push(new Animated.Value(0));
+  useEffect(() => {
+    if (!tssWeeks.length) return;
+    Animated.stagger(
+      50,
+      tssWeeks.map((_, i) =>
+        Animated.timing(barAnims[i], {
+          toValue: 1,
+          duration: 600,
+          easing: Easing.out(Easing.exp),
+          useNativeDriver: false,
+        })
+      )
+    ).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tssWeeks.length, metrics.loading]);
 
   const goldRecord = prs.records.find((r) => r.record_type === 'best_5min_power');
   const otherRecords = prs.records.filter((r) => r.record_type !== 'best_5min_power');
@@ -208,10 +227,13 @@ export default function ProgressScreen() {
                           {Math.round(w.tss)}
                         </Text>
                       ) : null}
-                      <View
+                      <Animated.View
                         style={[
                           styles.bar,
-                          { height: h, backgroundColor: isCurrent ? palette.slate800 : palette.slate200 },
+                          {
+                            height: barAnims[i].interpolate({ inputRange: [0, 1], outputRange: [0, h] }),
+                            backgroundColor: isCurrent ? palette.slate800 : palette.slate200,
+                          },
                         ]}
                       />
                       <Text variant="caption" color={palette.slate400} style={styles.barLabel}>
