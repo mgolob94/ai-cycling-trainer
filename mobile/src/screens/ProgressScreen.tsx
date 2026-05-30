@@ -1,14 +1,5 @@
-import { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  Dimensions,
-  Alert,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, ScrollView, StyleSheet, RefreshControl, Dimensions, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,52 +12,39 @@ import { usePowerCurve } from '../hooks/usePowerCurve';
 import { useWeekAnalysis } from '../hooks/useWeekAnalysis';
 import { useRecommendations } from '../hooks/useRecommendations';
 import { usePersonalRecords, type PersonalRecord } from '../hooks/usePersonalRecords';
-import AnimatedNumber from '../components/AnimatedNumber';
+import { useSyncStatus } from '../hooks/useSyncStatus';
 import PowerCurveChart from '../components/PowerCurveChart';
 import FTPChart from '../components/FTPChart';
 import AIAnalysisBadge from '../components/AIAnalysisBadge';
+import { Text, Card, Badge, StatCard, SectionHeader, Button, SkeletonLoader } from '../components/ui';
 import { scheduleWeeklySummary } from '../services/notifications';
+import { palette, spacing, radius } from '../theme/tokens';
+import { useThemeColors } from '../theme/useThemeColors';
 import type { AppStackParamList } from '../navigation/types';
-import { lightColors, spacing, radius, fontSize } from '../theme';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
+type BadgeColor = 'default' | 'indigo' | 'emerald' | 'amber' | 'rose' | 'sky';
 
-function nameFrom(email?: string | null): string {
-  if (!email) return 'rider';
-  const local = email.split('@')[0];
-  return local.charAt(0).toUpperCase() + local.slice(1);
+function riderCategory(wkg: number | null): { label: string; color: BadgeColor } {
+  if (wkg == null) return { label: '—', color: 'default' };
+  if (wkg < 2.0) return { label: 'Recreational', color: 'default' };
+  if (wkg < 3.0) return { label: 'Fitness', color: 'sky' };
+  if (wkg < 4.0) return { label: 'Amateur', color: 'indigo' };
+  if (wkg < 5.0) return { label: 'Advanced', color: 'emerald' };
+  return { label: 'Elite', color: 'amber' };
 }
 
-function formStatus(tsb: number | null): { label: string; color: string } {
-  if (tsb == null) return { label: 'unknown', color: lightColors.textMuted };
-  if (tsb > 5) return { label: 'Fresh', color: lightColors.form };
-  if (tsb >= -10) return { label: 'Optimal', color: lightColors.fitness };
-  if (tsb >= -30) return { label: 'Fatigued', color: '#F5A623' };
-  return { label: 'Overreaching', color: lightColors.fatigue };
-}
-
-function riderCategory(wkg: number | null): string {
-  if (wkg == null) return '—';
-  if (wkg < 2.0) return 'Recreational';
-  if (wkg < 3.0) return 'Fitness';
-  if (wkg < 4.0) return 'Amateur';
-  if (wkg < 5.0) return 'Advanced';
-  return 'Elite';
-}
-
-function trendArrow(curr: number | undefined, prev: number | undefined): string {
-  if (curr == null || prev == null) return '';
-  if (curr > prev + 1) return '▲';
-  if (curr < prev - 1) return '▼';
-  return '▬';
-}
-
-function Skeleton({ height = 80 }: { height?: number }) {
-  return <View style={[styles.skeleton, { height }]} />;
-}
+const RECORD_LABELS: Record<string, string> = {
+  best_5min_power: '5 min power',
+  best_20min_power: '20 min power',
+  best_60min_power: '1 hr power',
+  longest_ride_km: 'Longest ride',
+  most_elevation_m: 'Most elevation',
+};
 
 export default function ProgressScreen() {
   const navigation = useNavigation<Nav>();
+  const { colors } = useThemeColors();
   const profile = useProfile();
   const metrics = useWeeklyMetrics();
   const ftp = useFtp();
@@ -75,25 +53,20 @@ export default function ProgressScreen() {
   const week = useWeekAnalysis();
   const recs = useRecommendations();
   const prs = usePersonalRecords();
+  const sync = useSyncStatus();
 
   const [pdcRange, setPdcRange] = useState<'alltime' | '90d' | '30d'>('alltime');
   const [showFtpChart, setShowFtpChart] = useState(false);
-  const [prSort, setPrSort] = useState<'recent' | 'duration' | 'alltime'>('alltime');
+  const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
 
   const weeks = metrics.weeks;
   const current = weeks[weeks.length - 1];
-  const prior4 = weeks[weeks.length - 5];
-  const status = formStatus(current?.tsb ?? null);
 
-  // Keep the Sunday weekly-summary notification current with the latest totals.
   useEffect(() => {
-    if (current) {
-      scheduleWeeklySummary(current.total_distance_km, current.tss).catch(() => {});
-    }
+    if (current) scheduleWeeklySummary(current.total_distance_km, current.tss).catch(() => {});
   }, [current]);
 
-  const refreshing =
-    profile.loading || metrics.loading || ftp.loading || pdc.loading || prs.loading;
+  const refreshing = profile.loading || metrics.loading || ftp.loading || pdc.loading || prs.loading;
   const onRefresh = () => {
     profile.refresh();
     metrics.refresh();
@@ -103,133 +76,253 @@ export default function ProgressScreen() {
     week.refresh();
     recs.refresh();
     prs.refresh();
+    sync.refreshNow();
   };
 
-  const chartWidth = Dimensions.get('window').width - spacing.lg * 2 - spacing.lg * 2;
+  const chartWidth = Dimensions.get('window').width - spacing[5] * 2 - spacing[5] * 2;
   const pdcData = pdcRange === 'alltime' ? pdc.alltime : pdcRange === '90d' ? pdc.last90 : pdc.last30;
   const wkg = ftp.ftp?.watts_per_kg ?? null;
+  const cat = riderCategory(wkg);
+
+  // FTP delta vs the previous recorded test.
+  const ftpHist = ftp.history;
+  const ftpDelta =
+    ftpHist.length >= 2 && ftp.ftp ? ftp.ftp.ftp_watts - ftpHist[ftpHist.length - 2].ftp_watts : null;
+
   const ftpStale =
     !ftp.ftp?.test_date ||
     Date.now() - new Date(`${ftp.ftp.test_date}T00:00:00`).getTime() > 42 * 24 * 3600 * 1000;
 
-  const sortedPrs = sortRecords(prs.records, prSort);
+  const synced = sync.connected && !sync.syncError && !sync.newActivitiesAvailable;
+  const tssWeeks = weeks.slice(-8);
+  const maxTss = Math.max(1, ...tssWeeks.map((w) => w.tss));
+
+  const goldRecord = prs.records.find((r) => r.record_type === 'best_5min_power');
+  const otherRecords = prs.records.filter((r) => r.record_type !== 'best_5min_power');
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={lightColors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.slate400} />}
       >
-        {/* HEADER */}
-        <View style={styles.header}>
-          {metrics.loading ? (
-            <Skeleton height={60} />
-          ) : (
-            <>
-              <Text style={styles.greeting}>
-                Good day, {nameFrom(profile.profile?.email)}! Your form is{' '}
-                <Text style={{ color: status.color }}>{status.label.toLowerCase()}</Text>.
-              </Text>
-              <View style={styles.headerRow}>
-                <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
-                  <Text style={styles.statusBadgeText}>{status.label}</Text>
-                </View>
-                <View style={styles.tsbBox}>
-                  <Text style={styles.tsbLabel}>TSB</Text>
-                  <Text style={[styles.tsbValue, { color: status.color }]}>
-                    {current?.tsb != null ? Math.round(current.tsb) : '—'}
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <Text variant="heading2" color={colors.textPrimary}>
+            Progress
+          </Text>
+          <View style={styles.syncPill}>
+            <View style={[styles.dot, { backgroundColor: synced ? palette.emerald400 : palette.amber400 }]} />
+            <Text variant="caption" color={colors.textSecondary}>
+              {synced ? 'Synced' : 'Sync needed'}
+            </Text>
+          </View>
+        </View>
+
+        {/* FTP hero */}
+        {ftp.loading ? (
+          <SkeletonLoader height={120} borderRadius={radius.lg} />
+        ) : (
+          <Card variant="dark" padding={20}>
+            <Pressable onPress={() => setShowFtpChart((v) => !v)} style={styles.ftpHeroRow}>
+              <View>
+                <Text variant="label" color={palette.slate400}>
+                  FTP
+                </Text>
+                <View style={styles.ftpValueRow}>
+                  <Text variant="stat" color="#FFFFFF">
+                    {ftp.ftp?.ftp_watts ?? '—'}
+                  </Text>
+                  <Text variant="caption" color={palette.slate400} style={styles.ftpUnit}>
+                    watts
                   </Text>
                 </View>
               </View>
+              <View style={styles.ftpRight}>
+                <Text variant="statMd" color="#FFFFFF">
+                  {wkg != null ? wkg.toFixed(2) : '—'}
+                </Text>
+                <Text variant="label" color={palette.slate400}>
+                  W/kg
+                </Text>
+                <View style={styles.catBadge}>
+                  <Badge label={cat.label} color={cat.color} />
+                </View>
+              </View>
+            </Pressable>
+            {ftpDelta != null && ftpDelta !== 0 ? (
+              <Text variant="caption" color={ftpDelta > 0 ? palette.emerald400 : palette.rose400} style={styles.ftpChip}>
+                {ftpDelta > 0 ? `+${ftpDelta}W since last test ↑` : `${ftpDelta}W since last test ↓`}
+              </Text>
+            ) : null}
+          </Card>
+        )}
+        {showFtpChart && ftpHist.length ? (
+          <Card variant="default">
+            <SectionHeader title="FTP HISTORY" />
+            <FTPChart history={ftpHist} />
+          </Card>
+        ) : null}
+
+        {/* Fitness triad */}
+        {metrics.loading ? (
+          <SkeletonLoader height={90} borderRadius={radius.lg} />
+        ) : (
+          <View style={styles.triad}>
+            <Card variant="tinted" style={styles.triadCard}>
+              <StatCard size="md" value={Math.round(current?.ctl ?? 0)} label="Fitness" />
+            </Card>
+            <Card variant="tinted" style={styles.triadCard}>
+              <StatCard size="md" value={Math.round(current?.atl ?? 0)} label="Fatigue" />
+            </Card>
+            <Card variant="tinted" style={styles.triadCard}>
+              <View style={styles.tsbWrap}>
+                <Text variant="statMd" color={(current?.tsb ?? 0) >= 0 ? palette.emerald600 : palette.rose600}>
+                  {Math.round(current?.tsb ?? 0)}
+                </Text>
+                <Text variant="label">Form</Text>
+              </View>
+            </Card>
+          </View>
+        )}
+
+        {/* Weekly TSS chart */}
+        <Card variant="default">
+          <SectionHeader title="WEEKLY TSS" />
+          {metrics.loading ? (
+            <SkeletonLoader height={140} />
+          ) : (
+            <>
+              <View style={styles.chart}>
+                {tssWeeks.map((w, i) => {
+                  const isCurrent = i === tssWeeks.length - 1;
+                  const h = Math.max(4, (w.tss / maxTss) * 120);
+                  return (
+                    <Pressable
+                      key={w.week_start}
+                      style={styles.barCol}
+                      onPress={() => setSelectedWeek(selectedWeek === i ? null : i)}
+                    >
+                      {selectedWeek === i ? (
+                        <Text variant="caption" color={colors.textPrimary} style={styles.barValue}>
+                          {Math.round(w.tss)}
+                        </Text>
+                      ) : null}
+                      <View
+                        style={[
+                          styles.bar,
+                          { height: h, backgroundColor: isCurrent ? palette.slate800 : palette.slate200 },
+                        ]}
+                      />
+                      <Text variant="caption" color={palette.slate400} style={styles.barLabel}>
+                        {w.week_start.slice(5)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </>
+          )}
+        </Card>
+
+        {/* Personal records */}
+        <View style={styles.section}>
+          <SectionHeader title="PERSONAL RECORDS" />
+          {prs.loading ? (
+            <SkeletonLoader height={90} borderRadius={radius.md} />
+          ) : prs.records.length === 0 ? (
+            <Text variant="caption">No records yet.</Text>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.prScroll}>
+              {goldRecord ? (
+                <View style={[styles.prCard, styles.goldCard]}>
+                  <Text variant="statMd" color={palette.amber600}>
+                    {goldRecord.value}
+                    <Text variant="caption" color={palette.amber600}>
+                      {' '}
+                      {goldRecord.unit === 'watts' ? 'W' : goldRecord.unit}
+                    </Text>
+                  </Text>
+                  <Text variant="caption">{RECORD_LABELS[goldRecord.record_type] ?? goldRecord.record_type}</Text>
+                </View>
+              ) : null}
+              {otherRecords.map((r) => (
+                <Card key={r.record_type} variant="default" style={styles.prCard}>
+                  <Text variant="statMd" color={colors.textPrimary}>
+                    {r.value}
+                    <Text variant="caption" color={colors.textSecondary}>
+                      {' '}
+                      {r.unit === 'watts' ? 'W' : r.unit}
+                    </Text>
+                  </Text>
+                  <Text variant="caption">{RECORD_LABELS[r.record_type] ?? r.record_type}</Text>
+                </Card>
+              ))}
+            </ScrollView>
           )}
         </View>
 
-        {/* SECTION 1 — fitness overview */}
-        {metrics.loading ? (
-          <Skeleton height={100} />
-        ) : (
-          <View style={styles.metricRow}>
-            <MetricCard
-              label="Fitness (CTL)"
-              value={current?.ctl ?? 0}
-              sub={`${trendArrow(current?.ctl, prior4?.ctl)} 4 weeks`}
-              color={lightColors.fitness}
-            />
-            <MetricCard
-              label="Fatigue (ATL)"
-              value={current?.atl ?? 0}
-              sub="last 7 days"
-              color="#F5A623"
-            />
-            <MetricCard
-              label="Form (TSB)"
-              value={current?.tsb ?? 0}
-              sub={status.label}
-              color={status.color}
-            />
+        {/* AI coach */}
+        <Card variant="raised">
+          <View style={styles.coachHeader}>
+            <Text style={styles.coachIcon}>🤖</Text>
+            <View style={styles.flex}>
+              <Text variant="label">AI COACH</Text>
+            </View>
+            {week.analysis ? (
+              <AIAnalysisBadge
+                isCached={!!week.analysis._cached}
+                generatedAt={week.analysis._generated_at}
+                onRefresh={week.regenerate}
+              />
+            ) : null}
           </View>
-        )}
-
-        {/* SECTION 2 — power profile */}
-        <Text style={styles.sectionHeading}>Power profile</Text>
-        {ftp.loading ? (
-          <Skeleton height={90} />
-        ) : (
-          <View style={styles.powerRow}>
-            <TouchableOpacity
-              style={styles.powerCard}
-              activeOpacity={0.8}
-              onPress={() => setShowFtpChart((v) => !v)}
-            >
-              <Text style={styles.powerLabel}>FTP</Text>
-              <Text style={styles.powerValue}>{ftp.ftp?.ftp_watts ?? '—'} W</Text>
-              <Text style={styles.powerSub}>
-                {wkg != null ? `${wkg} W/kg` : 'W/kg —'}
-              </Text>
-              <View style={styles.catBadge}>
-                <Text style={styles.catBadgeText}>{riderCategory(wkg)}</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.powerCard}
-              activeOpacity={0.8}
-              onPress={() => Alert.alert("W'", "W' is your anaerobic battery. Set it during the FTP test.")}
-            >
-              <Text style={styles.powerLabel}>W'</Text>
-              <Text style={styles.powerValue}>
-                {(profile.profile?.w_prime_total ?? 20000) / 1000} kJ
-              </Text>
-              <Text style={styles.powerSub}>anaerobic capacity</Text>
-            </TouchableOpacity>
+          <Text variant="body" color={colors.textPrimary} style={styles.coachText}>
+            {week.analysis?.summary ?? 'Sync your rides to get coach analysis.'}
+          </Text>
+          {week.analysis?.warning ? (
+            <Text variant="caption" color={palette.rose600} style={styles.coachWarn}>
+              ⚠︎ {week.analysis.warning}
+            </Text>
+          ) : null}
+          {!recs.loading && recs.recommendations.length ? (
+            <View style={styles.chipRow}>
+              {recs.recommendations.map((r, i) => (
+                <Pressable key={i} style={styles.chip} onPress={() => Alert.alert(r.action_cta, r.message)}>
+                  <Text variant="caption" color={palette.indigo600} style={styles.bold}>
+                    {r.action_cta}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+          <View style={styles.coachActions}>
+            <Button label="Full analysis →" variant="ghost" size="sm" onPress={() => navigation.navigate('AIReport')} />
           </View>
-        )}
-        {showFtpChart && ftp.history.length ? (
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>FTP HISTORY</Text>
-            <FTPChart history={ftp.history} />
-          </View>
-        ) : null}
+        </Card>
 
-        {/* SECTION 3 — power duration curve */}
-        <Text style={styles.sectionHeading}>Power curve</Text>
-        <View style={styles.card}>
+        {/* Power curve (retained analytics) */}
+        <Card variant="default">
+          <SectionHeader title="POWER CURVE" />
           <View style={styles.toggleRow}>
             {(['alltime', '90d', '30d'] as const).map((r) => (
-              <TouchableOpacity
+              <Pressable
                 key={r}
                 style={[styles.toggle, pdcRange === r && styles.toggleActive]}
                 onPress={() => setPdcRange(r)}
               >
-                <Text style={[styles.toggleText, pdcRange === r && styles.toggleTextActive]}>
+                <Text
+                  variant="caption"
+                  color={pdcRange === r ? '#FFFFFF' : colors.textSecondary}
+                  style={styles.bold}
+                >
                   {r === 'alltime' ? 'All' : r === '90d' ? '90 days' : '30 days'}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
           {pdc.loading ? (
-            <Skeleton height={200} />
+            <SkeletonLoader height={200} />
           ) : (
             <PowerCurveChart
               width={chartWidth}
@@ -242,233 +335,71 @@ export default function ProgressScreen() {
               typeLabel={rider.profile && rider.profile.rider_type !== 'unknown' ? rider.profile.label : undefined}
             />
           )}
-        </View>
+        </Card>
 
-        {/* SECTION 4 — AI coach */}
-        <Text style={styles.sectionHeading}>AI coach</Text>
-        {week.loading ? (
-          <Skeleton height={120} />
-        ) : (
-          <View style={styles.card}>
-            <View style={styles.coachHeader}>
-              <Text style={styles.coachAvatar}>🧠</Text>
-              <Text style={styles.coachTitle}>Weekly analysis</Text>
-            </View>
-            {week.analysis ? (
-              <View style={{ marginBottom: spacing.sm }}>
-                <AIAnalysisBadge
-                  isCached={!!week.analysis._cached}
-                  generatedAt={week.analysis._generated_at}
-                  onRefresh={week.regenerate}
-                />
-              </View>
-            ) : null}
-            <Text style={styles.coachText}>
-              {week.analysis?.summary ?? 'Sync your rides to get coach analysis.'}
-            </Text>
-            {week.analysis?.warning ? (
-              <Text style={styles.coachWarning}>⚠︎ {week.analysis.warning}</Text>
-            ) : null}
-
-            {!recs.loading && recs.recommendations.length ? (
-              <View style={styles.chipRow}>
-                {recs.recommendations.map((r, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    style={styles.chip}
-                    onPress={() => Alert.alert(r.action_cta, r.message)}
-                  >
-                    <Text style={styles.chipText}>{r.action_cta}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : null}
-
-            <TouchableOpacity style={styles.coachButton} onPress={() => navigation.navigate('AIReport')}>
-              <Text style={styles.coachButtonText}>Get full analysis</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* SECTION 5 — personal records */}
-        <Text style={styles.sectionHeading}>Personal records</Text>
-        <View style={styles.prSortRow}>
-          {(['recent', 'duration', 'alltime'] as const).map((s) => (
-            <TouchableOpacity
-              key={s}
-              style={[styles.sortChip, prSort === s && styles.sortChipActive]}
-              onPress={() => setPrSort(s)}
-            >
-              <Text style={[styles.sortChipText, prSort === s && styles.sortChipTextActive]}>
-                {s === 'recent' ? 'Recent' : s === 'duration' ? 'By duration' : 'All time'}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        {prs.loading ? (
-          <Skeleton height={100} />
-        ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.prScroll}>
-            {sortedPrs.map((r, i) => (
-              <RecordCard key={r.record_type} record={r} medal={prSort === 'alltime' ? i : -1} />
-            ))}
-            {sortedPrs.length === 0 ? <Text style={styles.muted}>No records yet.</Text> : null}
-          </ScrollView>
-        )}
-
-        {/* BOTTOM CTA */}
-        <View style={styles.ctaBlock}>
+        {/* Bottom CTAs */}
+        <View style={styles.cta}>
           {ftpStale ? (
-            <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('FTPTestWizard')}>
-              <Text style={styles.primaryButtonText}>Start FTP test</Text>
-            </TouchableOpacity>
+            <Button label="Start FTP test" variant="primary" size="lg" onPress={() => navigation.navigate('FTPTestWizard')} />
           ) : null}
-          <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate('Periodization')}>
-            <Text style={styles.secondaryButtonText}>View periodization →</Text>
-          </TouchableOpacity>
+          <Button label="View periodization →" variant="ghost" onPress={() => navigation.navigate('Periodization')} />
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function MetricCard({ label, value, sub, color }: { label: string; value: number; sub: string; color: string }) {
-  return (
-    <View style={styles.metricCard}>
-      <Text style={styles.metricLabel}>{label}</Text>
-      <AnimatedNumber value={value} style={[styles.metricValue, { color }]} />
-      <Text style={styles.metricSub}>{sub}</Text>
-    </View>
-  );
-}
-
-const MEDALS = ['#E0A106', '#9CA3AF', '#B06B3A'];
-const RECORD_LABELS: Record<string, string> = {
-  best_5min_power: '5 min',
-  best_20min_power: '20 min',
-  best_60min_power: '1 hr',
-  longest_ride_km: 'Longest',
-  most_elevation_m: 'Climb',
-};
-
-function RecordCard({ record, medal }: { record: PersonalRecord; medal: number }) {
-  const unit = record.unit === 'watts' ? 'W' : record.unit;
-  const medalColor = medal >= 0 && medal < 3 ? MEDALS[medal] : null;
-  return (
-    <View style={[styles.prCard, medalColor ? { borderColor: medalColor, borderWidth: 2 } : null]}>
-      {medalColor ? <Text style={[styles.medal, { color: medalColor }]}>●</Text> : null}
-      <Text style={styles.prValue}>
-        {record.value} {unit}
-      </Text>
-      <Text style={styles.prLabel}>{RECORD_LABELS[record.record_type] ?? record.record_type}</Text>
-    </View>
-  );
-}
-
-function sortRecords(records: PersonalRecord[], mode: 'recent' | 'duration' | 'alltime'): PersonalRecord[] {
-  const copy = [...records];
-  if (mode === 'recent') {
-    return copy.sort((a, b) => String(b.achieved_date).localeCompare(String(a.achieved_date)));
-  }
-  if (mode === 'duration') {
-    const order = ['best_5min_power', 'best_20min_power', 'best_60min_power', 'longest_ride_km', 'most_elevation_m'];
-    return copy.sort((a, b) => order.indexOf(a.record_type) - order.indexOf(b.record_type));
-  }
-  return copy.sort((a, b) => b.value - a.value);
-}
-
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: lightColors.background },
-  container: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl },
-  muted: { color: lightColors.textMuted, fontSize: fontSize.sm },
-  skeleton: { backgroundColor: lightColors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: lightColors.border },
+  safe: { flex: 1 },
+  container: { padding: spacing[5], gap: spacing[4], paddingBottom: spacing[10] },
+  flex: { flex: 1 },
+  bold: { fontWeight: '700' },
 
-  header: { gap: spacing.sm },
-  greeting: { color: lightColors.text, fontSize: fontSize.lg, fontWeight: '700', lineHeight: 26 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  statusBadge: { borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: 6 },
-  statusBadgeText: { color: '#fff', fontWeight: '800', fontSize: fontSize.sm },
-  tsbBox: { alignItems: 'flex-end' },
-  tsbLabel: { color: lightColors.textMuted, fontSize: 11, fontWeight: '700' },
-  tsbValue: { fontSize: fontSize.xl, fontWeight: '800' },
+  syncPill: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  dot: { width: 7, height: 7, borderRadius: radius.full },
 
-  metricRow: { flexDirection: 'row', gap: spacing.sm },
-  metricCard: {
-    flex: 1,
-    backgroundColor: lightColors.surface,
+  ftpHeroRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  ftpValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing[1] },
+  ftpUnit: { marginBottom: 2 },
+  ftpRight: { alignItems: 'flex-end', gap: 2 },
+  catBadge: { marginTop: spacing[2] },
+  ftpChip: { marginTop: spacing[3], fontWeight: '600' },
+
+  triad: { flexDirection: 'row', gap: spacing[2] },
+  triadCard: { flex: 1, padding: spacing[4] },
+  tsbWrap: { gap: spacing[1] },
+
+  chart: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 160, paddingTop: spacing[4] },
+  barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: spacing[1] },
+  bar: { width: '60%', borderRadius: radius.xs },
+  barValue: { fontWeight: '700' },
+  barLabel: { fontSize: 10 },
+
+  section: { gap: spacing[3] },
+  prScroll: { gap: spacing[3], paddingVertical: spacing[1] },
+  prCard: { minWidth: 130, gap: spacing[1] },
+  goldCard: {
+    minWidth: 130,
+    gap: spacing[1],
+    backgroundColor: palette.amber50,
+    borderLeftColor: palette.amber600,
+    borderLeftWidth: 3,
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: lightColors.border,
-    padding: spacing.md,
+    padding: 16,
   },
-  metricLabel: { color: lightColors.textMuted, fontSize: 11, fontWeight: '700' },
-  metricValue: { fontSize: 30, fontWeight: '800', padding: 0, marginVertical: 2 },
-  metricSub: { color: lightColors.textMuted, fontSize: 11 },
 
-  sectionHeading: { color: lightColors.text, fontSize: fontSize.lg, fontWeight: '700', marginTop: spacing.sm },
+  coachHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3] },
+  coachIcon: { fontSize: 20 },
+  coachText: { lineHeight: 23 },
+  coachWarn: { marginTop: spacing[2] },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[3] },
+  chip: { backgroundColor: palette.indigo50, borderRadius: radius.full, paddingHorizontal: spacing[3], paddingVertical: 6 },
+  coachActions: { alignItems: 'flex-end', marginTop: spacing[2] },
 
-  powerRow: { flexDirection: 'row', gap: spacing.sm },
-  powerCard: {
-    flex: 1,
-    backgroundColor: lightColors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: lightColors.border,
-    padding: spacing.md,
-  },
-  powerLabel: { color: lightColors.textMuted, fontSize: 11, fontWeight: '700' },
-  powerValue: { color: lightColors.text, fontSize: fontSize.xl, fontWeight: '800', marginTop: 2 },
-  powerSub: { color: lightColors.textMuted, fontSize: fontSize.sm },
-  catBadge: { alignSelf: 'flex-start', backgroundColor: lightColors.background, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 2, marginTop: spacing.sm },
-  catBadgeText: { color: lightColors.primary, fontSize: 11, fontWeight: '700' },
+  toggleRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[3] },
+  toggle: { flex: 1, paddingVertical: 6, borderRadius: radius.full, borderWidth: 1, borderColor: palette.slate200, alignItems: 'center' },
+  toggleActive: { backgroundColor: palette.slate900, borderColor: palette.slate900 },
 
-  card: {
-    backgroundColor: lightColors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: lightColors.border,
-    padding: spacing.lg,
-  },
-  cardLabel: { color: lightColors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: spacing.sm },
-
-  toggleRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
-  toggle: { flex: 1, paddingVertical: 6, borderRadius: radius.pill, borderWidth: 1, borderColor: lightColors.border, alignItems: 'center' },
-  toggleActive: { backgroundColor: lightColors.primary, borderColor: lightColors.primary },
-  toggleText: { color: lightColors.textMuted, fontSize: fontSize.sm, fontWeight: '700' },
-  toggleTextActive: { color: '#fff' },
-
-  coachHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
-  coachAvatar: { fontSize: 24 },
-  coachTitle: { color: lightColors.text, fontSize: fontSize.md, fontWeight: '700' },
-  coachText: { color: lightColors.text, fontSize: fontSize.md, lineHeight: 22 },
-  coachWarning: { color: lightColors.fatigue, fontSize: fontSize.sm, marginTop: spacing.sm },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
-  chip: { backgroundColor: lightColors.background, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: 6, borderWidth: 1, borderColor: lightColors.border },
-  chipText: { color: lightColors.primary, fontSize: fontSize.sm, fontWeight: '600' },
-  coachButton: { backgroundColor: lightColors.primary, borderRadius: radius.md, paddingVertical: 14, alignItems: 'center', marginTop: spacing.md },
-  coachButtonText: { color: '#fff', fontSize: fontSize.md, fontWeight: '700' },
-
-  prSortRow: { flexDirection: 'row', gap: spacing.sm },
-  sortChip: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.pill, borderWidth: 1, borderColor: lightColors.border },
-  sortChipActive: { backgroundColor: lightColors.text, borderColor: lightColors.text },
-  sortChipText: { color: lightColors.textMuted, fontSize: fontSize.sm, fontWeight: '600' },
-  sortChipTextActive: { color: '#fff' },
-  prScroll: { gap: spacing.sm, paddingVertical: spacing.xs },
-  prCard: {
-    width: 110,
-    backgroundColor: lightColors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: lightColors.border,
-    padding: spacing.md,
-  },
-  medal: { fontSize: 14, position: 'absolute', top: spacing.sm, right: spacing.sm },
-  prValue: { color: lightColors.text, fontSize: fontSize.lg, fontWeight: '800' },
-  prLabel: { color: lightColors.textMuted, fontSize: fontSize.sm, marginTop: 2 },
-
-  ctaBlock: { marginTop: spacing.md, gap: spacing.sm },
-  primaryButton: { backgroundColor: lightColors.primary, borderRadius: radius.md, paddingVertical: 16, alignItems: 'center' },
-  primaryButtonText: { color: '#fff', fontSize: fontSize.md, fontWeight: '700' },
-  secondaryButton: { paddingVertical: 14, alignItems: 'center' },
-  secondaryButtonText: { color: lightColors.primary, fontSize: fontSize.md, fontWeight: '600' },
+  cta: { marginTop: spacing[2], gap: spacing[2] },
 });

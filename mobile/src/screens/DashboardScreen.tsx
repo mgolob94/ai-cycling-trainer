@@ -1,41 +1,65 @@
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  RefreshControl,
-} from 'react-native';
 import { useCallback, useEffect, useState } from 'react';
+import { View, ScrollView, StyleSheet, RefreshControl, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useTrainingPlan, type Ride, type Workout } from '../hooks/useTrainingPlan';
 import { useSyncStatus } from '../hooks/useSyncStatus';
+import { useWeeklyMetrics } from '../hooks/useWeeklyMetrics';
 import SyncIndicator from '../components/SyncIndicator';
 import {
   shouldShowStravaPrompt,
   dismissStravaPrompt,
   clearStravaSkipped,
 } from '../services/stravaOnboarding';
+import { Text, Card, Badge, StatCard, SectionHeader } from '../components/ui';
+import { palette, spacing, radius } from '../theme/tokens';
+import { useThemeColors } from '../theme/useThemeColors';
 import type { AppStackParamList } from '../navigation/types';
-import { colors, spacing, radius, fontSize } from '../theme';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Dashboard'>;
 
-/** Map a workout intensity to a color for the badge / accent bar. */
+type BadgeColor = 'emerald' | 'indigo' | 'amber' | 'rose';
+
+function formStatus(tsb: number): { label: string; color: BadgeColor } {
+  if (tsb >= 15) return { label: 'Fresh', color: 'emerald' };
+  if (tsb >= 5) return { label: 'Optimal', color: 'indigo' };
+  if (tsb >= -10) return { label: 'Tired', color: 'amber' };
+  return { label: 'Overreached', color: 'rose' };
+}
+
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning,';
+  if (h < 18) return 'Good afternoon,';
+  return 'Good evening,';
+}
+
+// Workout intensity → representative zone color.
 function intensityColor(intensity: string): string {
   switch (intensity?.toLowerCase()) {
     case 'easy':
-      return colors.accent;
+      return '#60A5FA'; // Z2
     case 'moderate':
-      return '#F5A623';
+      return '#34D399'; // Z3
     case 'hard':
-      return colors.danger;
+      return '#F97316'; // Z5
     default:
-      return colors.textMuted;
+      return palette.slate200;
+  }
+}
+
+function intensityBadgeColor(intensity: string): BadgeColor | 'sky' {
+  switch (intensity?.toLowerCase()) {
+    case 'easy':
+      return 'sky';
+    case 'moderate':
+      return 'emerald';
+    case 'hard':
+      return 'amber';
+    default:
+      return 'indigo';
   }
 }
 
@@ -46,78 +70,52 @@ function formatDuration(seconds: number | null): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-function LastRideCard({ ride, onPress }: { ride: Ride; onPress: () => void }) {
-  return (
-    <TouchableOpacity style={styles.card} activeOpacity={0.7} onPress={onPress}>
-      <Text style={styles.cardLabel}>LAST RIDE</Text>
-      <Text style={styles.cardDate}>{ride.ride_date ?? ''}</Text>
-      <View style={styles.statsRow}>
-        <Stat label="Distance" value={ride.distance_km != null ? `${ride.distance_km.toFixed(1)} km` : '—'} />
-        <Stat label="Duration" value={formatDuration(ride.duration_sec)} />
-        <Stat label="Avg power" value={ride.avg_power_w != null ? `${Math.round(ride.avg_power_w)} W` : '—'} />
-      </View>
-      <Text style={styles.tapHint}>Tap for AI analysis →</Text>
-    </TouchableOpacity>
-  );
-}
+const todayWeekday = new Date().toLocaleDateString('en-US', { weekday: 'long' });
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function WorkoutCard({ workout }: { workout: Workout }) {
+function WorkoutRow({ workout, isToday }: { workout: Workout; isToday: boolean }) {
   const color = intensityColor(workout.intensity);
   return (
-    <View style={styles.workoutCard}>
-      <View style={[styles.intensityBar, { backgroundColor: color }]} />
+    <Card variant={isToday ? 'raised' : 'tinted'} padding={0} style={styles.workoutCard}>
+      <View style={[styles.workoutBar, { backgroundColor: isToday ? palette.slate900 : color, width: isToday ? 4 : 3 }]} />
       <View style={styles.workoutBody}>
-        <View style={styles.workoutHeader}>
-          <Text style={styles.workoutDay}>{workout.day}</Text>
-          <View style={[styles.intensityBadge, { backgroundColor: color }]}>
-            <Text style={styles.intensityBadgeText}>{workout.intensity}</Text>
-          </View>
+        <View style={styles.workoutText}>
+          <Text variant="body" style={styles.workoutName}>
+            {workout.day}
+          </Text>
+          <Text variant="caption">
+            {workout.type} · {workout.duration_min} min
+          </Text>
         </View>
-        <Text style={styles.workoutType}>
-          {workout.type} · {workout.duration_min} min
-        </Text>
-        {workout.description ? (
-          <Text style={styles.workoutDescription}>{workout.description}</Text>
-        ) : null}
+        <Badge label={workout.intensity} color={intensityBadgeColor(workout.intensity)} />
       </View>
-    </View>
+    </Card>
   );
 }
 
 export default function DashboardScreen({ navigation }: Props) {
-  const { name, lastRide, plan, loading, generating, error, refresh, generatePlan } =
-    useTrainingPlan();
+  const { colors } = useThemeColors();
+  const { name, lastRide, plan, loading, error, refresh } = useTrainingPlan();
+  const { weeks } = useWeeklyMetrics();
   const {
     connected,
     isSyncing,
     isInitialSyncing,
     progressPercent,
+    lastSyncAt,
     newActivitiesAvailable,
     syncError,
     acknowledge,
   } = useSyncStatus();
+
   const [bannerVisible, setBannerVisible] = useState(false);
   const [showSkipPrompt, setShowSkipPrompt] = useState(false);
 
-  // Refetch whenever the dashboard comes into focus (e.g. after syncing rides
-  // or connecting Strava on another screen).
   useFocusEffect(
     useCallback(() => {
       refresh();
     }, [refresh])
   );
 
-  // "Connect Strava" reminder for users who skipped onboarding. Once Strava is
-  // actually connected, clear the skip flag so the reminder never returns.
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -136,13 +134,6 @@ export default function DashboardScreen({ navigation }: Props) {
     }, [connected])
   );
 
-  const handleDismissSkip = useCallback(() => {
-    setShowSkipPrompt(false);
-    dismissStravaPrompt();
-  }, []);
-
-  // Surface a banner when a new ride lands while the user is here; auto-dismiss
-  // after 10s. The icon's badge dot stays until the data is actually reloaded.
   useEffect(() => {
     if (!newActivitiesAvailable) {
       setBannerVisible(false);
@@ -159,20 +150,35 @@ export default function DashboardScreen({ navigation }: Props) {
     refresh();
   }, [acknowledge, refresh]);
 
+  const handleDismissSkip = useCallback(() => {
+    setShowSkipPrompt(false);
+    dismissStravaPrompt();
+  }, []);
+
   const workouts = plan?.plan_json?.workouts ?? [];
+  const latest = weeks.length ? weeks[weeks.length - 1] : null;
+  const tsb = latest?.tsb ?? 0;
+  const ctl = latest?.ctl ?? 0;
+  const atl = latest?.atl ?? 0;
+  const status = formStatus(tsb);
+  const initials = (name || '?').trim().slice(0, 2).toUpperCase();
+
+  const staleSync =
+    connected && !isSyncing && (!lastSyncAt || Date.now() - new Date(lastSyncAt).getTime() > 24 * 3600 * 1000);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.container}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
-        }
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={palette.slate400} />}
       >
+        {/* Header */}
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.name}>{name || '…'}</Text>
+            <Text variant="caption">{greeting()}</Text>
+            <Text variant="heading2" color={colors.textPrimary}>
+              {name || '…'}
+            </Text>
           </View>
           <View style={styles.headerActions}>
             <SyncIndicator
@@ -181,191 +187,203 @@ export default function DashboardScreen({ navigation }: Props) {
               syncError={!!syncError}
               onPress={() => navigation.navigate('StravaConnect')}
             />
-            <TouchableOpacity onPress={() => navigation.navigate('Profile')} hitSlop={8}>
-              <Text style={styles.headerLink}>Profile</Text>
-            </TouchableOpacity>
+            <Pressable style={styles.avatar} onPress={() => navigation.navigate('Profile')} hitSlop={8}>
+              <Text variant="label" color="#FFFFFF" style={styles.avatarText}>
+                {initials}
+              </Text>
+            </Pressable>
           </View>
         </View>
 
+        {/* Banners (one at a time, by precedence) */}
         {isInitialSyncing ? (
-          <View style={styles.banner}>
-            <Text style={styles.bannerText}>
+          <Card variant="tinted" style={styles.banner}>
+            <Text variant="caption" color={colors.textPrimary}>
               Importing activities ({Math.round(progressPercent)}%)…
             </Text>
-            <ActivityIndicator color={colors.primary} />
-          </View>
+          </Card>
         ) : bannerVisible ? (
-          <TouchableOpacity style={styles.banner} activeOpacity={0.8} onPress={handleBannerRefresh}>
-            <Text style={styles.bannerText}>New activity synced</Text>
-            <Text style={styles.bannerAction}>Refresh</Text>
-          </TouchableOpacity>
+          <Pressable onPress={handleBannerRefresh}>
+            <Card variant="tinted" style={styles.bannerRow}>
+              <Text variant="caption" color={colors.textPrimary}>
+                New activity synced
+              </Text>
+              <Text variant="caption" color={palette.indigo600} style={styles.bold}>
+                Refresh
+              </Text>
+            </Card>
+          </Pressable>
         ) : showSkipPrompt ? (
-          <View style={styles.banner}>
-            <Text style={[styles.bannerText, styles.bannerTextFlex]}>
+          <Card variant="tinted" style={styles.bannerRow}>
+            <Text variant="caption" color={colors.textPrimary} style={styles.flex}>
               Connect Strava for more accurate training
             </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('StravaConnect')} hitSlop={8}>
-              <Text style={styles.bannerAction}>Connect</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleDismissSkip} hitSlop={10}>
-              <Text style={styles.bannerDismiss}>✕</Text>
-            </TouchableOpacity>
+            <Pressable onPress={() => navigation.navigate('StravaConnect')} hitSlop={8}>
+              <Text variant="caption" color={palette.indigo600} style={styles.bold}>
+                Connect
+              </Text>
+            </Pressable>
+            <Pressable onPress={handleDismissSkip} hitSlop={10}>
+              <Text variant="caption" color={palette.slate400} style={styles.dismiss}>
+                ✕
+              </Text>
+            </Pressable>
+          </Card>
+        ) : null}
+
+        {error ? (
+          <Text variant="caption" color={palette.rose600}>
+            {error}
+          </Text>
+        ) : null}
+
+        {/* Hero — form today */}
+        <Card variant="dark" padding={20} style={styles.hero}>
+          <View style={styles.heroTop}>
+            <Text variant="label" color={palette.slate400}>
+              FORM TODAY
+            </Text>
+            <Badge label={status.label} color={status.color} />
+          </View>
+          <Text variant="stat" color="#FFFFFF">
+            {tsb > 0 ? `+${Math.round(tsb)}` : Math.round(tsb)}
+          </Text>
+          <Text variant="caption" color={palette.slate400}>
+            Ready to train
+          </Text>
+          <View style={styles.heroStats}>
+            {[
+              { label: 'CTL', value: Math.round(ctl) },
+              { label: 'ATL', value: Math.round(atl) },
+              { label: 'TSB', value: Math.round(tsb) },
+            ].map((s) => (
+              <View key={s.label} style={styles.heroStat}>
+                <Text variant="statSm" color="#FFFFFF">
+                  {s.value}
+                </Text>
+                <Text variant="label" color={palette.slate400}>
+                  {s.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </Card>
+
+        {/* This week */}
+        <View style={styles.section}>
+          <SectionHeader
+            title="THIS WEEK"
+            action={{ label: 'All workouts →', onPress: () => navigation.navigate('TrainingPlan') }}
+          />
+          {workouts.length ? (
+            <View style={styles.workoutList}>
+              {workouts.map((w, i) => (
+                <WorkoutRow key={`${w.day}-${i}`} workout={w} isToday={w.day === todayWeekday} />
+              ))}
+            </View>
+          ) : (
+            <Text variant="caption">No plan yet — generate one from your recent rides.</Text>
+          )}
+        </View>
+
+        {/* Last ride */}
+        {lastRide ? (
+          <View style={styles.section}>
+            <SectionHeader title="LAST RIDE" />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statScroll}>
+              <Card variant="default" style={styles.statBox}>
+                <StatCard
+                  size="md"
+                  value={lastRide.distance_km != null ? lastRide.distance_km.toFixed(1) : '—'}
+                  unit="km"
+                  label="Distance"
+                />
+              </Card>
+              <Card variant="default" style={styles.statBox}>
+                <StatCard
+                  size="md"
+                  value={lastRide.avg_power_w != null ? Math.round(lastRide.avg_power_w) : '—'}
+                  unit="W"
+                  label="Power"
+                />
+              </Card>
+              <Card variant="default" style={styles.statBox}>
+                <StatCard size="md" value={formatDuration(lastRide.duration_sec)} label="Duration" />
+              </Card>
+            </ScrollView>
+            <Pressable
+              onPress={() => navigation.navigate('RideDetail', { stravaId: (lastRide as Ride).strava_id })}
+              hitSlop={6}
+            >
+              <Text variant="caption" color={palette.indigo600} style={styles.bold}>
+                View analysis →
+              </Text>
+            </Pressable>
           </View>
         ) : null}
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        {lastRide ? (
-          <LastRideCard
-            ride={lastRide}
-            onPress={() => navigation.navigate('RideDetail', { stravaId: lastRide.strava_id })}
-          />
-        ) : (
-          <TouchableOpacity
-            style={styles.emptyCard}
-            onPress={() => navigation.navigate('StravaConnect')}
-          >
-            <Text style={styles.emptyTitle}>No rides yet</Text>
-            <Text style={styles.mutedText}>Connect Strava and sync to see your rides.</Text>
-          </TouchableOpacity>
-        )}
-
-        <View style={styles.planHeader}>
-          <Text style={styles.sectionTitle}>This week's plan</Text>
-          {plan?.plan_json?.summary ? (
-            <Text style={styles.mutedText}>{plan.plan_json.summary}</Text>
-          ) : null}
-        </View>
-
-        {loading && !plan ? (
-          <ActivityIndicator color={colors.primary} style={styles.loader} />
-        ) : workouts.length > 0 ? (
-          workouts.map((workout, index) => (
-            <WorkoutCard key={`${workout.day}-${index}`} workout={workout} />
-          ))
-        ) : (
-          <Text style={styles.mutedText}>
-            No plan yet. Generate one based on your recent rides.
-          </Text>
-        )}
-
-        <TouchableOpacity
-          style={[styles.primaryButton, generating && styles.buttonDisabled]}
-          activeOpacity={0.85}
-          disabled={generating}
-          onPress={generatePlan}
-        >
-          {generating ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.primaryButtonText}>
-              {plan ? 'Generate new plan' : 'Generate plan'}
-            </Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          activeOpacity={0.7}
-          onPress={() => navigation.navigate('Progress')}
-        >
-          <Text style={styles.secondaryButtonText}>View progress & records</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          activeOpacity={0.7}
-          onPress={() => navigation.navigate('Periodization')}
-        >
-          <Text style={styles.secondaryButtonText}>Season plan structure</Text>
-        </TouchableOpacity>
+        {/* Stale-sync nudge */}
+        {staleSync ? (
+          <Pressable onPress={() => navigation.navigate('StravaConnect')}>
+            <Card variant="tinted" style={styles.bannerRow}>
+              <Text variant="caption">Last sync over 24h ago</Text>
+              <Text variant="caption" color={palette.indigo600} style={styles.bold}>
+                Sync Strava
+              </Text>
+            </Card>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  container: { padding: spacing.lg, paddingBottom: spacing.xl, gap: spacing.md },
+  safe: { flex: 1 },
+  container: { padding: spacing[5], paddingBottom: spacing[10], gap: spacing[5] },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.xs },
-  greeting: { color: colors.textMuted, fontSize: fontSize.md },
-  name: { color: colors.text, fontSize: fontSize.xxl, fontWeight: '800' },
-  headerLink: { color: colors.primary, fontSize: fontSize.md, fontWeight: '600' },
-  error: { color: colors.danger, fontSize: fontSize.sm },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginTop: spacing[1] },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.full,
+    backgroundColor: palette.slate800,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { letterSpacing: 0 },
 
-  banner: {
+  banner: { paddingVertical: spacing[3] },
+  bannerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(252,76,2,0.12)',
-    borderColor: colors.primary,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingVertical: spacing[3],
+    gap: spacing[2],
   },
-  bannerText: { color: colors.text, fontSize: fontSize.sm, fontWeight: '600' },
-  bannerTextFlex: { flex: 1, marginRight: spacing.sm },
-  bannerAction: { color: colors.primary, fontSize: fontSize.sm, fontWeight: '800' },
-  bannerDismiss: { color: colors.textMuted, fontSize: fontSize.md, fontWeight: '700', marginLeft: spacing.md },
+  flex: { flex: 1 },
+  bold: { fontWeight: '700' },
+  dismiss: { fontWeight: '700' },
 
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cardLabel: { color: colors.accent, fontSize: fontSize.sm, fontWeight: '700', letterSpacing: 1 },
-  cardDate: { color: colors.textMuted, fontSize: fontSize.sm, marginTop: 2 },
-  tapHint: { color: colors.primary, fontSize: fontSize.sm, fontWeight: '600', marginTop: spacing.sm },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.md },
-  stat: { alignItems: 'flex-start' },
-  statValue: { color: colors.text, fontSize: fontSize.lg, fontWeight: '700' },
-  statLabel: { color: colors.textMuted, fontSize: fontSize.sm, marginTop: 2 },
+  hero: { gap: spacing[1] },
+  heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[2] },
+  heroStats: { flexDirection: 'row', marginTop: spacing[4], borderTopWidth: 1, borderTopColor: palette.slate800, paddingTop: spacing[3] },
+  heroStat: { flex: 1, gap: 2 },
 
-  emptyCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-  },
-  emptyTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: '700', marginBottom: 4 },
-
-  planHeader: { marginTop: spacing.sm, gap: 4 },
-  sectionTitle: { color: colors.text, fontSize: fontSize.lg, fontWeight: '700' },
-  mutedText: { color: colors.textMuted, fontSize: fontSize.md, lineHeight: 22 },
-  loader: { marginVertical: spacing.lg },
-
-  workoutCard: {
+  section: { gap: spacing[3] },
+  workoutList: { gap: spacing[2] },
+  workoutCard: { flexDirection: 'row', overflow: 'hidden' },
+  workoutBar: {},
+  workoutBody: {
+    flex: 1,
     flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  intensityBar: { width: 5 },
-  workoutBody: { flex: 1, padding: spacing.md },
-  workoutHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  workoutDay: { color: colors.text, fontSize: fontSize.md, fontWeight: '700' },
-  intensityBadge: { borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 3 },
-  intensityBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700', textTransform: 'capitalize' },
-  workoutType: { color: colors.textMuted, fontSize: fontSize.sm, marginTop: 4, textTransform: 'capitalize' },
-  workoutDescription: { color: colors.text, fontSize: fontSize.sm, marginTop: spacing.sm, lineHeight: 20 },
-
-  primaryButton: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.md,
-    paddingVertical: 16,
     alignItems: 'center',
-    marginTop: spacing.md,
+    justifyContent: 'space-between',
+    padding: spacing[4],
   },
-  buttonDisabled: { opacity: 0.5 },
-  primaryButtonText: { color: '#fff', fontSize: fontSize.md, fontWeight: '700' },
-  secondaryButton: { paddingVertical: 14, alignItems: 'center', marginTop: spacing.sm },
-  secondaryButtonText: { color: colors.primary, fontSize: fontSize.md, fontWeight: '600' },
+  workoutText: { gap: 2, flex: 1 },
+  workoutName: { fontWeight: '600' },
+
+  statScroll: { gap: spacing[3], paddingRight: spacing[5] },
+  statBox: { minWidth: 120 },
 });
