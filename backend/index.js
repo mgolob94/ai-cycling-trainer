@@ -10,6 +10,7 @@ const syncRoutes = require('./src/routes/sync');
 const plansRoutes = require('./src/routes/plans');
 const ridesRoutes = require('./src/routes/rides');
 const ftpRoutes = require('./src/routes/ftp');
+const metricsRoutes = require('./src/routes/metrics');
 const usersRoutes = require('./src/routes/users');
 
 const app = express();
@@ -28,6 +29,7 @@ app.use('/sync', syncRoutes);
 app.use('/api/plans', plansRoutes);
 app.use('/api/rides', ridesRoutes);
 app.use('/ftp', ftpRoutes);
+app.use('/metrics', metricsRoutes);
 
 // Fallback 404 handler — keeps the standard response shape
 app.use((req, res) => {
