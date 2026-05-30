@@ -159,10 +159,14 @@ async function generateWeeklySummary(weeks) {
     {
       role: 'system',
       content:
-        'You are an encouraging, knowledgeable cycling coach. Given the athlete\'s recent ' +
-        'weekly training metrics (TSS, distance, elevation, ride count, and CTL/ATL/TSB), ' +
-        'write exactly two sentences: one summarizing the recent trend, one with specific, ' +
-        'actionable guidance for the coming week. Be motivating and concrete. Plain text only.',
+        'You are a knowledgeable cycling coach giving a quick insight (not a full report). ' +
+        'Given the athlete\'s recent weekly metrics (TSS, distance, elevation, ride count, ' +
+        'and CTL=fitness, ATL=fatigue, TSB=form), reply in exactly two sentences. ' +
+        'Sentence 1: state whether they are improving or overreaching, justified by the trend ' +
+        'in CTL/ATL/TSB (rising CTL with manageable ATL and not-too-negative TSB = improving; ' +
+        'sharply rising ATL with deeply negative TSB = overreaching). ' +
+        'Sentence 2: one specific, actionable recommendation for next week. ' +
+        'Be concise and concrete. Plain text only, no preamble.',
     },
     {
       role: 'user',
