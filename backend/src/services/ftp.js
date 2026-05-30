@@ -1,9 +1,13 @@
 const { supabaseAdmin } = require('../db/supabase');
 const pushNotifications = require('./pushNotifications');
+const pdc = require('./pdc');
 
 // Coggan method: FTP ≈ 95% of best 20-minute average power.
 const FTP_FACTOR = 0.95;
 const TWENTY_MIN_SEC = 20 * 60;
+// FTP reflects current fitness, so it's based on a rolling "season" window
+// rather than all-time; older efforts are used only as a stale fallback.
+const SEASON_DAYS = 365;
 
 /**
  * Find the best 20-minute power effort across a set of rides.
@@ -86,27 +90,38 @@ async function calculateAndStore(userId, rides, weightKg) {
   return { ...result, id: data.id };
 }
 
-/**
- * The exact all-time best 20-minute power for a user, taken from the
- * power-duration curve (computed from ride power streams). Returns
- * { power, date } or null.
- */
-async function getBest20MinFromCurve(userId) {
-  const { data } = await supabaseAdmin
-    .from('power_duration_bests')
-    .select('power_watts, achieved_date')
-    .eq('user_id', userId)
-    .eq('duration_sec', TWENTY_MIN_SEC)
-    .maybeSingle();
-  return data ? { power: data.power_watts, date: data.achieved_date } : null;
+/** Pull the 20-min entry out of a PDC array → { power, date } or null. */
+function pick20Min(pdcArray) {
+  const e = (pdcArray || []).find((x) => x.duration_sec === TWENTY_MIN_SEC);
+  return e && e.power_watts != null ? { power: e.power_watts, date: e.achieved_date } : null;
 }
 
 /**
- * Recompute FTP for a user from their ENTIRE ride history and store it.
- *
- * Uses the exact all-time best 20-minute effort from the power-duration curve;
- * if no curve data exists yet, falls back to the best whole-ride average power
- * across all rides (no time window). FTP ≈ 95% of that.
+ * The best 20-minute effort to base FTP on. Prefers the exact best within the
+ * rolling season window (last 365 days); if there's no power data that recent,
+ * falls back to the best ever and flags it stale. Returns { power, date, stale }
+ * or null.
+ */
+async function getBest20MinEffort(userId) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - SEASON_DAYS);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+
+  const inSeason = pick20Min(await pdc.computeFromRides(userId, cutoffStr));
+  if (inSeason) return { ...inSeason, stale: false };
+
+  const allTime = pick20Min(await pdc.computeFromRides(userId, null));
+  if (allTime) return { ...allTime, stale: true };
+
+  return null;
+}
+
+/**
+ * Recompute FTP for a user and store it. FTP ≈ 95% of the best 20-minute effort
+ * within the last 12 months (the exact effort from the power-duration curve).
+ * If there's no recent power data, falls back to the best-ever effort (flagged
+ * stale), and finally to the best whole-ride average power across all rides when
+ * no power-curve data exists at all.
  *
  * With `recordOnlyIfChanged` (used by the post-sync hook), skips inserting a new
  * ftp_tests row when the estimate matches the latest stored one — so syncing
@@ -121,9 +136,10 @@ async function recalculateForUser(userId, { recordOnlyIfChanged = false } = {}) 
     .single();
   const weightKg = profile?.weight_kg ?? null;
 
-  // Prefer the exact best 20-min effort; fall back to scanning ALL rides.
-  let best = await getBest20MinFromCurve(userId);
+  let best = await getBest20MinEffort(userId);
   if (!best) {
+    // No power-curve data anywhere → approximate from whole-ride average power
+    // across all rides.
     const { data: rides, error: ridesError } = await supabaseAdmin
       .from('rides')
       .select('*')
@@ -131,7 +147,7 @@ async function recalculateForUser(userId, { recordOnlyIfChanged = false } = {}) 
       .not('avg_power_w', 'is', null);
     if (ridesError) throw ridesError;
     const fallback = findBest20MinEffort(rides || []);
-    best = fallback ? { power: fallback.power, date: fallback.date } : null;
+    best = fallback ? { power: fallback.power, date: fallback.date, stale: true } : null;
   }
   if (!best) return null;
 
@@ -145,6 +161,7 @@ async function recalculateForUser(userId, { recordOnlyIfChanged = false } = {}) 
     watts_per_kg: wattsPerKg,
     best_20min_power_w: Math.round(best.power),
     best_effort_date: today,
+    stale: best.stale,
     strava_activity_id: null,
   };
 
@@ -154,6 +171,10 @@ async function recalculateForUser(userId, { recordOnlyIfChanged = false } = {}) 
     return { ...estimate, recorded: false };
   }
 
+  const note = best.stale
+    ? `Estimated from best 20-min power — no rides in the last 12 months, may be stale${best.date ? ` (set ${best.date})` : ''}.`
+    : `Estimated from best 20-min power in the last 12 months (95%)${best.date ? `, set ${best.date}` : ''}.`;
+
   const { data, error: insertError } = await supabaseAdmin
     .from('ftp_tests')
     .insert({
@@ -162,7 +183,7 @@ async function recalculateForUser(userId, { recordOnlyIfChanged = false } = {}) 
       weight_kg: weightKg,
       watts_per_kg: wattsPerKg,
       test_date: today,
-      notes: `Estimated from all-time best 20-min power (95%)${best.date ? `, set ${best.date}` : ''}.`,
+      notes: note,
     })
     .select()
     .single();
