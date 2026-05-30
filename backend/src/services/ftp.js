@@ -136,8 +136,8 @@ async function recalculateForUser(userId, { recordOnlyIfChanged = false } = {}) 
     const wkg = estimate.watts_per_kg != null ? estimate.watts_per_kg : '—';
     pushNotifications
       .sendToUser(userId, {
-        title: 'FTP napredek! 💪',
-        body: `FTP se je izboljšal za ${delta} W! Zdaj si na ${wkg} W/kg`,
+        title: 'FTP improvement! 💪',
+        body: `Your FTP improved by ${delta} W! You're now at ${wkg} W/kg`,
         data: { screen: 'Progress' },
       })
       .catch((e) => console.warn('[ftp push]', e.message));

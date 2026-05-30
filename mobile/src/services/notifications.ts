@@ -147,8 +147,8 @@ export async function scheduleWeeklySummary(distanceKm: number, tss: number): Pr
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Teden za tabo 🚴',
-      body: `${Math.round(distanceKm)} km, ${Math.round(tss)} TSS. Poglejmo napredek!`,
+      title: 'Your week 🚴',
+      body: `${Math.round(distanceKm)} km, ${Math.round(tss)} TSS. Let's review your progress!`,
       data: { screen: 'Progress' },
     },
     trigger: {

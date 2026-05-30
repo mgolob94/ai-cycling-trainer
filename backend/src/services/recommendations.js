@@ -64,17 +64,17 @@ function buildRecommendations({ weeklyMetrics = [], rides = [], ftp = null, toda
   if (latest && latest.tsb != null && latest.tsb < -25) {
     recs.push({
       type: 'recovery',
-      message: 'Priporočamo lahek obnovitveni dan ali dan počitka',
+      message: 'Take an easy recovery day or a rest day',
       priority: 'high',
-      action_cta: 'Načrtuj počitek',
+      action_cta: 'Plan recovery',
     });
   }
   if (latest && prev && prev.atl > 0 && (latest.atl - prev.atl) / prev.atl > 0.15) {
     recs.push({
       type: 'injury_risk',
-      message: 'Previsok skok v obremenitvi — tveganje poškodbe',
+      message: 'Training load jumped too fast — injury risk',
       priority: 'high',
-      action_cta: 'Zmanjšaj obremenitev',
+      action_cta: 'Reduce load',
     });
   }
 
@@ -83,18 +83,18 @@ function buildRecommendations({ weeklyMetrics = [], rides = [], ftp = null, toda
   if (last3w && last3w.lowPct > 0.8) {
     recs.push({
       type: 'intensity',
-      message: 'Dodaj 1 intervalni trening na teden',
+      message: 'Add one interval session per week',
       priority: 'medium',
-      action_cta: 'Dodaj intervale',
+      action_cta: 'Add intervals',
     });
   }
   const last2w = intensityFractions(rides, ftp?.ftp_watts, isoDaysAgo(14, new Date(today)));
   if (last2w && last2w.highPct > 0.4) {
     recs.push({
       type: 'intensity',
-      message: 'Preveč intenzivnih treningov — zmanjšaj na 2x/teden',
+      message: 'Too many hard sessions — cut to 2x per week',
       priority: 'high',
-      action_cta: 'Zmanjšaj intenzivnost',
+      action_cta: 'Reduce intensity',
     });
   }
 
@@ -102,24 +102,24 @@ function buildRecommendations({ weeklyMetrics = [], rides = [], ftp = null, toda
   if (!ftp || !ftp.test_date || diffDays(today, ftp.test_date) > 42) {
     recs.push({
       type: 'ftp',
-      message: 'Čas je za FTP test — morda si napredoval!',
+      message: 'Time for an FTP test — you may have improved!',
       priority: 'medium',
-      action_cta: 'Opravi FTP test',
+      action_cta: 'Do an FTP test',
     });
   }
   if (ftp?.watts_per_kg != null && ftp.watts_per_kg < 2.5) {
     recs.push({
       type: 'focus',
-      message: 'Osredotoči se na bazično vzdržljivost za dvig forme',
+      message: 'Focus on base endurance to build form',
       priority: 'low',
-      action_cta: 'Bazični trening',
+      action_cta: 'Base training',
     });
   } else if (ftp?.watts_per_kg != null && ftp.watts_per_kg > 4.0) {
     recs.push({
       type: 'focus',
-      message: 'Dodaj VO2max treninge za nadaljnji napredek',
+      message: 'Add VO2max sessions for further gains',
       priority: 'low',
-      action_cta: 'VO2max trening',
+      action_cta: 'VO2max training',
     });
   }
 
@@ -131,9 +131,9 @@ function buildRecommendations({ weeklyMetrics = [], rides = [], ftp = null, toda
       const delta = Math.round(latest.total_distance_km - avg);
       recs.push({
         type: 'volume',
-        message: `Prevelik skok v volumnu (+${delta} km). Drži se pravila 10%.`,
+        message: `Volume jumped too much (+${delta} km). Stick to the 10% rule.`,
         priority: 'medium',
-        action_cta: 'Umiri tempo',
+        action_cta: 'Ease off',
       });
     }
   }
@@ -146,16 +146,16 @@ function buildRecommendations({ weeklyMetrics = [], rides = [], ftp = null, toda
     if (daysSince > 10) {
       recs.push({
         type: 'consistency',
-        message: 'Dobrodošel nazaj! Začni počasi z lahkim treningom.',
+        message: 'Welcome back! Ease in with an easy session.',
         priority: 'medium',
-        action_cta: 'Lahek trening',
+        action_cta: 'Easy session',
       });
     } else if (consecutiveStreak(rideDates) >= 7) {
       recs.push({
         type: 'consistency',
-        message: 'Odličen niz! Ne pozabi na počitek.',
+        message: 'Great streak! Remember to schedule rest.',
         priority: 'low',
-        action_cta: 'Načrtuj počitek',
+        action_cta: 'Plan recovery',
       });
     }
   }

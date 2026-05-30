@@ -31,25 +31,25 @@ import { lightColors, spacing, radius, fontSize } from '../theme';
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
 function nameFrom(email?: string | null): string {
-  if (!email) return 'kolesar';
+  if (!email) return 'rider';
   const local = email.split('@')[0];
   return local.charAt(0).toUpperCase() + local.slice(1);
 }
 
 function formStatus(tsb: number | null): { label: string; color: string } {
-  if (tsb == null) return { label: 'neznana', color: lightColors.textMuted };
-  if (tsb > 5) return { label: 'Svež', color: lightColors.form };
-  if (tsb >= -10) return { label: 'Optimalen', color: lightColors.fitness };
-  if (tsb >= -30) return { label: 'Utrujen', color: '#F5A623' };
-  return { label: 'Preobremenjen', color: lightColors.fatigue };
+  if (tsb == null) return { label: 'unknown', color: lightColors.textMuted };
+  if (tsb > 5) return { label: 'Fresh', color: lightColors.form };
+  if (tsb >= -10) return { label: 'Optimal', color: lightColors.fitness };
+  if (tsb >= -30) return { label: 'Fatigued', color: '#F5A623' };
+  return { label: 'Overreaching', color: lightColors.fatigue };
 }
 
 function riderCategory(wkg: number | null): string {
   if (wkg == null) return '—';
-  if (wkg < 2.0) return 'Rekreativni';
-  if (wkg < 3.0) return 'Fitnes';
-  if (wkg < 4.0) return 'Amater';
-  if (wkg < 5.0) return 'Napredni';
+  if (wkg < 2.0) return 'Recreational';
+  if (wkg < 3.0) return 'Fitness';
+  if (wkg < 4.0) return 'Amateur';
+  if (wkg < 5.0) return 'Advanced';
   return 'Elite';
 }
 
@@ -126,7 +126,7 @@ export default function ProgressScreen() {
           ) : (
             <>
               <Text style={styles.greeting}>
-                Dober dan, {nameFrom(profile.profile?.email)}! Tvoja forma je{' '}
+                Good day, {nameFrom(profile.profile?.email)}! Your form is{' '}
                 <Text style={{ color: status.color }}>{status.label.toLowerCase()}</Text>.
               </Text>
               <View style={styles.headerRow}>
@@ -150,19 +150,19 @@ export default function ProgressScreen() {
         ) : (
           <View style={styles.metricRow}>
             <MetricCard
-              label="Fitnes (CTL)"
+              label="Fitness (CTL)"
               value={current?.ctl ?? 0}
-              sub={`${trendArrow(current?.ctl, prior4?.ctl)} 4 tedne`}
+              sub={`${trendArrow(current?.ctl, prior4?.ctl)} 4 weeks`}
               color={lightColors.fitness}
             />
             <MetricCard
-              label="Utrujenost (ATL)"
+              label="Fatigue (ATL)"
               value={current?.atl ?? 0}
-              sub="zadnjih 7 dni"
+              sub="last 7 days"
               color="#F5A623"
             />
             <MetricCard
-              label="Forma (TSB)"
+              label="Form (TSB)"
               value={current?.tsb ?? 0}
               sub={status.label}
               color={status.color}
@@ -171,7 +171,7 @@ export default function ProgressScreen() {
         )}
 
         {/* SECTION 2 — power profile */}
-        <Text style={styles.sectionHeading}>Profil moči</Text>
+        <Text style={styles.sectionHeading}>Power profile</Text>
         {ftp.loading ? (
           <Skeleton height={90} />
         ) : (
@@ -194,25 +194,25 @@ export default function ProgressScreen() {
             <TouchableOpacity
               style={styles.powerCard}
               activeOpacity={0.8}
-              onPress={() => Alert.alert("W'", "W' je tvoja anaerobna baterija. Nastaviš jo v FTP testu.")}
+              onPress={() => Alert.alert("W'", "W' is your anaerobic battery. Set it during the FTP test.")}
             >
               <Text style={styles.powerLabel}>W'</Text>
               <Text style={styles.powerValue}>
                 {(profile.profile?.w_prime_total ?? 20000) / 1000} kJ
               </Text>
-              <Text style={styles.powerSub}>anaerobna kapaciteta</Text>
+              <Text style={styles.powerSub}>anaerobic capacity</Text>
             </TouchableOpacity>
           </View>
         )}
         {showFtpChart && ftp.history.length ? (
           <View style={styles.card}>
-            <Text style={styles.cardLabel}>FTP ZGODOVINA</Text>
+            <Text style={styles.cardLabel}>FTP HISTORY</Text>
             <FTPChart history={ftp.history} />
           </View>
         ) : null}
 
         {/* SECTION 3 — power duration curve */}
-        <Text style={styles.sectionHeading}>Krivulja moči</Text>
+        <Text style={styles.sectionHeading}>Power curve</Text>
         <View style={styles.card}>
           <View style={styles.toggleRow}>
             {(['alltime', '90d', '30d'] as const).map((r) => (
@@ -222,7 +222,7 @@ export default function ProgressScreen() {
                 onPress={() => setPdcRange(r)}
               >
                 <Text style={[styles.toggleText, pdcRange === r && styles.toggleTextActive]}>
-                  {r === 'alltime' ? 'Vse' : r === '90d' ? '90 dni' : '30 dni'}
+                  {r === 'alltime' ? 'All' : r === '90d' ? '90 days' : '30 days'}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -244,17 +244,17 @@ export default function ProgressScreen() {
         </View>
 
         {/* SECTION 4 — AI coach */}
-        <Text style={styles.sectionHeading}>AI trener</Text>
+        <Text style={styles.sectionHeading}>AI coach</Text>
         {week.loading ? (
           <Skeleton height={120} />
         ) : (
           <View style={styles.card}>
             <View style={styles.coachHeader}>
               <Text style={styles.coachAvatar}>🧠</Text>
-              <Text style={styles.coachTitle}>Tedenska analiza</Text>
+              <Text style={styles.coachTitle}>Weekly analysis</Text>
             </View>
             <Text style={styles.coachText}>
-              {week.analysis?.summary ?? 'Sinhroniziraj vožnje za analizo trenerja.'}
+              {week.analysis?.summary ?? 'Sync your rides to get coach analysis.'}
             </Text>
             {week.analysis?.warning ? (
               <Text style={styles.coachWarning}>⚠︎ {week.analysis.warning}</Text>
@@ -275,13 +275,13 @@ export default function ProgressScreen() {
             ) : null}
 
             <TouchableOpacity style={styles.coachButton} onPress={() => navigation.navigate('AIReport')}>
-              <Text style={styles.coachButtonText}>Pridobi celotno analizo</Text>
+              <Text style={styles.coachButtonText}>Get full analysis</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {/* SECTION 5 — personal records */}
-        <Text style={styles.sectionHeading}>Osebni rekordi</Text>
+        <Text style={styles.sectionHeading}>Personal records</Text>
         <View style={styles.prSortRow}>
           {(['recent', 'duration', 'alltime'] as const).map((s) => (
             <TouchableOpacity
@@ -290,7 +290,7 @@ export default function ProgressScreen() {
               onPress={() => setPrSort(s)}
             >
               <Text style={[styles.sortChipText, prSort === s && styles.sortChipTextActive]}>
-                {s === 'recent' ? 'Nedavni' : s === 'duration' ? 'Po dolžini' : 'Vsi časi'}
+                {s === 'recent' ? 'Recent' : s === 'duration' ? 'By duration' : 'All time'}
               </Text>
             </TouchableOpacity>
           ))}
@@ -302,7 +302,7 @@ export default function ProgressScreen() {
             {sortedPrs.map((r, i) => (
               <RecordCard key={r.record_type} record={r} medal={prSort === 'alltime' ? i : -1} />
             ))}
-            {sortedPrs.length === 0 ? <Text style={styles.muted}>Še ni rekordov.</Text> : null}
+            {sortedPrs.length === 0 ? <Text style={styles.muted}>No records yet.</Text> : null}
           </ScrollView>
         )}
 
@@ -310,11 +310,11 @@ export default function ProgressScreen() {
         <View style={styles.ctaBlock}>
           {ftpStale ? (
             <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('FTPTestWizard')}>
-              <Text style={styles.primaryButtonText}>Zaženi FTP test</Text>
+              <Text style={styles.primaryButtonText}>Start FTP test</Text>
             </TouchableOpacity>
           ) : null}
           <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate('Periodization')}>
-            <Text style={styles.secondaryButtonText}>Poglej periodizacijo →</Text>
+            <Text style={styles.secondaryButtonText}>View periodization →</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -336,9 +336,9 @@ const MEDALS = ['#E0A106', '#9CA3AF', '#B06B3A'];
 const RECORD_LABELS: Record<string, string> = {
   best_5min_power: '5 min',
   best_20min_power: '20 min',
-  best_60min_power: '1 ura',
-  longest_ride_km: 'Najdaljša',
-  most_elevation_m: 'Vzpon',
+  best_60min_power: '1 hr',
+  longest_ride_km: 'Longest',
+  most_elevation_m: 'Climb',
 };
 
 function RecordCard({ record, medal }: { record: PersonalRecord; medal: number }) {

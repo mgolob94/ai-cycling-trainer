@@ -3,11 +3,11 @@ const pushNotifications = require('./pushNotifications');
 
 // Slovenian labels for personal-record notifications.
 const RECORD_LABELS = {
-  best_5min_power: 'Najboljša moč 5 min',
-  best_20min_power: 'Najboljša moč 20 min',
-  best_60min_power: 'Najboljša moč 60 min',
-  longest_ride_km: 'Najdaljša vožnja',
-  most_elevation_m: 'Največ vzpona',
+  best_5min_power: 'Best 5-min power',
+  best_20min_power: 'Best 20-min power',
+  best_60min_power: 'Best 60-min power',
+  longest_ride_km: 'Longest ride',
+  most_elevation_m: 'Most elevation',
 };
 
 function unitLabel(unit) {
@@ -136,7 +136,7 @@ async function scanAndUpsert(userId) {
     const label = RECORD_LABELS[pr.type] ?? pr.type;
     pushNotifications
       .sendToUser(userId, {
-        title: 'Nov osebni rekord! 🏆',
+        title: 'New personal record! 🏆',
         body: `${label}: ${pr.value} ${unitLabel(pr.unit)}`,
         data: { screen: 'Progress' },
       })

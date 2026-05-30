@@ -1,30 +1,30 @@
 // Guided FTP test protocols and analysis from a power stream.
 
-// Protocol definitions (for a guided test UI). Copy in Slovenian.
+// Protocol definitions (for a guided test UI).
 const PROTOCOLS = {
   ramp: {
     test_type: 'ramp',
     name: 'Ramp test',
-    subtitle: 'Priporočeno za začetnike',
+    subtitle: 'Recommended for beginners',
     duration_min: '20–30 min',
-    formula: 'FTP = 75 % najvišje 1-minutne moči',
+    formula: 'FTP = 75% of best 1-minute power',
     structure: [
-      { label: 'Ogrevanje', detail: '5 min lahkotno' },
-      { label: 'Stopnje', detail: 'Začni pri 100 W, vsako minuto +20 W' },
-      { label: 'Konec', detail: 'Test se konča, ko ne zmoreš več cele minute' },
+      { label: 'Warm-up', detail: '5 min easy' },
+      { label: 'Steps', detail: 'Start at 100 W, +20 W every minute' },
+      { label: 'End', detail: "Test ends when you can't hold a full minute" },
     ],
   },
   '20min': {
     test_type: '20min',
-    name: '20-minutni test',
-    subtitle: 'Bolj natančno za izkušene',
+    name: '20-minute test',
+    subtitle: 'More accurate, for experienced riders',
     duration_min: '~60 min',
-    formula: 'FTP = 95 % povprečne 20-minutne moči',
+    formula: 'FTP = 95% of average 20-minute power',
     structure: [
-      { label: 'Ogrevanje', detail: '10 min lahkotno + 3× 1 min ostro' },
-      { label: 'Premor', detail: '5 min lahkotno' },
-      { label: 'Glavni del', detail: '20 min na polno' },
-      { label: 'Ohlajanje', detail: '10 min lahkotno' },
+      { label: 'Warm-up', detail: '10 min easy + 3x 1 min hard' },
+      { label: 'Rest', detail: '5 min easy' },
+      { label: 'Main effort', detail: '20 min all-out' },
+      { label: 'Cool-down', detail: '10 min easy' },
     ],
   },
 };

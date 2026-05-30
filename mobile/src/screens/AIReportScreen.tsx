@@ -12,9 +12,9 @@ interface TrendReport {
 }
 
 const TREND_META: Record<string, { label: string; color: string; icon: string }> = {
-  improving: { label: 'V napredku', color: lightColors.form, icon: '📈' },
-  plateauing: { label: 'Stabilno', color: '#F5A623', icon: '➡️' },
-  declining: { label: 'V upadu', color: lightColors.fatigue, icon: '📉' },
+  improving: { label: 'Improving', color: lightColors.form, icon: '📈' },
+  plateauing: { label: 'Stable', color: '#F5A623', icon: '➡️' },
+  declining: { label: 'Declining', color: lightColors.fatigue, icon: '📉' },
 };
 
 export default function AIReportScreen() {
@@ -30,7 +30,7 @@ export default function AIReportScreen() {
       } catch (e: unknown) {
         const msg =
           (e as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-          (e instanceof Error ? e.message : 'Analize ni bilo mogoče naložiti.');
+          (e instanceof Error ? e.message : 'Could not load the analysis.');
         setError(msg);
       } finally {
         setLoading(false);
@@ -46,22 +46,22 @@ export default function AIReportScreen() {
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={lightColors.primary} />
-            <Text style={styles.muted}>Pripravljam celotno analizo…</Text>
+            <Text style={styles.muted}>Preparing your full analysis…</Text>
           </View>
         ) : error || !report ? (
-          <Text style={styles.error}>{error ?? 'Ni podatkov za analizo.'}</Text>
+          <Text style={styles.error}>{error ?? 'No data to analyze.'}</Text>
         ) : (
           <>
             <View style={[styles.card, { borderLeftWidth: 5, borderLeftColor: meta?.color }]}>
               <Text style={styles.trendLabel}>
-                {meta?.icon} 12-tedenski trend: {meta?.label}
+                {meta?.icon} 12-week trend: {meta?.label}
               </Text>
               <Text style={styles.explanation}>{report.explanation}</Text>
             </View>
 
             {report.recommendations.length ? (
               <View style={styles.card}>
-                <Text style={styles.cardLabel}>PRIPOROČILA TRENERJA</Text>
+                <Text style={styles.cardLabel}>COACH'S RECOMMENDATIONS</Text>
                 {report.recommendations.map((r, i) => (
                   <View key={i} style={styles.recRow}>
                     <Text style={styles.recBullet}>{i + 1}</Text>

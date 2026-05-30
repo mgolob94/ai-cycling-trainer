@@ -38,35 +38,35 @@ const TEST_OPTIONS: TestOption[] = [
     key: 'ramp',
     name: 'Ramp test',
     duration: '20–30 min',
-    difficulty: 'Lažje',
-    forWho: 'Za začetnike',
+    difficulty: 'Easier',
+    forWho: 'For beginners',
     stars: 3,
     timeline: [
-      { label: 'Ogrevanje', detail: '5 min lahkotno' },
-      { label: 'Stopnje', detail: 'Od 100 W, vsako minuto +20 W do odpovedi' },
-      { label: 'Ohlajanje', detail: '5 min lahkotno' },
+      { label: 'Warm-up', detail: '5 min easy' },
+      { label: 'Steps', detail: 'From 100 W, +20 W every minute to failure' },
+      { label: 'Cool-down', detail: '5 min easy' },
     ],
   },
   {
     key: '20min',
-    name: '20-minutni test',
+    name: '20-minute test',
     duration: '~60 min',
-    difficulty: 'Težje',
-    forWho: 'Za izkušene',
+    difficulty: 'Harder',
+    forWho: 'For experienced',
     stars: 5,
     timeline: [
-      { label: 'Ogrevanje', detail: '10 min + 3× 1 min ostro' },
-      { label: 'Premor', detail: '5 min lahkotno' },
-      { label: 'Test', detail: '20 min na polno' },
-      { label: 'Ohlajanje', detail: '10 min lahkotno' },
+      { label: 'Warm-up', detail: '10 min + 3x 1 min hard' },
+      { label: 'Rest', detail: '5 min easy' },
+      { label: 'Main effort', detail: '20 min all-out' },
+      { label: 'Cool-down', detail: '10 min easy' },
     ],
   },
 ];
 
 const CHECKLIST = [
-  'Ali imaš merilec moči?',
-  'Ali si dobro spit?',
-  'Ali si jedel 2–3 h pred testom?',
+  'Do you have a power meter?',
+  'Are you well rested?',
+  'Did you eat 2–3 h before the test?',
 ];
 
 interface TestResult {
@@ -80,25 +80,25 @@ interface TestResult {
 
 function riderCategory(wkg: number | null): string {
   if (wkg == null) return '';
-  if (wkg < 2.0) return 'Rekreativni kolesar';
-  if (wkg < 3.0) return 'Fitnes kolesar';
-  if (wkg < 4.0) return 'Amater/športnik';
-  if (wkg < 5.0) return 'Napredni amater';
-  return 'Elite kolesar';
+  if (wkg < 2.0) return 'Recreational rider';
+  if (wkg < 3.0) return 'Fitness rider';
+  if (wkg < 4.0) return 'Amateur/athlete';
+  if (wkg < 5.0) return 'Advanced amateur';
+  return 'Elite rider';
 }
 
 function recommendation(result: TestResult): string {
   const change = result.change_watts ?? 0;
   if (result.previous_ftp == null) {
-    return 'Na osnovi tvojega testa priporočam, da gradiš bazo z vožnjami v coni 2.';
+    return 'Based on your test, I recommend building your base with Zone 2 rides.';
   }
   if (change > 3) {
-    return `Na osnovi tvojega testa priporočam postopno dvigovanje obremenitve — napredek je +${change} W!`;
+    return `Based on your test, I recommend gradually increasing load — you gained +${change} W!`;
   }
   if (change < -3) {
-    return 'Na osnovi tvojega testa priporočam teden regeneracije, nato bazične vožnje.';
+    return 'Based on your test, I recommend a recovery week, then base rides.';
   }
-  return 'Na osnovi tvojega testa priporočam blok pragovnih intervalov za nov napredek.';
+  return 'Based on your test, I recommend a block of threshold intervals for new gains.';
 }
 
 function Stars({ count }: { count: number }) {
@@ -142,7 +142,7 @@ export default function FTPTestWizard() {
         await api.post(`${apiOrigin}/sync/strava`).catch(() => {});
         const { data: latest } = await api.get<ApiResponse<{ strava_id: string } | null>>('/rides/latest');
         const stravaId = latest.data?.strava_id;
-        if (!stravaId) throw new Error('Ni najdene vožnje za analizo.');
+        if (!stravaId) throw new Error('No ride found to analyze.');
         const { data } = await api.post<ApiResponse<TestResult>>(`${apiOrigin}/ftp/test/analyze`, {
           test_type: selected,
           strava_activity_id: stravaId,
@@ -151,7 +151,7 @@ export default function FTPTestWizard() {
       } catch (e: unknown) {
         const msg =
           (e as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-          (e instanceof Error ? e.message : 'Analiza ni uspela.');
+          (e instanceof Error ? e.message : 'Analysis failed.');
         setAnalyzeError(msg);
       } finally {
         setAnalyzing(false);
@@ -216,7 +216,7 @@ export default function FTPTestWizard() {
           {/* STEP 1 — selection */}
           {step === 1 ? (
             <>
-              <Text style={styles.title}>Izberi test</Text>
+              <Text style={styles.title}>Choose a test</Text>
               {TEST_OPTIONS.map((opt) => {
                 const active = selected === opt.key;
                 return (
@@ -239,7 +239,7 @@ export default function FTPTestWizard() {
                 disabled={!selected}
                 onPress={() => goTo(2)}
               >
-                <Text style={styles.primaryButtonText}>Naprej</Text>
+                <Text style={styles.primaryButtonText}>Next</Text>
               </TouchableOpacity>
             </>
           ) : null}
@@ -247,7 +247,7 @@ export default function FTPTestWizard() {
           {/* STEP 2 — preparation */}
           {step === 2 && selectedOption ? (
             <>
-              <Text style={styles.title}>Priprava</Text>
+              <Text style={styles.title}>Preparation</Text>
               <View style={styles.card}>
                 {selectedOption.timeline.map((seg, i) => (
                   <View key={i} style={styles.timelineRow}>
@@ -260,7 +260,7 @@ export default function FTPTestWizard() {
                 ))}
               </View>
 
-              <Text style={styles.sectionHeading}>Preveri pred testom</Text>
+              <Text style={styles.sectionHeading}>Check before the test</Text>
               {CHECKLIST.map((item, i) => (
                 <TouchableOpacity
                   key={i}
@@ -277,15 +277,15 @@ export default function FTPTestWizard() {
 
               {!allChecked ? (
                 <View style={styles.warnBanner}>
-                  <Text style={styles.warnText}>Za najboljši rezultat odkljukaj vse točke.</Text>
+                  <Text style={styles.warnText}>Check all items for the best result.</Text>
                 </View>
               ) : null}
 
               <TouchableOpacity style={styles.primaryButton} onPress={startTest}>
-                <Text style={styles.primaryButtonText}>Začni test (odpri Strava)</Text>
+                <Text style={styles.primaryButtonText}>Start test (open Strava)</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.linkButton} onPress={() => goTo(1)}>
-                <Text style={styles.linkText}>Nazaj</Text>
+                <Text style={styles.linkText}>Back</Text>
               </TouchableOpacity>
             </>
           ) : null}
@@ -293,11 +293,11 @@ export default function FTPTestWizard() {
           {/* STEP 3 — result */}
           {step === 3 ? (
             <>
-              <Text style={styles.title}>Po testu</Text>
+              <Text style={styles.title}>After the test</Text>
               {analyzing ? (
                 <View style={styles.center}>
                   <ActivityIndicator color={lightColors.primary} size="large" />
-                  <Text style={styles.muted}>Analiziramo tvoj FTP test…</Text>
+                  <Text style={styles.muted}>Analyzing your FTP test…</Text>
                 </View>
               ) : analyzeError ? (
                 <View style={styles.card}>
@@ -309,13 +309,13 @@ export default function FTPTestWizard() {
                       setResult(null);
                     }}
                   >
-                    <Text style={styles.primaryButtonText}>Poskusi znova</Text>
+                    <Text style={styles.primaryButtonText}>Try again</Text>
                   </TouchableOpacity>
                 </View>
               ) : result ? (
                 <>
                   <View style={styles.resultCard}>
-                    <Text style={styles.cardLabel}>NOVI FTP</Text>
+                    <Text style={styles.cardLabel}>NEW FTP</Text>
                     <View style={styles.ftpRow}>
                       <Text style={styles.ftpValue}>{displayFtp}</Text>
                       <Text style={styles.ftpUnit}>W</Text>
@@ -339,16 +339,16 @@ export default function FTPTestWizard() {
                       </Text>
                     ) : null}
                     {result.test_quality === 'questionable' ? (
-                      <Text style={styles.questionable}>⚠︎ Moč je bila spremenljiva — rezultat je okviren.</Text>
+                      <Text style={styles.questionable}>⚠︎ Power was variable — result is approximate.</Text>
                     ) : null}
                     <Text style={styles.recommendation}>{recommendation(result)}</Text>
                   </View>
 
                   <TouchableOpacity style={styles.primaryButton} onPress={regeneratePlan}>
-                    <Text style={styles.primaryButtonText}>Posodobi treninge</Text>
+                    <Text style={styles.primaryButtonText}>Update training</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.linkButton} onPress={() => goTo(4)}>
-                    <Text style={styles.linkText}>Nastavi W' (neobvezno) →</Text>
+                    <Text style={styles.linkText}>Set W' (optional) →</Text>
                   </TouchableOpacity>
                 </>
               ) : null}
@@ -358,9 +358,9 @@ export default function FTPTestWizard() {
           {/* STEP 4 — W' calibration */}
           {step === 4 ? (
             <>
-              <Text style={styles.title}>W' kalibracija</Text>
+              <Text style={styles.title}>W' calibration</Text>
               <View style={styles.card}>
-                <Text style={styles.body}>W' je tvoja anaerobna baterija — koliko dela zmoreš nad FTP.</Text>
+                <Text style={styles.body}>W' is your anaerobic battery — how much work you can do above FTP.</Text>
 
                 <View style={styles.battery}>
                   <View style={[styles.batteryFill, { width: `${Math.max(0, Math.min(1, batteryFill)) * 100}%` }]} />
@@ -378,8 +378,8 @@ export default function FTPTestWizard() {
                   thumbTintColor={lightColors.primary}
                 />
                 <View style={styles.scaleRow}>
-                  <Text style={styles.muted}>10.000 (manjša)</Text>
-                  <Text style={styles.muted}>30.000 (večja)</Text>
+                  <Text style={styles.muted}>10,000 (smaller)</Text>
+                  <Text style={styles.muted}>30,000 (larger)</Text>
                 </View>
               </View>
 
@@ -391,7 +391,7 @@ export default function FTPTestWizard() {
                 {savingWprime ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.primaryButtonText}>Nastavi W'</Text>
+                  <Text style={styles.primaryButtonText}>Set W'</Text>
                 )}
               </TouchableOpacity>
             </>

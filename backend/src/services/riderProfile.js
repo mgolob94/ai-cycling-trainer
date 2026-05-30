@@ -28,12 +28,12 @@ const RADAR_DURATIONS = [
 ];
 
 const TYPE_INFO = {
-  sprinter: { label: 'Sprinter', icon: '🚀', description: 'Eksplozivna moč na kratke razdalje.' },
-  puncher: { label: 'Puncher', icon: '👊', description: 'Močan na kratkih, ostrih naporih (1–5 min).' },
-  climber: { label: 'Hribolazec', icon: '⛰️', description: 'Močan na daljših vzponih, šibkejši sprint.' },
-  time_trialist: { label: 'Kronometrist', icon: '⏱️', description: 'Zelo močan na 20–60 min, šibkejša kratka moč.' },
-  endurance: { label: 'Vzdržljivostni', icon: '🚴', description: 'Konsistenten čez vse dolžine.' },
-  unknown: { label: 'Neznano', icon: '❓', description: 'Premalo podatkov — opravi več voženj z merilcem moči.' },
+  sprinter: { label: 'Sprinter', icon: '🚀', description: 'Explosive power over short distances.' },
+  puncher: { label: 'Puncher', icon: '👊', description: 'Strong on short, sharp efforts (1–5 min).' },
+  climber: { label: 'Climber', icon: '⛰️', description: 'Strong on longer climbs, weaker sprint.' },
+  time_trialist: { label: 'Time Trialist', icon: '⏱️', description: 'Very strong at 20–60 min, weaker short power.' },
+  endurance: { label: 'Endurance', icon: '🚴', description: 'Consistent across all durations.' },
+  unknown: { label: 'Unknown', icon: '❓', description: 'Not enough data — record more rides with a power meter.' },
 };
 
 function classify(map, ref20) {
@@ -62,10 +62,10 @@ function durationLabel(sec) {
 }
 
 function recommendationForDuration(sec) {
-  if (sec <= 30) return 'Dodaj sprinte in nevromuskularne intervale.';
-  if (sec <= 300) return 'Dodaj VO2max intervale (3–5 min).';
-  if (sec <= 1200) return 'Dodaj pragovne intervale (npr. 2× 20 min).';
-  return 'Povečaj obseg vzdržljivostnih voženj v coni 2.';
+  if (sec <= 30) return 'Add sprints and neuromuscular intervals.';
+  if (sec <= 300) return 'Add VO2max intervals (3–5 min).';
+  if (sec <= 1200) return 'Add threshold intervals (e.g. 2x 20 min).';
+  return 'Increase Zone 2 endurance volume.';
 }
 
 // Which rider types suit which goals; otherwise we nudge toward the goal.
@@ -76,12 +76,12 @@ function goalAlignment(type, goal) {
   const speedGoal = /speed|race|racing|sprint|hitr/.test(g);
 
   if (enduranceGoal && (type === 'sprinter' || type === 'puncher')) {
-    return `Tvoj profil je ${TYPE_INFO[type].label}, toda tvoj cilj je vzdržljivost — fokusiraj se na Z2 vzdržljivost in pragovne napore.`;
+    return `Your profile is ${TYPE_INFO[type].label}, but your goal is endurance — focus on Z2 endurance and threshold work.`;
   }
   if (speedGoal && (type === 'climber' || type === 'time_trialist' || type === 'endurance')) {
-    return `Tvoj profil je ${TYPE_INFO[type].label}, tvoj cilj pa je hitrost — dodaj sprinte in kratke VO2max napore.`;
+    return `Your profile is ${TYPE_INFO[type].label}, but your goal is speed — add sprints and short VO2max efforts.`;
   }
-  return `Tvoj profil (${TYPE_INFO[type].label}) se dobro ujema s tvojim ciljem.`;
+  return `Your profile (${TYPE_INFO[type].label}) matches your goal well.`;
 }
 
 /**
