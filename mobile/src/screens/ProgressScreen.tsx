@@ -58,6 +58,7 @@ function formatRecord(record: PersonalRecord): string {
 }
 
 function FtpCard() {
+  const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const { ftp, history, loading, running, error, notice, runTest } = useFtp();
   return (
     <View style={[styles.card, styles.ftpCard]}>
@@ -95,8 +96,15 @@ function FtpCard() {
         {running ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.primaryButtonText}>Run FTP test</Text>
+          <Text style={styles.primaryButtonText}>Quick estimate from rides</Text>
         )}
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.guidedLink}
+        activeOpacity={0.7}
+        onPress={() => navigation.navigate('FTPTestWizard')}
+      >
+        <Text style={styles.guidedLinkText}>Take a guided FTP test →</Text>
       </TouchableOpacity>
     </View>
   );
@@ -276,6 +284,8 @@ const styles = StyleSheet.create({
   mutedText: { color: lightColors.textMuted, fontSize: fontSize.md },
   error: { color: lightColors.fatigue, fontSize: fontSize.sm, marginTop: spacing.sm },
   notice: { color: lightColors.textMuted, fontSize: fontSize.sm, marginTop: spacing.sm, alignSelf: 'stretch' },
+  guidedLink: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: spacing.md },
+  guidedLinkText: { color: lightColors.primary, fontSize: fontSize.md, fontWeight: '600' },
 
   ftpCard: { alignItems: 'flex-start' },
   ftpValueRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: spacing.sm },

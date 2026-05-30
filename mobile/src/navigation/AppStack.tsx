@@ -8,6 +8,7 @@ import ProgressScreen from '../screens/ProgressScreen';
 import WeeklyComparisonScreen from '../screens/WeeklyComparisonScreen';
 import RideDetailScreen from '../screens/RideDetailScreen';
 import PeriodizationScreen from '../screens/PeriodizationScreen';
+import FTPTestWizard from '../screens/FTPTestWizard';
 import type { AppStackParamList } from './types';
 import { lightColors } from '../theme';
 
@@ -57,6 +58,11 @@ export default function AppStack() {
         name="Periodization"
         component={PeriodizationScreen}
         options={{ title: 'Season plan', ...lightHeader }}
+      />
+      <Stack.Screen
+        name="FTPTestWizard"
+        component={FTPTestWizard}
+        options={{ title: 'FTP test', ...lightHeader }}
       />
     </Stack.Navigator>
   );

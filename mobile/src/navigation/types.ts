@@ -17,4 +17,5 @@ export type AppStackParamList = {
   WeeklyComparison: undefined;
   RideDetail: { stravaId: string };
   Periodization: undefined;
+  FTPTestWizard: undefined;
 };

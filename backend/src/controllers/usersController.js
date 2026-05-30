@@ -1,6 +1,14 @@
 const { supabaseAdmin } = require('../db/supabase');
 
-const EDITABLE_FIELDS = ['age', 'weight_kg', 'fitness_level', 'goal'];
+const EDITABLE_FIELDS = [
+  'age',
+  'weight_kg',
+  'fitness_level',
+  'goal',
+  'w_prime_total',
+  'target_event_date',
+  'training_days_per_week',
+];
 
 async function getProfile(req, res, next) {
   try {
