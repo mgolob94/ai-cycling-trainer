@@ -17,8 +17,10 @@ import type { AppStackParamList } from '../navigation/types';
 import { useFtp } from '../hooks/useFtp';
 import { useWeeklyMetrics, type WeeklyMetric } from '../hooks/useWeeklyMetrics';
 import { usePersonalRecords, type PersonalRecord } from '../hooks/usePersonalRecords';
+import { useRiderProfile } from '../hooks/useRiderProfile';
 import MultiLineChart from '../components/MultiLineChart';
 import FTPChart from '../components/FTPChart';
+import RadarChart from '../components/RadarChart';
 import { scheduleWeeklySummary } from '../services/notifications';
 import { lightColors, spacing, radius, fontSize } from '../theme';
 
@@ -106,6 +108,56 @@ function FtpCard() {
       >
         <Text style={styles.guidedLinkText}>Take a guided FTP test →</Text>
       </TouchableOpacity>
+    </View>
+  );
+}
+
+function RiderProfileCard() {
+  const { profile, loading } = useRiderProfile();
+  if (loading) {
+    return (
+      <View style={styles.card}>
+        <ActivityIndicator color={lightColors.primary} />
+      </View>
+    );
+  }
+  if (!profile || profile.rider_type === 'unknown') {
+    return (
+      <View style={styles.card}>
+        <Text style={styles.cardLabel}>TVOJ PROFIL</Text>
+        <Text style={styles.mutedText}>
+          {profile?.description ?? 'Premalo podatkov za profil — sinhroniziraj vožnje z merilcem moči.'}
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardLabel}>TVOJ PROFIL</Text>
+      <Text style={styles.riderType}>
+        {profile.icon} {profile.label}
+      </Text>
+      <Text style={styles.mutedText}>{profile.description}</Text>
+
+      <RadarChart
+        data={profile.radar.map((p) => ({ label: p.label, value: p.value_pct, ideal: p.ideal_pct }))}
+      />
+      <Text style={styles.radarCaption}>Tvoj profil (oranžno) proti idealnemu (črtkano, 100 %)</Text>
+
+      {profile.goal_alignment ? (
+        <View style={styles.alignBanner}>
+          <Text style={styles.alignText}>{profile.goal_alignment}</Text>
+        </View>
+      ) : null}
+
+      {profile.recommendations.length ? (
+        <View style={styles.recsBlock}>
+          <Text style={styles.aiSectionLabel}>PRIPOROČILA</Text>
+          {profile.recommendations.slice(0, 2).map((r, i) => (
+            <Text key={i} style={styles.recItem}>• {r}</Text>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -256,6 +308,7 @@ export default function ProgressScreen() {
           <Text style={styles.compareButtonText}>Compare weeks →</Text>
         </TouchableOpacity>
         <FitnessChart weeks={metrics.weeks} loading={metrics.loading} />
+        <RiderProfileCard />
         {metrics.loading ? null : <WeeklyCards weeks={metrics.weeks} />}
         {records.loading ? (
           <ActivityIndicator color={lightColors.primary} style={{ marginTop: spacing.lg }} />
@@ -280,6 +333,13 @@ const styles = StyleSheet.create({
   },
   cardLabel: { color: lightColors.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1 },
   sectionTitle: { color: lightColors.text, fontSize: fontSize.lg, fontWeight: '700', marginBottom: spacing.sm },
+  riderType: { color: lightColors.text, fontSize: fontSize.xl, fontWeight: '800', marginTop: 4 },
+  radarCaption: { color: lightColors.textMuted, fontSize: 11, textAlign: 'center', marginTop: spacing.xs },
+  alignBanner: { backgroundColor: '#FEF3E6', borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md },
+  alignText: { color: lightColors.primary, fontSize: fontSize.sm, lineHeight: 20, fontWeight: '600' },
+  recsBlock: { marginTop: spacing.md },
+  aiSectionLabel: { color: lightColors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
+  recItem: { color: lightColors.text, fontSize: fontSize.sm, lineHeight: 20 },
   sectionHeading: { color: lightColors.text, fontSize: fontSize.lg, fontWeight: '700', marginBottom: spacing.sm },
   mutedText: { color: lightColors.textMuted, fontSize: fontSize.md },
   error: { color: lightColors.fatigue, fontSize: fontSize.sm, marginTop: spacing.sm },
