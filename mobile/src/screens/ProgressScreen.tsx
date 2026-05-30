@@ -24,6 +24,7 @@ import { usePersonalRecords, type PersonalRecord } from '../hooks/usePersonalRec
 import AnimatedNumber from '../components/AnimatedNumber';
 import PowerCurveChart from '../components/PowerCurveChart';
 import FTPChart from '../components/FTPChart';
+import AIAnalysisBadge from '../components/AIAnalysisBadge';
 import { scheduleWeeklySummary } from '../services/notifications';
 import type { AppStackParamList } from '../navigation/types';
 import { lightColors, spacing, radius, fontSize } from '../theme';
@@ -253,6 +254,15 @@ export default function ProgressScreen() {
               <Text style={styles.coachAvatar}>🧠</Text>
               <Text style={styles.coachTitle}>Weekly analysis</Text>
             </View>
+            {week.analysis ? (
+              <View style={{ marginBottom: spacing.sm }}>
+                <AIAnalysisBadge
+                  isCached={!!week.analysis._cached}
+                  generatedAt={week.analysis._generated_at}
+                  onRefresh={week.regenerate}
+                />
+              </View>
+            ) : null}
             <Text style={styles.coachText}>
               {week.analysis?.summary ?? 'Sync your rides to get coach analysis.'}
             </Text>

@@ -9,9 +9,11 @@ export interface WeekAnalysis {
   recommendation: string;
   next_week_tss_target: number | null;
   warning: string | null;
+  _cached?: boolean;
+  _generated_at?: string;
 }
 
-/** AI analysis of the current training week (cached server-side per ~3 days). */
+/** AI analysis of the current training week (cached server-side). */
 export function useWeekAnalysis() {
   const [analysis, setAnalysis] = useState<WeekAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,9 +32,19 @@ export function useWeekAnalysis() {
     }
   }, []);
 
+  // Invalidate the cached weekly summary, then refetch (forces regeneration).
+  const regenerate = useCallback(async () => {
+    try {
+      await api.delete(`${apiOrigin}/cache/invalidate`, { data: { analysis_type: 'weekly_summary' } });
+    } catch {
+      // ignore — refetch anyway
+    }
+    await refresh();
+  }, [refresh]);
+
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  return { analysis, loading, error, refresh };
+  return { analysis, loading, error, refresh, regenerate };
 }

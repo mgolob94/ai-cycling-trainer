@@ -53,7 +53,18 @@ async function entries(req, res, next) {
 /** DELETE /cache/invalidate — user forces regeneration of an analysis. */
 async function invalidate(req, res, next) {
   try {
-    const { analysis_type: analysisType, cache_key: cacheKey } = req.body || {};
+    const { analysis_type: analysisType, cache_key: cacheKey, all } = req.body || {};
+
+    // { all: true } clears every analysis type for the user (Profile "refresh all").
+    if (all === true) {
+      await invalidateCache(req.user.id, null, null, 'manual_user_all');
+      return res.json({
+        success: true,
+        data: { invalidated: true, message: 'All analyses will be regenerated on the next request.' },
+        error: null,
+      });
+    }
+
     if (!analysisType) {
       return res.status(400).json({ success: false, data: null, error: 'analysis_type is required' });
     }

@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { api, apiOrigin, ApiResponse } from '../services/api';
+import AIAnalysisBadge from '../components/AIAnalysisBadge';
 import { lightColors, spacing, radius, fontSize } from '../theme';
 
 interface DayPlan {
@@ -28,6 +29,8 @@ interface PeriodizationPlan {
   tss_target: number | null;
   key_workouts: KeyWorkout[];
   avoid: string[];
+  _cached?: boolean;
+  _generated_at?: string;
 }
 
 const PHASE_COLOR: Record<string, string> = {
@@ -46,23 +49,35 @@ export default function PeriodizationScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await api.get<ApiResponse<PeriodizationPlan>>(
-          `${apiOrigin}/periodization/plan`
-        );
-        setPlan(data.data ?? null);
-      } catch (e: unknown) {
-        const msg =
-          (e as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-          (e instanceof Error ? e.message : 'Failed to load plan.');
-        setError(msg);
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get<ApiResponse<PeriodizationPlan>>(
+        `${apiOrigin}/periodization/plan`
+      );
+      setPlan(data.data ?? null);
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+        (e instanceof Error ? e.message : 'Failed to load plan.');
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  const regenerate = useCallback(async () => {
+    try {
+      await api.delete(`${apiOrigin}/cache/invalidate`, { data: { analysis_type: 'periodization' } });
+    } catch {
+      // ignore — reload anyway
+    }
+    await load();
+  }, [load]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   if (loading) {
     return (
@@ -93,6 +108,9 @@ export default function PeriodizationScreen() {
               {plan.weeks_remaining} {plan.weeks_remaining === 1 ? 'week' : 'weeks'}
               {plan.target_event_date ? ' to event' : ' block'}
             </Text>
+          </View>
+          <View style={{ marginTop: spacing.sm }}>
+            <AIAnalysisBadge isCached={!!plan._cached} generatedAt={plan._generated_at} onRefresh={regenerate} />
           </View>
           <Text style={styles.phaseDesc}>{plan.phase_description}</Text>
           <View style={styles.phaseMeta}>

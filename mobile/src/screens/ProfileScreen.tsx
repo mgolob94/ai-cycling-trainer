@@ -14,6 +14,7 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 
 import { useAuthStore } from '../store/useAuthStore';
+import { api, apiOrigin } from '../services/api';
 import {
   getSettings,
   setRemindersEnabled,
@@ -34,6 +35,19 @@ export default function ProfileScreen() {
 
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
   const [showPicker, setShowPicker] = useState(false);
+  const [refreshingAll, setRefreshingAll] = useState(false);
+
+  const refreshAllAnalyses = async () => {
+    setRefreshingAll(true);
+    try {
+      await api.delete(`${apiOrigin}/cache/invalidate`, { data: { all: true } });
+      Alert.alert('Analyses cleared', 'All AI analyses will regenerate the next time you open them.');
+    } catch {
+      Alert.alert('Could not refresh', 'Please try again.');
+    } finally {
+      setRefreshingAll(false);
+    }
+  };
 
   useEffect(() => {
     getSettings().then(setSettings);
@@ -120,6 +134,17 @@ export default function ProfileScreen() {
           ) : null}
         </View>
 
+        <TouchableOpacity
+          style={[styles.refreshAll, refreshingAll && styles.refreshAllDisabled]}
+          activeOpacity={0.8}
+          disabled={refreshingAll}
+          onPress={refreshAllAnalyses}
+        >
+          <Text style={styles.refreshAllText}>
+            {refreshingAll ? 'Refreshing…' : 'Refresh all analyses'}
+          </Text>
+        </TouchableOpacity>
+
         <View style={styles.footer}>
           <TouchableOpacity style={styles.signOut} activeOpacity={0.7} onPress={clearSession}>
             <Text style={styles.signOutText}>Sign out</Text>
@@ -161,6 +186,16 @@ const styles = StyleSheet.create({
   rowDisabled: { opacity: 0.4 },
   rowLabel: { color: colors.text, fontSize: fontSize.md },
   rowValue: { color: colors.primary, fontSize: fontSize.md, fontWeight: '600' },
+  refreshAll: {
+    marginTop: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  refreshAllDisabled: { opacity: 0.5 },
+  refreshAllText: { color: colors.primary, fontSize: fontSize.md, fontWeight: '600' },
   footer: { flex: 1, justifyContent: 'flex-end' },
   signOut: { paddingVertical: 14, alignItems: 'center' },
   signOutText: { color: colors.danger, fontSize: fontSize.md, fontWeight: '600' },

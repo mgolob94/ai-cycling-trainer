@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-import { api, ApiResponse } from '../services/api';
+import { api, apiOrigin, ApiResponse } from '../services/api';
 
 export interface PowerZone {
   zone: string;
@@ -38,6 +38,8 @@ export interface RideAnalysis {
     top_moment: string;
     improvement_tip: string;
     fatigue_impact: 'low' | 'medium' | 'high';
+    _cached?: boolean;
+    _generated_at?: string;
   };
 }
 
@@ -68,9 +70,21 @@ export function useRideAnalysis(stravaId: string) {
     }
   }, [stravaId]);
 
+  // Invalidate this ride's cached analysis, then re-run (forces regeneration).
+  const regenerate = useCallback(async () => {
+    try {
+      await api.delete(`${apiOrigin}/cache/invalidate`, {
+        data: { analysis_type: 'ride_analysis', cache_key: `ride_${stravaId}` },
+      });
+    } catch {
+      // ignore — re-run anyway
+    }
+    await run();
+  }, [run, stravaId]);
+
   useEffect(() => {
     run();
   }, [run]);
 
-  return { analysis, loading, error, retry: run };
+  return { analysis, loading, error, retry: run, regenerate };
 }

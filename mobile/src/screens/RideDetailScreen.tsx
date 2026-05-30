@@ -4,6 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useRideAnalysis, type PowerZone } from '../hooks/useRideAnalysis';
 import MultiLineChart from '../components/MultiLineChart';
+import AIAnalysisBadge from '../components/AIAnalysisBadge';
 import type { AppStackParamList } from '../navigation/types';
 import { lightColors, spacing, radius, fontSize } from '../theme';
 
@@ -69,7 +70,7 @@ function ZoneBars({ zones }: { zones: PowerZone[] }) {
 
 export default function RideDetailScreen({ route }: Props) {
   const { stravaId } = route.params;
-  const { analysis, loading, error } = useRideAnalysis(stravaId);
+  const { analysis, loading, error, regenerate } = useRideAnalysis(stravaId);
 
   const chartWidth = Dimensions.get('window').width - spacing.lg * 2 - spacing.lg * 2;
 
@@ -113,6 +114,13 @@ export default function RideDetailScreen({ route }: Props) {
                     <Text style={styles.scoreOutOf}>/10</Text>
                   </View>
                 ) : null}
+              </View>
+              <View style={{ marginTop: spacing.sm }}>
+                <AIAnalysisBadge
+                  isCached={!!analysis.ai_analysis._cached}
+                  generatedAt={analysis.ai_analysis._generated_at}
+                  onRefresh={regenerate}
+                />
               </View>
               <Text style={styles.aiSummary}>{analysis.ai_analysis.ride_summary}</Text>
 
