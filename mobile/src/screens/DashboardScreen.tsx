@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, Pressable, Animated, Easing } from 'react-native';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  RefreshControl,
+  Pressable,
+  Animated,
+  Easing,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -23,15 +34,14 @@ import { useNudges } from '../hooks/useNudges';
 import { useKnowledgeLevel } from '../context/KnowledgeLevelContext';
 import TrainingScaleBar, { type ScaleZone } from '../components/metrics/TrainingScaleBar';
 import MetricTooltip from '../components/metrics/MetricTooltip';
-import {
-  interpretTSB,
-  interpretCTL,
-  interpretATL,
-  interpretWeeklyTSS,
-} from '../services/metricsInterpreter';
+import { interpretTSB, interpretATL } from '../services/metricsInterpreter';
 import { palette, spacing, radius } from '../theme/tokens';
 import { useThemeColors } from '../theme/useThemeColors';
 import type { AppStackParamList } from '../navigation/types';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 // TSB spectrum zones for the hero scale bar.
 const TSB_ZONES: ScaleZone[] = [
@@ -41,6 +51,17 @@ const TSB_ZONES: ScaleZone[] = [
   { from: 12, to: 25, label: 'Fresh', color: palette.emerald400 },
   { from: 25, to: 40, label: 'Very fresh', color: palette.emerald600 },
 ];
+
+// Hero expand state is remembered for the session only (module scope → resets
+// on a cold app start), so beginners re-collapse next launch.
+let heroExpandedSession = false;
+
+type TrendVisual = { trendIcon: 'trending-up' | 'trending-down' | 'minus'; trendColor: string };
+function heroTrend(delta: number, goodUp: boolean): TrendVisual {
+  if (delta > 1) return { trendIcon: 'trending-up', trendColor: goodUp ? palette.emerald400 : palette.rose400 };
+  if (delta < -1) return { trendIcon: 'trending-down', trendColor: goodUp ? palette.rose400 : palette.emerald400 };
+  return { trendIcon: 'minus', trendColor: palette.slate400 };
+}
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -126,10 +147,24 @@ export default function DashboardScreen() {
   } = useSyncStatus();
 
   const { high, medium, dismiss } = useNudges();
-  const { track } = useKnowledgeLevel();
+  const { track, config } = useKnowledgeLevel();
   const [bannerVisible, setBannerVisible] = useState(false);
   const [showSkipPrompt, setShowSkipPrompt] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
+  // Advanced users default to the intermediate (expanded) state; beginners stay
+  // collapsed unless they expanded earlier this session.
+  const [showDetails, setShowDetails] = useState(config.defaultExpanded || heroExpandedSession);
+
+  const expandHero = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowDetails(true);
+    heroExpandedSession = true;
+    track('show_more'); // level 1 → 2 (auto-upgrade trigger)
+  };
+  const collapseHero = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowDetails(false);
+    heroExpandedSession = false;
+  };
 
   // Hero entrance: slide up + fade in, 100ms after mount.
   const heroAnim = useRef(new Animated.Value(0)).current;
@@ -220,14 +255,26 @@ export default function DashboardScreen() {
   const recent4 = weeks.slice(-4);
   const avgTss = recent4.length ? recent4.reduce((s, w) => s + w.tss, 0) / recent4.length : 0;
   const tsbInfo = interpretTSB(tsb);
-  const ctlInfo = interpretCTL(ctl, ctlTrend);
   const atlInfo = interpretATL(atl, atlTrend, ctl);
-  const tssInfo = interpretWeeklyTSS(latest?.tss ?? 0, avgTss);
+  const tsbTrend = priorWeek ? tsb - priorWeek.tsb : 0;
 
-  const trendChips = [
-    `Fitness ${ctlTrend >= 0 ? '↑' : '↓'} ${ctlTrend > 0 ? '+' : ''}${Math.round(ctlTrend)} this month`,
-    `Fatigue ${atlInfo.isHigh ? '↑ high' : atlTrend <= 0 ? '↓ good' : 'steady'}`,
-    `TSS this week: ${tssInfo.vsAverage}`,
+  // Two plain-language trend chips (no numbers).
+  const fitnessChip =
+    ctlTrend > 1
+      ? { icon: 'trending-up' as const, color: palette.emerald400, label: 'Fitness rising' }
+      : ctlTrend < -1
+        ? { icon: 'trending-down' as const, color: palette.rose400, label: 'Fitness dropping' }
+        : { icon: 'minus' as const, color: palette.slate400, label: 'Fitness steady' };
+  const fatigueChip = atlInfo.isHigh
+    ? { icon: 'alert-triangle' as const, color: palette.amber400, label: 'Fatigue high' }
+    : { icon: 'check' as const, color: palette.emerald400, label: 'Fatigue OK' };
+  const heroChips = [fitnessChip, fatigueChip];
+
+  // Hidden numbers (revealed at the intermediate level), with trend arrows.
+  const heroMetrics = [
+    { key: 'ctl' as const, label: 'CTL', value: Math.round(ctl), ...heroTrend(ctlTrend, true) },
+    { key: 'atl' as const, label: 'ATL', value: Math.round(atl), ...heroTrend(atlTrend, false) },
+    { key: 'tsb' as const, label: 'TSB', value: Math.round(tsb), ...heroTrend(tsbTrend, true) },
   ];
 
   const staleSync =
@@ -334,59 +381,54 @@ export default function DashboardScreen() {
             <View style={styles.heroScale}>
               <TrainingScaleBar onDark value={tsb} min={-40} max={40} zones={TSB_ZONES} />
             </View>
-            {/* Row 4 — secondary numbers (collapsible) */}
-            <Pressable
-              style={styles.detailsToggle}
-              hitSlop={6}
-              onPress={() =>
-                setShowDetails((v) => {
-                  if (!v) track('show_more'); // 5+ expands auto-upgrades to intermediate
-                  return !v;
-                })
-              }
-            >
-              <Text variant="label" color={palette.slate400}>
-                Details
-              </Text>
-              <Feather name={showDetails ? 'chevron-up' : 'chevron-down'} size={16} color={palette.slate400} />
-            </Pressable>
-            {showDetails ? (
-              <View style={styles.heroStats}>
-                {(
-                  [
-                    { key: 'ctl', label: 'CTL', value: Math.round(ctl) },
-                    { key: 'atl', label: 'ATL', value: Math.round(atl) },
-                    { key: 'tsb', label: 'TSB', value: Math.round(tsb) },
-                  ] as const
-                ).map((s) => (
-                  <View key={s.label} style={styles.heroStat}>
-                    <Text variant="statSm" color="#FFFFFF">
-                      {s.value}
-                    </Text>
-                    <View style={styles.heroStatLabel}>
-                      <Text variant="label" color={palette.slate400}>
-                        {s.label}
-                      </Text>
-                      <MetricTooltip metric={s.key} value={s.value} />
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-            {/* Row 5 — trend chips */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipScroll}
-            >
-              {trendChips.map((c) => (
-                <View key={c} style={styles.trendChip}>
+            {/* Row 4 — two plain-language trend chips (no numbers) */}
+            <View style={styles.chipRow}>
+              {heroChips.map((c) => (
+                <View key={c.label} style={styles.trendChip}>
+                  <Feather name={c.icon} size={12} color={c.color} />
                   <Text variant="caption" color={palette.slate200}>
-                    {c}
+                    {c.label}
                   </Text>
                 </View>
               ))}
-            </ScrollView>
+            </View>
+            {/* Row 5 — numbers (intermediate state), revealed on expand */}
+            {showDetails ? (
+              <>
+                <View style={styles.heroDivider} />
+                <View style={styles.heroStats}>
+                  {heroMetrics.map((m) => (
+                    <View key={m.key} style={styles.heroStat}>
+                      <View style={styles.heroValueRow}>
+                        <Text variant="statSm" color="rgba(255,255,255,0.7)">
+                          {m.value}
+                        </Text>
+                        <Feather name={m.trendIcon} size={12} color={m.trendColor} />
+                      </View>
+                      <View style={styles.heroStatLabel}>
+                        <Text variant="label" color={palette.slate400}>
+                          {m.label}
+                        </Text>
+                        <MetricTooltip metric={m.key} value={m.value} />
+                      </View>
+                    </View>
+                  ))}
+                </View>
+                <Pressable style={styles.detailsToggle} hitSlop={6} onPress={collapseHero}>
+                  <Text variant="label" color={palette.slate400}>
+                    Hide
+                  </Text>
+                  <Feather name="chevron-up" size={16} color={palette.slate400} />
+                </Pressable>
+              </>
+            ) : (
+              <Pressable style={styles.detailsToggle} hitSlop={6} onPress={expandHero}>
+                <Text variant="label" color={palette.slate400}>
+                  Details
+                </Text>
+                <Feather name="chevron-down" size={16} color={palette.slate400} />
+              </Pressable>
+            )}
           </Card>
         </Animated.View>
 
@@ -501,12 +543,17 @@ const styles = StyleSheet.create({
   heroStatus: { fontSize: 26, fontWeight: '600' },
   heroAdvice: { lineHeight: 20, marginTop: spacing[1] },
   heroScale: { marginTop: spacing[4] },
-  detailsToggle: { flexDirection: 'row', alignItems: 'center', gap: spacing[1], marginTop: spacing[3] },
-  heroStats: { flexDirection: 'row', marginTop: spacing[3], borderTopWidth: 1, borderTopColor: palette.slate800, paddingTop: spacing[3] },
+  detailsToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: spacing[1], marginTop: spacing[3] },
+  heroDivider: { height: 1, backgroundColor: palette.slate800, marginTop: spacing[4] },
+  heroStats: { flexDirection: 'row', marginTop: spacing[3] },
   heroStat: { flex: 1, gap: 2 },
+  heroValueRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
   heroStatLabel: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
-  chipScroll: { gap: spacing[2], marginTop: spacing[4], paddingRight: spacing[2] },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[4] },
   trendChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: radius.full,
     paddingHorizontal: spacing[3],
