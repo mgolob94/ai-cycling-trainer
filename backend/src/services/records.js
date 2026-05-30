@@ -1,4 +1,18 @@
 const { supabaseAdmin } = require('../db/supabase');
+const pushNotifications = require('./pushNotifications');
+
+// Slovenian labels for personal-record notifications.
+const RECORD_LABELS = {
+  best_5min_power: 'Najboljša moč 5 min',
+  best_20min_power: 'Najboljša moč 20 min',
+  best_60min_power: 'Najboljša moč 60 min',
+  longest_ride_km: 'Najdaljša vožnja',
+  most_elevation_m: 'Največ vzpona',
+};
+
+function unitLabel(unit) {
+  return unit === 'watts' ? 'W' : unit;
+}
 
 // Personal record definitions. Power records approximate the best N-minute
 // effort with the highest whole-ride average power among rides at least that
@@ -72,6 +86,8 @@ async function scanAndUpsert(userId) {
     .eq('user_id', userId);
   if (error) throw error;
 
+  const beaten = [];
+
   for (const def of RECORD_DEFS) {
     const candidate = bestCandidate(rides || [], def);
     if (!candidate) continue;
@@ -105,12 +121,26 @@ async function scanAndUpsert(userId) {
         .update(row)
         .eq('id', existing.id);
       if (updateError) throw updateError;
+      // An existing record was beaten — that's a notable new PR.
+      beaten.push({ type: def.type, value, unit: def.unit });
     } else {
       const { error: insertError } = await supabaseAdmin
         .from('personal_records')
         .insert(row);
       if (insertError) throw insertError;
     }
+  }
+
+  // Notify on beaten records (best-effort; never fails the scan).
+  for (const pr of beaten) {
+    const label = RECORD_LABELS[pr.type] ?? pr.type;
+    pushNotifications
+      .sendToUser(userId, {
+        title: 'Nov osebni rekord! 🏆',
+        body: `${label}: ${pr.value} ${unitLabel(pr.unit)}`,
+        data: { screen: 'Progress' },
+      })
+      .catch((e) => console.warn('[records push]', e.message));
   }
 
   return getRecords(userId);

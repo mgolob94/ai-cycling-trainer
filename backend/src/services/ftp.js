@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../db/supabase');
+const pushNotifications = require('./pushNotifications');
 
 // Coggan method: FTP ≈ 95% of best 20-minute average power.
 const FTP_FACTOR = 0.95;
@@ -116,25 +117,32 @@ async function recalculateForUser(userId, { recordOnlyIfChanged = false } = {}) 
   const estimate = estimateFtp(rides || [], weightKg);
   if (!estimate) return null;
 
-  if (recordOnlyIfChanged) {
-    const { data: latest } = await supabaseAdmin
-      .from('ftp_tests')
-      .select('ftp_watts, test_date')
-      .eq('user_id', userId)
-      .order('test_date', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  const prior = await getLatest(userId);
 
-    if (
-      latest &&
-      latest.ftp_watts === estimate.ftp_watts &&
-      latest.test_date === estimate.best_effort_date
-    ) {
-      return { ...estimate, recorded: false };
-    }
+  if (
+    recordOnlyIfChanged &&
+    prior &&
+    prior.ftp_watts === estimate.ftp_watts &&
+    prior.test_date === estimate.best_effort_date
+  ) {
+    return { ...estimate, recorded: false };
   }
 
   const stored = await calculateAndStore(userId, rides || [], weightKg);
+
+  // Notify when FTP improved versus the previous test (best-effort).
+  if (prior && estimate.ftp_watts > prior.ftp_watts) {
+    const delta = estimate.ftp_watts - prior.ftp_watts;
+    const wkg = estimate.watts_per_kg != null ? estimate.watts_per_kg : '—';
+    pushNotifications
+      .sendToUser(userId, {
+        title: 'FTP napredek! 💪',
+        body: `FTP se je izboljšal za ${delta} W! Zdaj si na ${wkg} W/kg`,
+        data: { screen: 'Progress' },
+      })
+      .catch((e) => console.warn('[ftp push]', e.message));
+  }
+
   return { ...stored, recorded: true };
 }
 

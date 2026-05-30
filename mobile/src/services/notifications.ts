@@ -5,9 +5,11 @@ import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { api } from './api';
+import { navigationRef } from '../navigation';
 
 const SETTINGS_KEY = 'notification_settings';
 const REMINDER_ID_KEY = 'reminder_notification_id';
+const WEEKLY_SUMMARY_ID_KEY = 'weekly_summary_notification_id';
 const ANDROID_CHANNEL_ID = 'workout-reminders';
 
 export interface NotificationSettings {
@@ -130,6 +132,46 @@ export async function cancelDailyReminder(): Promise<void> {
   }
 }
 
+/**
+ * Schedule (or refresh) the weekly summary notification for Sunday evening.
+ * The week's totals are embedded at schedule time, so call this when fresh data
+ * is available (e.g. after loading metrics) to keep the numbers current.
+ * No-op if notification permission hasn't been granted (won't prompt).
+ */
+export async function scheduleWeeklySummary(distanceKm: number, tss: number): Promise<void> {
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== 'granted') return;
+
+  await cancelWeeklySummary();
+  await ensureAndroidChannel();
+
+  const id = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Teden za tabo 🚴',
+      body: `${Math.round(distanceKm)} km, ${Math.round(tss)} TSS. Poglejmo napredek!`,
+      data: { screen: 'Progress' },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+      weekday: 1, // 1 = Sunday
+      hour: 18,
+      minute: 0,
+      ...(Platform.OS === 'android' ? { channelId: ANDROID_CHANNEL_ID } : {}),
+    },
+  });
+
+  await AsyncStorage.setItem(WEEKLY_SUMMARY_ID_KEY, id);
+}
+
+/** Cancel the weekly summary notification, if scheduled. */
+export async function cancelWeeklySummary(): Promise<void> {
+  const id = await AsyncStorage.getItem(WEEKLY_SUMMARY_ID_KEY);
+  if (id) {
+    await Notifications.cancelScheduledNotificationAsync(id);
+    await AsyncStorage.removeItem(WEEKLY_SUMMARY_ID_KEY);
+  }
+}
+
 /** Turn reminders on/off, keeping the stored time. */
 export async function setRemindersEnabled(
   enabled: boolean,
@@ -158,8 +200,13 @@ export function addNotificationListeners(): () => void {
   });
 
   // App in background / killed: fired when the user taps a notification.
+  // If the notification carries a `screen`, deep-link to it.
   const response = Notifications.addNotificationResponseReceivedListener((res) => {
-    console.log('[notifications] tapped:', res.notification.request.content.title);
+    const data = res.notification.request.content.data as { screen?: string } | undefined;
+    if (data?.screen && navigationRef.isReady()) {
+      // @ts-expect-error screen name is validated at the navigator level
+      navigationRef.navigate(data.screen);
+    }
   });
 
   return () => {

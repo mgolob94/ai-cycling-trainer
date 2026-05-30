@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +19,7 @@ import { useWeeklyMetrics, type WeeklyMetric } from '../hooks/useWeeklyMetrics';
 import { usePersonalRecords, type PersonalRecord } from '../hooks/usePersonalRecords';
 import MultiLineChart from '../components/MultiLineChart';
 import FTPChart from '../components/FTPChart';
+import { scheduleWeeklySummary } from '../services/notifications';
 import { lightColors, spacing, radius, fontSize } from '../theme';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -218,6 +220,15 @@ export default function ProgressScreen() {
     metrics.refresh();
     records.refresh();
   };
+
+  // Refresh the Sunday-evening weekly summary notification with the latest
+  // week's totals (no-op if notifications aren't granted).
+  useEffect(() => {
+    const latest = metrics.weeks[metrics.weeks.length - 1];
+    if (latest) {
+      scheduleWeeklySummary(latest.total_distance_km, latest.tss).catch(() => {});
+    }
+  }, [metrics.weeks]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
