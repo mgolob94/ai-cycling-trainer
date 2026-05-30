@@ -81,7 +81,14 @@ async function syncAllActivities(userId) {
         rideCount += rides.length;
       }
 
-      await updateConnection(userId, { initial_sync_progress: fetched });
+      // Strava doesn't tell us the total upfront, so keep a rolling estimate:
+      // assume at least one more full page while pages keep coming in full. This
+      // gives the client a steadily-rising (approximate) percentage to show.
+      const morePagesLikely = activities.length >= PER_PAGE;
+      await updateConnection(userId, {
+        initial_sync_progress: fetched,
+        initial_sync_total_estimate: fetched + (morePagesLikely ? PER_PAGE : 0),
+      });
       if (activities.length < PER_PAGE) break;
     }
 

@@ -76,13 +76,36 @@ async function status(req, res, next) {
       .limit(1)
       .maybeSingle();
 
+    // Stats for the connected/summary view: total distance + earliest ride date.
+    // Distance is summed from the (small) weekly performance_metrics rows rather
+    // than scanning every ride.
+    const [{ data: weeks }, { data: firstRide }, { count: rideCount }] = await Promise.all([
+      supabaseAdmin.from('performance_metrics').select('total_distance_km').eq('user_id', userId),
+      supabaseAdmin
+        .from('rides')
+        .select('ride_date')
+        .eq('user_id', userId)
+        .not('ride_date', 'is', null)
+        .order('ride_date', { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+      supabaseAdmin.from('rides').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+    ]);
+    const totalDistanceKm = (weeks || []).reduce((s, w) => s + (w.total_distance_km || 0), 0);
+
     res.json({
       success: true,
       data: {
         sync_status: base.sync_status,
+        sync_error: base.sync_error ?? null,
         initial_sync_completed: base.initial_sync_completed,
         progress_percent: base.progress_percent,
+        initial_sync_progress: base.initial_sync_progress ?? 0,
+        initial_sync_total_estimate: base.initial_sync_total_estimate ?? null,
         total_activities_synced: base.total_activities_synced ?? 0,
+        total_rides: rideCount ?? 0,
+        total_distance_km: Math.round(totalDistanceKm),
+        first_ride_date: firstRide?.ride_date ?? null,
         last_sync_at: base.last_sync_at ?? null,
         new_activities_since_last_sync: newSince,
         last_sync_log: lastLog ?? null,
