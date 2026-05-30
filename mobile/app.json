@@ -14,7 +14,11 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.cyclingaitrainer.app"
+      "bundleIdentifier": "com.cyclingaitrainer.app",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "We read your HRV, resting heart rate, and sleep to calculate your daily recovery score.",
+        "NSHealthUpdateUsageDescription": "We do not write any data to Apple Health."
+      }
     },
     "android": {
       "package": "com.cyclingaitrainer.app",
@@ -25,7 +29,14 @@
     "scheme": "cyclingaitrainer",
     "plugins": [
       "expo-notifications",
-      "expo-font"
+      "expo-font",
+      [
+        "react-native-health",
+        {
+          "healthSharePermission": "We read your HRV, resting heart rate, and sleep to calculate your daily recovery score.",
+          "isClinicalDataEnabled": false
+        }
+      ]
     ],
     "extra": {
       "apiBaseUrl": "http://192.168.31.117:3000/api",
