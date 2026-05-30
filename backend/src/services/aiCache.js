@@ -19,6 +19,7 @@ const TTL_DEFAULTS = {
   periodization: 336, // 2 weeks
   rider_profile: 336, // 2 weeks
   ftp_insight: 8760, // 1 year — FTP test data never changes
+  hrv_trend: 48, // 2 days
 };
 
 const FALLBACK_TTL = 168;

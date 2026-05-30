@@ -1,4 +1,6 @@
 const recoveryScore = require('../services/recoveryScore');
+const hrvAnalysis = require('../services/hrvAnalysis');
+const { getCached, saveCache, isoWeek } = require('../services/aiCache');
 
 /** POST /recovery/calculate — recompute the signed-in user's recovery score. */
 async function calculate(req, res, next) {
@@ -30,4 +32,31 @@ async function calculateAll(req, res, next) {
   }
 }
 
-module.exports = { calculate, calculateAll };
+/**
+ * GET /recovery/hrv/trend — HRV trend + HRV-vs-load correlation, cached 48h in
+ * ai_analysis_cache (analysis_type 'hrv_trend').
+ */
+async function hrvTrend(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const cacheKey = `week_${isoWeek()}`;
+
+    const cached = await getCached(userId, 'hrv_trend', cacheKey);
+    if (cached.hit) {
+      return res.json({ success: true, data: { ...cached.data, _cached: true, _generated_at: cached.generated_at }, error: null });
+    }
+
+    const [trend, correlation] = await Promise.all([
+      hrvAnalysis.getHRVTrend(userId, 8),
+      hrvAnalysis.getHRVvsTrainingLoad(userId, 8),
+    ]);
+    const result = { ...trend, training_load_correlation: correlation };
+
+    await saveCache(userId, 'hrv_trend', cacheKey, result, 0, 'rule-based', 48);
+    res.json({ success: true, data: { ...result, _cached: false }, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { calculate, calculateAll, hrvTrend };
