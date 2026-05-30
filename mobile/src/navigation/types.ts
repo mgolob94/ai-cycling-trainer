@@ -36,4 +36,5 @@ export type AppStackParamList = {
   Periodization: undefined;
   FTPTestWizard: undefined;
   AIReport: undefined;
+  MetricsIntro: undefined;
 };

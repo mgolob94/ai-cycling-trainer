@@ -13,10 +13,13 @@ import {
   dismissStravaPrompt,
   clearStravaSkipped,
 } from '../services/stravaOnboarding';
+import { hasSeenMetricsIntro } from '../services/metricsIntro';
 import { Feather } from '@expo/vector-icons';
 
 import { Text, Card, Badge, StatCard, SectionHeader } from '../components/ui';
 import WeekSummaryCard from '../components/dashboard/WeekSummaryCard';
+import NudgeItem from '../components/dashboard/NudgeItem';
+import { useNudges } from '../hooks/useNudges';
 import TrainingScaleBar, { type ScaleZone } from '../components/metrics/TrainingScaleBar';
 import MetricTooltip from '../components/metrics/MetricTooltip';
 import {
@@ -121,6 +124,7 @@ export default function DashboardScreen() {
     acknowledge,
   } = useSyncStatus();
 
+  const { high, medium, dismiss } = useNudges();
   const [bannerVisible, setBannerVisible] = useState(false);
   const [showSkipPrompt, setShowSkipPrompt] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -176,6 +180,17 @@ export default function DashboardScreen() {
     const id = setTimeout(() => setBannerVisible(false), 10_000);
     return () => clearTimeout(id);
   }, [newActivitiesAvailable]);
+
+  // One-time metrics education, after the first sync has produced metrics.
+  const introChecked = useRef(false);
+  useEffect(() => {
+    if (introChecked.current) return;
+    if (!connected || weeks.length === 0) return;
+    introChecked.current = true;
+    hasSeenMetricsIntro().then((seen) => {
+      if (!seen) navigation.navigate('MetricsIntro');
+    });
+  }, [connected, weeks.length, navigation]);
 
   const handleBannerRefresh = useCallback(() => {
     setBannerVisible(false);
@@ -287,6 +302,15 @@ export default function DashboardScreen() {
           </Text>
         ) : null}
 
+        {/* High-priority nudge banner */}
+        {high[0] ? (
+          <NudgeItem
+            nudge={high[0]}
+            onAction={(screen) => navigation.navigate(screen as never)}
+            onDismiss={dismiss}
+          />
+        ) : null}
+
         {/* Hero — form today (plain language) */}
         <Animated.View style={heroStyle}>
           <Card variant="dark" padding={20} style={styles.hero} onPress={() => navigation.navigate('Progress')}>
@@ -380,6 +404,11 @@ export default function DashboardScreen() {
             <Text variant="caption">No plan yet — generate one from your recent rides.</Text>
           )}
         </View>
+
+        {/* Medium-priority nudge */}
+        {medium[0] ? (
+          <NudgeItem nudge={medium[0]} onAction={(screen) => navigation.navigate(screen as never)} />
+        ) : null}
 
         {/* Last ride */}
         {lastRide ? (

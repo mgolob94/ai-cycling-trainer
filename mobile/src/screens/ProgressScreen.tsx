@@ -13,6 +13,7 @@ import { useWeekAnalysis } from '../hooks/useWeekAnalysis';
 import { useRecommendations } from '../hooks/useRecommendations';
 import { usePersonalRecords, type PersonalRecord } from '../hooks/usePersonalRecords';
 import { useSyncStatus } from '../hooks/useSyncStatus';
+import { useNudges } from '../hooks/useNudges';
 import PowerCurveChart from '../components/PowerCurveChart';
 import FTPChart from '../components/FTPChart';
 import AIAnalysisBadge from '../components/AIAnalysisBadge';
@@ -55,6 +56,7 @@ export default function ProgressScreen() {
   const recs = useRecommendations();
   const prs = usePersonalRecords();
   const sync = useSyncStatus();
+  const { low } = useNudges();
 
   const [pdcRange, setPdcRange] = useState<'alltime' | '90d' | '30d'>('alltime');
   const [showFtpChart, setShowFtpChart] = useState(false);
@@ -138,6 +140,15 @@ export default function ProgressScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Low-priority nudge chip */}
+        {low[0] ? (
+          <View style={[styles.nudgeChip, { backgroundColor: colors.surfaceRaised }]}>
+            <Text variant="caption" color={colors.textPrimary}>
+              {low[0].icon} {low[0].message}
+            </Text>
+          </View>
+        ) : null}
 
         {/* FTP hero */}
         {ftp.loading ? (
@@ -387,6 +398,7 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   syncPill: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   dot: { width: 7, height: 7, borderRadius: radius.full },
+  nudgeChip: { alignSelf: 'flex-start', borderRadius: radius.full, paddingHorizontal: spacing[3], paddingVertical: 6 },
 
   ftpHeroRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   ftpValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing[1] },
