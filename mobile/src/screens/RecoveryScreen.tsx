@@ -1,12 +1,15 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
 
 import { useRecovery, type SleepSession } from '../hooks/useRecovery';
 import { useAuthStore } from '../store/useAuthStore';
 import * as appleHealth from '../services/appleHealth';
+import { hasSeenRecoverySetup } from '../services/recoverySetup';
+import type { AppStackParamList } from '../navigation/types';
 import { Text, Card, SectionHeader, SkeletonLoader, Emoji } from '../components/ui';
 import CircularProgress from '../components/CircularProgress';
 import { palette, spacing, radius } from '../theme/tokens';
@@ -77,6 +80,7 @@ function ContributionBar({ label, value }: { label: string; value: number }) {
 
 export default function RecoveryScreen() {
   const { colors } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const userId = useAuthStore((s) => s.userId);
   const { score, adaptation, hrv, hrvBaseline, lastSleep, sources, loading, refresh } = useRecovery();
 
@@ -85,6 +89,16 @@ export default function RecoveryScreen() {
       refresh();
     }, [refresh])
   );
+
+  // First visit → one-time setup (data sources / manual fallback).
+  const setupChecked = useRef(false);
+  useEffect(() => {
+    if (setupChecked.current) return;
+    setupChecked.current = true;
+    hasSeenRecoverySetup().then((seen) => {
+      if (!seen) navigation.navigate('RecoverySetup');
+    });
+  }, [navigation]);
 
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
 

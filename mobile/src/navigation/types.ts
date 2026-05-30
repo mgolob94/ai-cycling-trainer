@@ -39,4 +39,5 @@ export type AppStackParamList = {
   FTPTestWizard: undefined;
   AIReport: undefined;
   MetricsIntro: undefined;
+  RecoverySetup: undefined;
 };

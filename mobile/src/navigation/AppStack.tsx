@@ -11,6 +11,7 @@ import PeriodizationScreen from '../screens/PeriodizationScreen';
 import FTPTestWizard from '../screens/FTPTestWizard';
 import AIReportScreen from '../screens/AIReportScreen';
 import MetricsIntroScreen from '../screens/MetricsIntroScreen';
+import RecoverySetupScreen from '../screens/RecoverySetupScreen';
 import { fonts } from '../theme/typography';
 import { useTheme } from '../theme/useTheme';
 import type { AppStackParamList } from './types';
@@ -48,6 +49,7 @@ export default function AppStack() {
       <Stack.Screen name="FTPTestWizard" component={FTPTestWizard} options={{ title: 'FTP test' }} />
       <Stack.Screen name="AIReport" component={AIReportScreen} options={{ title: 'AI analysis' }} />
       <Stack.Screen name="MetricsIntro" component={MetricsIntroScreen} options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="RecoverySetup" component={RecoverySetupScreen} options={{ headerShown: false, presentation: 'modal' }} />
     </Stack.Navigator>
   );
 }
