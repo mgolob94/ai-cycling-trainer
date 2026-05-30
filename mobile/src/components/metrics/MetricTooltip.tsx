@@ -76,15 +76,22 @@ const METRICS: Record<MetricKey, MetricDef> = {
   },
 };
 
+// Optional richer level-3 content (personalized benchmark + historical compare).
+export interface TooltipContent {
+  benchmark?: string;
+  historical?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Context + provider: one modal at the root, shown imperatively from anywhere.
 // ---------------------------------------------------------------------------
 interface TooltipState {
   metric: MetricKey;
   value?: number;
+  extra?: TooltipContent;
 }
 interface TooltipContextValue {
-  show: (metric: MetricKey, value?: number) => void;
+  show: (metric: MetricKey, value?: number, extra?: TooltipContent) => void;
 }
 
 const TooltipContext = createContext<TooltipContextValue>({ show: () => {} });
@@ -95,9 +102,9 @@ export function MetricTooltipProvider({ children }: { children: ReactNode }) {
   const { track } = useKnowledgeLevel();
   const [state, setState] = useState<TooltipState | null>(null);
 
-  const show = (metric: MetricKey, value?: number) => {
+  const show = (metric: MetricKey, value?: number, extra?: TooltipContent) => {
     track('tooltip'); // 10+ tooltip opens auto-upgrades to advanced
-    setState({ metric, value });
+    setState({ metric, value, extra });
   };
   const close = () => setState(null);
 
@@ -129,6 +136,16 @@ export function MetricTooltipProvider({ children }: { children: ReactNode }) {
                     <Text variant="body" color={colors.textPrimary} style={styles.line}>
                       {def.inYourCase(state.value)}
                     </Text>
+                    {state.extra?.benchmark ? (
+                      <Text variant="body" color={colors.textPrimary} style={styles.line}>
+                        {state.extra.benchmark}
+                      </Text>
+                    ) : null}
+                    {state.extra?.historical ? (
+                      <Text variant="caption" color={colors.textSecondary} style={styles.line}>
+                        {state.extra.historical}
+                      </Text>
+                    ) : null}
                   </View>
                 ) : null}
                 <Text variant="caption" color={colors.textSecondary} style={styles.analogy}>
