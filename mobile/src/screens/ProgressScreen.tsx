@@ -14,6 +14,7 @@ import { useRecommendations } from '../hooks/useRecommendations';
 import { usePersonalRecords, type PersonalRecord } from '../hooks/usePersonalRecords';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useNudges } from '../hooks/useNudges';
+import { useKnowledgeLevel } from '../context/KnowledgeLevelContext';
 import PowerCurveChart from '../components/PowerCurveChart';
 import FTPChart from '../components/FTPChart';
 import AIAnalysisBadge from '../components/AIAnalysisBadge';
@@ -57,6 +58,7 @@ export default function ProgressScreen() {
   const prs = usePersonalRecords();
   const sync = useSyncStatus();
   const { low } = useNudges();
+  const { track } = useKnowledgeLevel();
 
   const [pdcRange, setPdcRange] = useState<'alltime' | '90d' | '30d'>('alltime');
   const [showFtpChart, setShowFtpChart] = useState(false);
@@ -350,7 +352,10 @@ export default function ProgressScreen() {
               <Pressable
                 key={r}
                 style={[styles.toggle, pdcRange === r && styles.toggleActive]}
-                onPress={() => setPdcRange(r)}
+                onPress={() => {
+                  setPdcRange(r);
+                  track('power_curve'); // engaging the power curve auto-upgrades to advanced
+                }}
               >
                 <Text
                   variant="caption"

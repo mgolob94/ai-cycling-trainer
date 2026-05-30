@@ -20,6 +20,7 @@ import { Text, Card, Badge, StatCard, SectionHeader } from '../components/ui';
 import WeekSummaryCard from '../components/dashboard/WeekSummaryCard';
 import NudgeItem from '../components/dashboard/NudgeItem';
 import { useNudges } from '../hooks/useNudges';
+import { useKnowledgeLevel } from '../context/KnowledgeLevelContext';
 import TrainingScaleBar, { type ScaleZone } from '../components/metrics/TrainingScaleBar';
 import MetricTooltip from '../components/metrics/MetricTooltip';
 import {
@@ -125,6 +126,7 @@ export default function DashboardScreen() {
   } = useSyncStatus();
 
   const { high, medium, dismiss } = useNudges();
+  const { track } = useKnowledgeLevel();
   const [bannerVisible, setBannerVisible] = useState(false);
   const [showSkipPrompt, setShowSkipPrompt] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -336,7 +338,12 @@ export default function DashboardScreen() {
             <Pressable
               style={styles.detailsToggle}
               hitSlop={6}
-              onPress={() => setShowDetails((v) => !v)}
+              onPress={() =>
+                setShowDetails((v) => {
+                  if (!v) track('show_more'); // 5+ expands auto-upgrades to intermediate
+                  return !v;
+                })
+              }
             >
               <Text variant="label" color={palette.slate400}>
                 Details

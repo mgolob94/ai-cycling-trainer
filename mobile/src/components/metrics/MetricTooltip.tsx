@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import Text from '../ui/Text';
 import { spacing, radius, palette } from '../../theme/tokens';
 import { useTheme } from '../../theme/useTheme';
+import { useKnowledgeLevel } from '../../context/KnowledgeLevelContext';
 
 export type MetricKey = 'tsb' | 'ctl' | 'atl' | 'ftp' | 'tss' | 'np' | 'vi' | 'ef' | 'wprime';
 
@@ -91,9 +92,13 @@ const TooltipContext = createContext<TooltipContextValue>({ show: () => {} });
 export function MetricTooltipProvider({ children }: { children: ReactNode }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { track } = useKnowledgeLevel();
   const [state, setState] = useState<TooltipState | null>(null);
 
-  const show = (metric: MetricKey, value?: number) => setState({ metric, value });
+  const show = (metric: MetricKey, value?: number) => {
+    track('tooltip'); // 10+ tooltip opens auto-upgrades to advanced
+    setState({ metric, value });
+  };
   const close = () => setState(null);
 
   const def = state ? METRICS[state.metric] : null;

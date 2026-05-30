@@ -6,6 +6,7 @@ import { useFonts } from 'expo-font';
 import Navigation from './src/navigation';
 import { useAuthStore } from './src/store/useAuthStore';
 import { ThemeProvider } from './src/theme/useTheme';
+import { KnowledgeLevelProvider } from './src/context/KnowledgeLevelContext';
 import { MetricTooltipProvider } from './src/components/metrics/MetricTooltip';
 import { fontAssets } from './src/theme/typography';
 import {
@@ -41,12 +42,14 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <SafeAreaProvider>
-        <MetricTooltipProvider>
-          <Navigation />
-          <StatusBar style="auto" />
-        </MetricTooltipProvider>
-      </SafeAreaProvider>
+      <KnowledgeLevelProvider>
+        <SafeAreaProvider>
+          <MetricTooltipProvider>
+            <Navigation />
+            <StatusBar style="auto" />
+          </MetricTooltipProvider>
+        </SafeAreaProvider>
+      </KnowledgeLevelProvider>
     </ThemeProvider>
   );
 }

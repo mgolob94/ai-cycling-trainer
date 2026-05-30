@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { api, apiOrigin, ApiResponse } from '../services/api';
+import { useKnowledgeLevel } from '../context/KnowledgeLevelContext';
 import type { AppStackParamList } from '../navigation/types';
 import { lightColors, spacing, radius, fontSize } from '../theme';
 
@@ -107,6 +108,7 @@ function Stars({ count }: { count: number }) {
 
 export default function FTPTestWizard() {
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
+  const { track } = useKnowledgeLevel();
   const [step, setStep] = useState(1);
   const [selected, setSelected] = useState<TestKey | null>(null);
   const [checked, setChecked] = useState([false, false, false]);
@@ -147,7 +149,10 @@ export default function FTPTestWizard() {
           test_type: selected,
           strava_activity_id: stravaId,
         });
-        if (data.data) setResult(data.data);
+        if (data.data) {
+          setResult(data.data);
+          track('ftp_test'); // running a manual FTP test auto-upgrades to intermediate
+        }
       } catch (e: unknown) {
         const msg =
           (e as { response?: { data?: { error?: string } } })?.response?.data?.error ??
