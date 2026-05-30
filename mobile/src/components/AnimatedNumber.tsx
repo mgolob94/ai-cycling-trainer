@@ -1,12 +1,5 @@
-import { useEffect } from 'react';
-import { TextInput, type TextStyle, type StyleProp } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedProps,
-  withTiming,
-} from 'react-native-reanimated';
-
-const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+import { useEffect, useRef, useState } from 'react';
+import { Text, type TextStyle, type StyleProp } from 'react-native';
 
 interface Props {
   value: number;
@@ -15,28 +8,30 @@ interface Props {
 }
 
 /**
- * Smoothly counts up/down to `value` on the UI thread (reanimated). Rendered via
- * a read-only TextInput whose `text` prop is driven by animatedProps.
+ * Smoothly counts to `value` using a JS interval. Kept dependency-free (no
+ * reanimated/worklets) for reliable startup across Expo Go.
  */
 export default function AnimatedNumber({ value, style, duration = 800 }: Props) {
-  const sv = useSharedValue(value);
+  const [display, setDisplay] = useState(value);
+  const fromRef = useRef(value);
 
   useEffect(() => {
-    sv.value = withTiming(value, { duration });
-  }, [value, duration, sv]);
+    const from = fromRef.current;
+    if (from === value) {
+      setDisplay(value);
+      return undefined;
+    }
+    const start = Date.now();
+    const id = setInterval(() => {
+      const t = Math.min(1, (Date.now() - start) / duration);
+      setDisplay(Math.round(from + (value - from) * t));
+      if (t >= 1) {
+        fromRef.current = value;
+        clearInterval(id);
+      }
+    }, 30);
+    return () => clearInterval(id);
+  }, [value, duration]);
 
-  const animatedProps = useAnimatedProps(() => {
-    'worklet';
-    const text = `${Math.round(sv.value)}`;
-    return { text, defaultValue: text } as never;
-  });
-
-  return (
-    <AnimatedTextInput
-      editable={false}
-      underlineColorAndroid="transparent"
-      style={style}
-      animatedProps={animatedProps}
-    />
-  );
+  return <Text style={style}>{display}</Text>;
 }

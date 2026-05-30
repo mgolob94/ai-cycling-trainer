@@ -5,7 +5,7 @@ import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { api } from './api';
-import { navigationRef } from '../navigation';
+import { navigationRef } from '../navigation/navigationRef';
 
 const SETTINGS_KEY = 'notification_settings';
 const REMINDER_ID_KEY = 'reminder_notification_id';

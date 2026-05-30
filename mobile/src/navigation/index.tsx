@@ -1,18 +1,12 @@
-import {
-  NavigationContainer,
-  DarkTheme,
-  createNavigationContainerRef,
-  type Theme,
-} from '@react-navigation/native';
+import { NavigationContainer, DarkTheme, type Theme } from '@react-navigation/native';
 
 import { useAuthStore } from '../store/useAuthStore';
 import AuthStack from './AuthStack';
 import AppStack from './AppStack';
-import type { AppStackParamList } from './types';
+import { navigationRef } from './navigationRef';
 import { colors } from '../theme';
 
-// Ref so non-React code (e.g. notification taps) can navigate.
-export const navigationRef = createNavigationContainerRef<AppStackParamList>();
+export { navigationRef };
 
 const navTheme: Theme = {
   ...DarkTheme,
