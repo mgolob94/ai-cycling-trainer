@@ -1,5 +1,6 @@
 const aiCoach = require('../services/aiCoach');
 const weeklyCheckIn = require('../services/weeklyCheckIn');
+const plans = require('../services/plans');
 const { supabaseAdmin } = require('../db/supabase');
 
 const COACH_MESSAGE_LIMITS = { free: 5, basic: 30, pro: Infinity };
@@ -13,19 +14,21 @@ function startOfMonth() {
 const INJURY_RE = /\b(injur\w*|hurt\w*|pain\w*|sore|sick|ill|crash\w*)\b/i;
 const PLAN_RE = /change.*plan|adjust.*plan|new plan|rest day|skip|reschedul/i;
 
-function mondayOf(date = new Date()) {
-  const d = new Date(date);
-  d.setUTCHours(0, 0, 0, 0);
-  const day = d.getUTCDay();
-  d.setUTCDate(d.getUTCDate() + ((day === 0 ? -6 : 1) - day));
-  return d.toISOString().slice(0, 10);
-}
-
-/** POST /coach/weekly-plan — generate (or return cached) this week's AI plan. */
+/**
+ * POST /coach/weekly-plan — return THIS week's canonical plan (the same one in
+ * training_plans that the app's Plan screen shows). Generates it if missing, so
+ * the coach and the UI always share a single weekly plan.
+ */
 async function weeklyPlan(req, res, next) {
   try {
-    const weekStart = req.body?.week_start || mondayOf();
-    const plan = await aiCoach.generateWeeklyPlan(req.user.id, weekStart);
+    const weekStart = req.body?.week_start || plans.currentWeekStart();
+    const { data: existing } = await supabaseAdmin
+      .from('training_plans')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .eq('week_start', weekStart)
+      .maybeSingle();
+    const plan = existing || (await plans.generateAndStorePlan(req.user.id));
     res.json({ success: true, data: plan, error: null });
   } catch (err) {
     next(err);
@@ -85,7 +88,7 @@ async function message(req, res, next) {
       {
         role: 'system',
         content:
-          'You are now chatting with the athlete. Be concise — at most 3 sentences unless asked for more. Reference their actual data when relevant. If they report a problem (injury, fatigue, life event), adjust your recommendation. Respond in plain text (no JSON).',
+          "You are now chatting with the athlete. Be concise — at most 3 sentences unless asked for more. Reference their actual data when relevant. When they ask about today's or tomorrow's workout, quote the matching day from THIS WEEK'S PLAN in the context — never invent a different session. If they report a problem (injury, fatigue, life event), adjust your recommendation. Respond in plain text (no JSON).",
       },
       ...history.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
       { role: 'user', content: text },

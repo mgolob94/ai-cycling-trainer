@@ -400,6 +400,9 @@ function buildCoachSystemPrompt(athlete = {}) {
     a.recent_rides?.length ? `- Last rides: ${a.recent_rides.join('; ')}` : '',
     a.feedback_summary ? `- Feedback loop: ${a.feedback_summary}` : '',
     a.warnings?.length ? `- WARNINGS: ${a.warnings.join('; ')}` : '',
+    a.plan_summary
+      ? `\nTHIS WEEK'S PLAN (the athlete's actual plan as shown in the app — when they ask about today's or tomorrow's session, reference THIS, do not invent a different workout):\n${a.plan_summary}`
+      : '',
     '',
     'OUTPUT FORMAT:',
     'When asked for structured output, respond with valid JSON matching the exact schema given — no markdown, no text outside the JSON.',
@@ -410,7 +413,7 @@ function buildCoachSystemPrompt(athlete = {}) {
 
 /** Assemble the full athlete context for the coach from the database. */
 async function gatherAthleteContext(userId) {
-  const [{ data: profile }, { data: ftps }, { data: metrics }, { data: recovery }, { data: rides }, { data: feedback }] =
+  const [{ data: profile }, { data: ftps }, { data: metrics }, { data: recovery }, { data: rides }, { data: feedback }, { data: planRow }] =
     await Promise.all([
       supabaseAdmin.from('users').select('*').eq('id', userId).maybeSingle(),
       supabaseAdmin.from('ftp_tests').select('ftp_watts, watts_per_kg, test_date').eq('user_id', userId).order('test_date', { ascending: true }),
@@ -418,6 +421,9 @@ async function gatherAthleteContext(userId) {
       supabaseAdmin.from('recovery_scores').select('recovery_score, readiness_label, date').eq('user_id', userId).order('date', { ascending: false }).limit(1).maybeSingle(),
       supabaseAdmin.from('rides').select('ride_date, distance_km, normalized_power, duration_sec').eq('user_id', userId).order('ride_date', { ascending: false }).limit(3),
       supabaseAdmin.from('workout_feedback').select('workout_date, perceived_effort, completion_status').eq('user_id', userId).order('workout_date', { ascending: false }).limit(10),
+      // The single canonical weekly plan (training_plans) — so the coach
+      // references the SAME plan the app shows, never an invented one.
+      supabaseAdmin.from('training_plans').select('week_start, plan_json').eq('user_id', userId).order('week_start', { ascending: false }).limit(1).maybeSingle(),
     ]);
 
   const ftpHistory = ftps || [];
@@ -428,6 +434,16 @@ async function gatherAthleteContext(userId) {
 
   const completed = (feedback || []).filter((f) => f.completion_status === 'completed').length;
   const completionRate = feedback?.length ? Math.round((completed / feedback.length) * 100) : null;
+
+  const planWorkouts = Array.isArray(planRow?.plan_json?.workouts) ? planRow.plan_json.workouts : [];
+  const planSummary = planWorkouts.length
+    ? planWorkouts
+        .map(
+          (w) =>
+            `  ${w.day}: ${w.type}${w.duration_min ? ` ${w.duration_min}min` : ''}${w.intensity ? ` (${w.intensity})` : ''}${w.description ? ` — ${w.description}` : ''}`
+        )
+        .join('\n')
+    : null;
 
   return {
     name: profile?.email ? profile.email.split('@')[0] : 'the athlete',
@@ -453,78 +469,22 @@ async function gatherAthleteContext(userId) {
       (r) => `${r.ride_date}: ${r.distance_km != null ? `${Math.round(r.distance_km)}km` : 'ride'}${r.normalized_power ? ` @ NP ${r.normalized_power}W` : ''}`
     ),
     feedback_summary: completionRate != null ? `completion ${completionRate}% over last ${feedback.length} workouts` : null,
+    plan_summary: planSummary,
     warnings: [],
     _weeks: weeks,
     _ftpHistory: ftpHistory,
+    _plan: planRow?.plan_json ?? null,
   };
 }
 
-// ===========================================================================
-// 2. Weekly plan generator (prompt 2)
-// ===========================================================================
-const PLAN_SCHEMA = `{
-  "week_theme": "string",
-  "coach_intro": "2-3 sentence personal intro",
-  "tss_target": number,
-  "workouts": [{
-    "day": "monday|tuesday|wednesday|thursday|friday|saturday|sunday",
-    "type": "endurance|threshold|vo2max|recovery|rest|long_ride",
-    "title": "string",
-    "duration_min": number,
-    "intensity_zone": number,
-    "description": "plain language — what to do and why",
-    "key_metric": "string",
-    "coach_tip": "string",
-    "is_key_workout": boolean
-  }],
-  "week_focus": "one sentence",
-  "warning": "string or null"
-}`;
-
-async function generateWeeklyPlan(userId, weekStart) {
-  const cacheKey = `week_${isoWeek(new Date(weekStart))}`;
-  const cached = await getCached(userId, 'weekly_plan', cacheKey);
-  if (cached.hit) return { ...cached.data, _cached: true, _generated_at: cached.generated_at };
-
-  const athlete = await gatherAthleteContext(userId);
-  const recent4 = (athlete._weeks || []).slice(-4);
-  const days = athlete.training_days_per_week ?? 4;
-  const recovery = athlete.recovery_score ?? 70;
-
-  const system = buildCoachSystemPrompt(athlete);
-  const task = [
-    `Generate a personalized training plan for the week starting ${weekStart}.`,
-    `Recovery today is ${recovery}/100. Available training days: ${days}.`,
-    `Recent weekly TSS: ${recent4.map((w) => Math.round(w.tss)).join(', ') || 'n/a'}.`,
-    'Respect the 80/20 rule (≈80% low intensity, ≈20% hard) and include at least one full rest day.',
-    `If recovery < 60, reduce intensity across all workouts. Generate ${days} training days plus rest days to cover the week.`,
-    `Return JSON exactly matching this schema: ${PLAN_SCHEMA}`,
-  ].join('\n');
-
-  const { content, tokens } = await callOpenAI(
-    [
-      { role: 'system', content: system },
-      { role: 'user', content: task },
-    ],
-    { json: true, maxTokens: 1100 }
-  );
-
-  let parsed;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    throw Object.assign(new Error('Coach returned malformed plan JSON'), { statusCode: 502 });
-  }
-  const result = { ...parsed, week_start: weekStart };
-  await saveCache(userId, 'weekly_plan', cacheKey, result, tokens, MODEL, TTL_DEFAULTS.weekly_plan);
-  return { ...result, _cached: false };
-}
+// NOTE: weekly-plan generation lives in services/plans.js (the single canonical
+// plan stored in training_plans and shown in the app). The coach reads that plan
+// via gatherAthleteContext().plan_summary so it never invents a separate one.
 
 module.exports = {
   generateSystemPrompt,
   buildCoachSystemPrompt,
   gatherAthleteContext,
-  generateWeeklyPlan,
   analyzeWeek,
   analyzeTrend,
   analyzeRide,
