@@ -1,4 +1,5 @@
 const aiCoach = require('../services/aiCoach');
+const weeklyCheckIn = require('../services/weeklyCheckIn');
 
 function mondayOf(date = new Date()) {
   const d = new Date(date);
@@ -19,4 +20,18 @@ async function weeklyPlan(req, res, next) {
   }
 }
 
-module.exports = { weeklyPlan };
+/** POST /coach/checkin — mid-week or end-of-week check-in (body: { type }). */
+async function checkin(req, res, next) {
+  try {
+    const type = req.body?.type === 'endofweek' ? 'endofweek' : 'midweek';
+    const result =
+      type === 'endofweek'
+        ? await weeklyCheckIn.endOfWeekReview(req.user.id)
+        : await weeklyCheckIn.midWeekCheckIn(req.user.id);
+    res.json({ success: true, data: result, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { weeklyPlan, checkin };
