@@ -9,6 +9,8 @@ import { supabase } from '../../services/supabase';
 import { api, apiOrigin, setAuthToken } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { markStravaSkipped, clearStravaSkipped } from '../../services/stravaOnboarding';
+import * as appleHealth from '../../services/appleHealth';
+import { useFlagStore } from '../../config/featureFlags';
 import type { AuthStackParamList } from '../../navigation/types';
 import { colors, spacing, radius, fontSize } from '../../theme';
 
@@ -77,6 +79,11 @@ export default function StravaSetupScreen(_props: Props) {
       // in the background, then drop the user onto the dashboard.
       await clearStravaSkipped();
       await api.post(`${apiOrigin}/sync/initial`).catch(() => {});
+      // Silently set up Apple Health (iOS physical device only) — no dedicated
+      // screen. iOS shows its own permission dialog; if denied we continue fine.
+      if (useFlagStore.getState().flags.apple_health_sync) {
+        appleHealth.syncToDatabase(creds.current?.userId ?? '').catch(() => {});
+      }
       setStage('success');
       setTimeout(finishOnboarding, 2000);
     } catch (e) {

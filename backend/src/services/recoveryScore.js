@@ -72,7 +72,7 @@ async function computeHrvScore(userId, date) {
     .lte('recorded_at', end)
     .not('hrv_ms', 'is', null);
   const todayVals = (todayRows || []).map((r) => r.hrv_ms).filter((v) => v != null);
-  if (!todayVals.length) return 50; // no HRV → neutral
+  if (!todayVals.length) return null; // no HRV → caller uses subjective proxy
   const today = todayVals.reduce((s, v) => s + v, 0) / todayVals.length;
 
   // 30-day rolling baseline (prior readings, excluding today).
@@ -84,9 +84,9 @@ async function computeHrvScore(userId, date) {
     .lt('recorded_at', start)
     .not('hrv_ms', 'is', null);
   const baseVals = (baseRows || []).map((r) => r.hrv_ms).filter((v) => v != null);
-  if (!baseVals.length) return 50; // no baseline yet → neutral
+  if (!baseVals.length) return null; // no baseline yet → caller uses proxy
   const baseline = baseVals.reduce((s, v) => s + v, 0) / baseVals.length;
-  if (baseline <= 0) return 50;
+  if (baseline <= 0) return null;
 
   return round(hrvScoreFromPct((today - baseline) / baseline));
 }
@@ -170,12 +170,38 @@ function readinessFor(score) {
  * Calculate, persist, and return the unified recovery score for a user/day.
  * `date` is 'YYYY-MM-DD' (defaults to today, UTC).
  */
+// Subjective morning check-in (1–5) → HRV-score proxy when no HRV data exists.
+const SUBJECTIVE_PROXY = { 1: 15, 2: 35, 3: 55, 4: 75, 5: 90 };
+
 async function calculateRecoveryScore(userId, date = new Date().toISOString().slice(0, 10)) {
-  const [hrvScore, sleepScore, loadScore] = await Promise.all([
+  const [hrvRaw, sleepScore, loadScore] = await Promise.all([
     computeHrvScore(userId, date),
     computeSleepScore(userId, date),
     computeLoadScore(userId, date),
   ]);
+
+  // Existing row may carry today's morning check-in (subjective_feeling).
+  const { data: existing } = await supabaseAdmin
+    .from('recovery_scores')
+    .select('subjective_feeling, check_in_source')
+    .eq('user_id', userId)
+    .eq('date', date)
+    .maybeSingle();
+  const subjective = existing?.subjective_feeling ?? null;
+
+  // HRV component: real HRV if available, else the subjective proxy, else
+  // neutral 50 (no check-in and no HRV → plan doesn't change).
+  let hrvScore;
+  let checkInSource = existing?.check_in_source ?? null;
+  if (hrvRaw != null) {
+    hrvScore = hrvRaw;
+    checkInSource = checkInSource ?? 'apple_health';
+  } else if (subjective != null) {
+    hrvScore = SUBJECTIVE_PROXY[subjective] ?? 55;
+    checkInSource = 'manual';
+  } else {
+    hrvScore = 50;
+  }
 
   const recoveryScore = round(hrvScore * 0.4 + sleepScore * 0.35 + loadScore * 0.25);
   const { label, recommendation } = readinessFor(recoveryScore);
@@ -187,6 +213,8 @@ async function calculateRecoveryScore(userId, date = new Date().toISOString().sl
     hrv_score: hrvScore,
     sleep_score: sleepScore,
     training_load_score: loadScore,
+    subjective_feeling: subjective,
+    check_in_source: checkInSource,
     readiness_label: label,
     recommendation,
   };
@@ -201,6 +229,14 @@ async function calculateRecoveryScore(userId, date = new Date().toISOString().sl
     await invalidateCache(userId, 'recommendations', null, 'recovery_score');
   } catch (e) {
     console.warn('[recovery] cache invalidation skipped:', e.message);
+  }
+
+  // Silently adapt today's planned workout to the new score (no UI/explanation).
+  try {
+    const adaptive = require('./adaptiveTraining');
+    await adaptive.adaptTodayForUser(userId, date);
+  } catch (e) {
+    console.warn('[recovery] silent plan adaptation skipped:', e.message);
   }
 
   return row;

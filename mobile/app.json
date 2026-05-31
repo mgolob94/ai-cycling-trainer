@@ -16,8 +16,11 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.cyclingaitrainer.app",
       "infoPlist": {
-        "NSHealthShareUsageDescription": "We read your HRV, resting heart rate, and sleep to calculate your daily recovery score.",
-        "NSHealthUpdateUsageDescription": "We do not write any data to Apple Health."
+        "NSHealthShareUsageDescription": "Kōda uses your health data to calculate your daily recovery score and adapt your training plan.",
+        "NSHealthUpdateUsageDescription": "Kōda needs access to your health data."
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true
       }
     },
     "android": {

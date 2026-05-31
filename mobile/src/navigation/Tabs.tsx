@@ -7,8 +7,10 @@ import { Feather } from '@expo/vector-icons';
 import DashboardScreen from '../screens/DashboardScreen';
 import ProgressScreen from '../screens/ProgressScreen';
 import NutritionScreen from '../screens/NutritionScreen';
+import RecoveryScreen from '../screens/RecoveryScreen';
 import RidesScreen from '../screens/RidesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import { useFeatureFlag } from '../config/featureFlags';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { Text } from '../components/ui';
 import { palette } from '../theme/tokens';
@@ -22,6 +24,7 @@ const TABS: Record<string, { label: string; icon: keyof typeof Feather.glyphMap 
   Dashboard: { label: 'Home', icon: 'home' },
   Progress: { label: 'Progress', icon: 'activity' },
   Nutrition: { label: 'Fuel', icon: 'coffee' },
+  Recovery: { label: 'Recovery', icon: 'heart' },
   Rides: { label: 'Rides', icon: 'map' },
   Profile: { label: 'Profile', icon: 'user' },
 };
@@ -94,8 +97,14 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
-/** Bottom tabs: Home, Progress, Fuel, Rides, Profile. (Recovery is hidden.) */
+/**
+ * Bottom tabs: Home, Progress, Fuel, Rides, Profile. The Recovery tab appears
+ * only when the `recovery_screen` feature flag is enabled (hidden until the
+ * Garmin/Whoop APIs are approved) — recovery still runs silently in the
+ * background regardless.
+ */
 export default function Tabs() {
+  const recoveryEnabled = useFeatureFlag('recovery_screen');
   return (
     <Tab.Navigator
       screenOptions={{ headerShown: false }}
@@ -104,6 +113,7 @@ export default function Tabs() {
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Progress" component={ProgressScreen} />
       <Tab.Screen name="Nutrition" component={NutritionScreen} />
+      {recoveryEnabled ? <Tab.Screen name="Recovery" component={RecoveryScreen} /> : null}
       <Tab.Screen name="Rides" component={RidesScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>

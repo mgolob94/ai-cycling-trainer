@@ -16,6 +16,7 @@ export type TabParamList = {
   Dashboard: undefined;
   Progress: undefined;
   Nutrition: undefined;
+  Recovery: undefined; // shown only when the recovery_screen flag is on
   Rides: undefined;
   Profile: undefined;
 };

@@ -33,6 +33,7 @@ import { Text, Card, Badge, StatCard, SectionHeader, QuickToggle, Emoji } from '
 import CoachFab from '../components/coach/CoachFab';
 import WeekSummaryCard from '../components/dashboard/WeekSummaryCard';
 import NudgeItem from '../components/dashboard/NudgeItem';
+import MorningCheckIn from '../components/dashboard/MorningCheckIn';
 import { useNudges } from '../hooks/useNudges';
 import { useKnowledgeLevel } from '../context/KnowledgeLevelContext';
 import TrainingScaleBar, { type ScaleZone } from '../components/metrics/TrainingScaleBar';
@@ -572,6 +573,9 @@ export default function DashboardScreen() {
             </Card>
           </Pressable>
         ) : null}
+
+        {/* Subtle morning check-in (quietly factors into the plan) */}
+        <MorningCheckIn />
       </ScrollView>
       <CoachFab />
       <EventSetup visible={eventOpen} onClose={() => setEventOpen(false)} onSaved={() => { loadEventState(); refresh(); }} />

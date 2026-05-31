@@ -1,6 +1,29 @@
 const recoveryScore = require('../services/recoveryScore');
 const hrvAnalysis = require('../services/hrvAnalysis');
+const { supabaseAdmin } = require('../db/supabase');
 const { getCached, saveCache, isoWeek } = require('../services/aiCache');
+
+/**
+ * POST /recovery/check-in — save the morning subjective feeling (1–5), then
+ * recompute the recovery score (which silently adapts today's plan). Returns
+ * the score, but the UI does not surface it (recovery screen is hidden).
+ */
+async function checkIn(req, res, next) {
+  try {
+    const feeling = Number(req.body?.feeling);
+    if (!Number.isInteger(feeling) || feeling < 1 || feeling > 5) {
+      return res.status(400).json({ success: false, data: null, error: 'feeling must be 1–5' });
+    }
+    const date = req.body?.date || new Date().toISOString().slice(0, 10);
+    await supabaseAdmin
+      .from('recovery_scores')
+      .upsert({ user_id: req.user.id, date, subjective_feeling: feeling, check_in_source: 'manual' }, { onConflict: 'user_id,date' });
+    const result = await recoveryScore.calculateRecoveryScore(req.user.id, date);
+    res.json({ success: true, data: result, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
 
 /** POST /recovery/calculate — recompute the signed-in user's recovery score. */
 async function calculate(req, res, next) {
@@ -59,4 +82,4 @@ async function hrvTrend(req, res, next) {
   }
 }
 
-module.exports = { calculate, calculateAll, hrvTrend };
+module.exports = { calculate, calculateAll, hrvTrend, checkIn };

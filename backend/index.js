@@ -27,6 +27,7 @@ const workoutsRoutes = require('./src/routes/workouts');
 const notificationsRoutes = require('./src/routes/notifications');
 const progressRoutes = require('./src/routes/progress');
 const goalsRoutes = require('./src/routes/goals');
+const configRoutes = require('./src/routes/config');
 
 // Mock external APIs in development when MOCK_EXTERNAL_APIS=true (no-op otherwise).
 require('./src/mock/mockServer').install();
@@ -61,6 +62,7 @@ app.use('/workouts', workoutsRoutes);
 app.use('/notifications', notificationsRoutes);
 app.use('/progress', progressRoutes);
 app.use('/goals', goalsRoutes);
+app.use('/config', configRoutes);
 app.use(cacheRoutes);
 app.use('/webhooks', webhookRoutes);
 

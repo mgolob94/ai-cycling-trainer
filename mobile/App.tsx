@@ -11,6 +11,7 @@ import { ThemeProvider } from './src/theme/useTheme';
 import { KnowledgeLevelProvider } from './src/context/KnowledgeLevelContext';
 import { MetricTooltipProvider } from './src/components/metrics/MetricTooltip';
 import { DemoBadge, DemoBanner } from './src/components/ui';
+import { loadFeatureFlags } from './src/config/featureFlags';
 import { fontAssets } from './src/theme/typography';
 import {
   initNotifications,
@@ -49,6 +50,11 @@ export default function App() {
       registerPushToken().catch(() => {});
     }
   }, [token]);
+
+  // Load server feature flags on startup (which screens are visible).
+  useEffect(() => {
+    loadFeatureFlags();
+  }, []);
 
   if (!fontsLoaded && !fontError) return null;
 
