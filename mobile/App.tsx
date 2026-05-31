@@ -8,6 +8,7 @@ import { useAuthStore } from './src/store/useAuthStore';
 import { ThemeProvider } from './src/theme/useTheme';
 import { KnowledgeLevelProvider } from './src/context/KnowledgeLevelContext';
 import { MetricTooltipProvider } from './src/components/metrics/MetricTooltip';
+import { DemoBadge } from './src/components/ui';
 import { fontAssets } from './src/theme/typography';
 import {
   initNotifications,
@@ -46,6 +47,7 @@ export default function App() {
         <SafeAreaProvider>
           <MetricTooltipProvider>
             <Navigation />
+            <DemoBadge />
             <StatusBar style="auto" />
           </MetricTooltipProvider>
         </SafeAreaProvider>
