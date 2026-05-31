@@ -88,6 +88,13 @@ function OptionGroup<T extends string>({
   );
 }
 
+type CoachStyle = 'motivator' | 'scientist' | 'minimalist';
+const COACH_STYLES: { style: CoachStyle; title: string; preview: string }[] = [
+  { style: 'motivator', title: 'Motivator', preview: 'Phenomenal! 🔥 You crushed it today. FTP up 12W — hard work pays off!' },
+  { style: 'scientist', title: 'Scientist', preview: "FTP: +12W (+4.4%). CTL up to 74. Physiologically you're in an optimal build phase." },
+  { style: 'minimalist', title: 'Minimalist', preview: 'FTP: 287W. Plan: Build, week 5. Tomorrow: 90min Z2.' },
+];
+
 export default function ProfileSetupScreen({ navigation }: Props) {
   const { setLevel } = useKnowledgeLevel();
   const [age, setAge] = useState('');
@@ -96,6 +103,7 @@ export default function ProfileSetupScreen({ navigation }: Props) {
   const [goal, setGoal] = useState<Goal | null>(null);
   // Safe default: beginner (least jargon). Saved to storage immediately on tap.
   const [knowledgeLevel, setKnowledgeLevel] = useState<KnowledgeLevel>('beginner');
+  const [coachStyle, setCoachStyle] = useState<CoachStyle>('scientist');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,6 +137,7 @@ export default function ProfileSetupScreen({ navigation }: Props) {
         fitness_level: fitnessLevel,
         goal,
         knowledge_level: knowledgeLevel,
+        coach_style: coachStyle,
       });
 
       if (upsertError) {
@@ -212,6 +221,27 @@ export default function ProfileSetupScreen({ navigation }: Props) {
           </Text>
         </View>
 
+        {/* Coach style */}
+        <Text style={styles.sectionTitle}>What kind of coach suits you?</Text>
+        <Text style={styles.sectionSubtitle}>How your AI coach talks to you — change it anytime.</Text>
+        {COACH_STYLES.map((opt) => {
+          const selected = coachStyle === opt.style;
+          return (
+            <TouchableOpacity
+              key={opt.style}
+              activeOpacity={0.85}
+              style={[styles.levelCard, selected && styles.levelCardSelected]}
+              onPress={() => setCoachStyle(opt.style)}
+            >
+              <View style={styles.levelTextCol}>
+                <Text style={styles.levelTitle}>{opt.title}</Text>
+                <Text style={styles.coachPreview}>{opt.preview}</Text>
+              </View>
+              {selected ? <Text style={styles.levelCheck}>✓</Text> : null}
+            </TouchableOpacity>
+          );
+        })}
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <TouchableOpacity
@@ -284,6 +314,7 @@ const styles = StyleSheet.create({
   levelTextCol: { flex: 1 },
   levelTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: '700' },
   levelDesc: { color: colors.textMuted, fontSize: fontSize.sm, marginTop: 2, lineHeight: 18 },
+  coachPreview: { color: colors.textMuted, fontSize: fontSize.sm, marginTop: 4, lineHeight: 19, fontStyle: 'italic' },
   levelCheck: { color: colors.primary, fontSize: fontSize.lg, fontWeight: '900' },
 
   previewBox: {
