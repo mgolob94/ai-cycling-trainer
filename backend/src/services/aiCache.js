@@ -20,6 +20,11 @@ const TTL_DEFAULTS = {
   rider_profile: 336, // 2 weeks
   ftp_insight: 8760, // 1 year — FTP test data never changes
   hrv_trend: 48, // 2 days
+  weekly_plan: 168, // 1 week
+  monthly_review: 720, // 1 month
+  midweek_checkin: 72, // 3 days
+  endofweek_checkin: 168, // 1 week
+  goal_insight: 168, // 1 week
 };
 
 const FALLBACK_TTL = 168;

@@ -344,8 +344,187 @@ async function saveInsight(userId, insightType, content) {
   if (error) console.warn('[aiCoach] could not store insight:', error.message);
 }
 
+// ===========================================================================
+// Persistent coach persona (prompts 1, 2, 10)
+// ===========================================================================
+
+// Coach communication-style instructions (prompt 10). Copy is English to match
+// the app (the spec's Slovenian persona was translated for consistency).
+const STYLE_INSTRUCTIONS = {
+  motivator:
+    'COMMUNICATION STYLE: You are energetic and enthusiastic. Use emojis sparingly but effectively. Celebrate every achievement genuinely. Use phrases like "Great work!", "That\'s it!". Make the athlete feel proud of their effort. Never skip a celebration.',
+  scientist:
+    'COMMUNICATION STYLE: You are precise and analytical. Always explain the physiological reason behind every recommendation. Reference specific numbers (TSS, CTL, W/kg). Use phrases like "The data shows…", "Physiologically…". The athlete wants to understand the why, not just the what.',
+  minimalist:
+    'COMMUNICATION STYLE: Be extremely concise — at most 1–2 sentences per response. No emojis, no filler. Direct recommendations only. The athlete values their time.',
+};
+
+function riderCategoryFromWkg(wkg) {
+  if (wkg == null) return 'unknown';
+  if (wkg < 2.0) return 'Recreational';
+  if (wkg < 3.0) return 'Fitness rider';
+  if (wkg < 4.0) return 'Amateur';
+  if (wkg < 5.0) return 'Advanced amateur';
+  return 'Elite';
+}
+
+/**
+ * Build the master coach system prompt from a rich athlete context object
+ * (see gatherAthleteContext). The coach is a persistent persona that knows the
+ * athlete and speaks in the first person.
+ */
+function buildCoachSystemPrompt(athlete = {}) {
+  const a = athlete;
+  const style = STYLE_INSTRUCTIONS[a.coach_style] ?? STYLE_INSTRUCTIONS.scientist;
+  const wkg = a.ftp_watts && a.weight_kg ? (a.ftp_watts / a.weight_kg).toFixed(2) : a.watts_per_kg ?? null;
+
+  const lines = [
+    'You are a professional cycling coach with 15 years of experience coaching amateur and recreational cyclists.',
+    'You are warm, encouraging, and direct. You explain things simply without jargon. You celebrate wins genuinely.',
+    'You warn about overtraining firmly but kindly. You always give a reason for every recommendation.',
+    'You speak in the first person as a coach, not as an AI. Respond in English, in plain language.',
+    '',
+    style,
+    '',
+    'ATHLETE CONTEXT:',
+    `- Name: ${a.name ?? 'the athlete'}, age ${a.age ?? '—'}, weight ${a.weight_kg ?? '—'} kg`,
+    `- FTP: ${a.ftp_watts ?? '—'} W (${wkg ?? '—'} W/kg) — category: ${riderCategoryFromWkg(wkg ? Number(wkg) : null)}`,
+    `- Goal: ${a.goal ?? 'general fitness'}${a.target_event_name ? ` — target event: ${a.target_event_name}` : ''}${a.target_event_date ? ` (${a.target_event_date})` : ''}`,
+    `- Training history: ${a.history_weeks ?? '?'} weeks; averages ${a.avg_days_per_week ?? '?'} days/week`,
+    a.ctl != null ? `- Fitness (CTL): ${Math.round(a.ctl)} — ${describeFitnessState(a.ctl, a.atl, a.tsb)}` : '- Fitness: not enough data yet',
+    a.recovery_score != null ? `- Recovery today: ${a.recovery_score}/100 (${a.readiness_label ?? ''})` : '- Recovery today: not available',
+    a.ftp_change != null ? `- Last FTP test: ${a.ftp_watts}W (${a.ftp_change >= 0 ? '+' : ''}${a.ftp_change}W vs previous)` : '',
+    a.rider_type ? `- Rider type: ${a.rider_type}` : '',
+    a.phase ? `- Periodization: ${a.phase}` : '',
+    a.recent_pattern ? `- Recent pattern: ${a.recent_pattern}` : '',
+    a.recent_rides?.length ? `- Last rides: ${a.recent_rides.join('; ')}` : '',
+    a.feedback_summary ? `- Feedback loop: ${a.feedback_summary}` : '',
+    a.warnings?.length ? `- WARNINGS: ${a.warnings.join('; ')}` : '',
+    '',
+    'OUTPUT FORMAT:',
+    'When asked for structured output, respond with valid JSON matching the exact schema given — no markdown, no text outside the JSON.',
+    'Workout descriptions use plain language; keep zone numbers out of the primary text.',
+  ];
+  return lines.filter((l) => l !== '').join('\n');
+}
+
+/** Assemble the full athlete context for the coach from the database. */
+async function gatherAthleteContext(userId) {
+  const [{ data: profile }, { data: ftps }, { data: metrics }, { data: recovery }, { data: rides }, { data: feedback }] =
+    await Promise.all([
+      supabaseAdmin.from('users').select('*').eq('id', userId).maybeSingle(),
+      supabaseAdmin.from('ftp_tests').select('ftp_watts, watts_per_kg, test_date').eq('user_id', userId).order('test_date', { ascending: true }),
+      supabaseAdmin.from('performance_metrics').select('*').eq('user_id', userId).order('week_start', { ascending: true }),
+      supabaseAdmin.from('recovery_scores').select('recovery_score, readiness_label, date').eq('user_id', userId).order('date', { ascending: false }).limit(1).maybeSingle(),
+      supabaseAdmin.from('rides').select('ride_date, distance_km, normalized_power, duration_sec').eq('user_id', userId).order('ride_date', { ascending: false }).limit(3),
+      supabaseAdmin.from('workout_feedback').select('workout_date, perceived_effort, completion_status').eq('user_id', userId).order('workout_date', { ascending: false }).limit(10),
+    ]);
+
+  const ftpHistory = ftps || [];
+  const latest = latestFtp(ftpHistory);
+  const prev = ftpHistory.length >= 2 ? ftpHistory[ftpHistory.length - 2] : null;
+  const weeks = metrics || [];
+  const current = weeks[weeks.length - 1] || {};
+
+  const completed = (feedback || []).filter((f) => f.completion_status === 'completed').length;
+  const completionRate = feedback?.length ? Math.round((completed / feedback.length) * 100) : null;
+
+  return {
+    name: profile?.email ? profile.email.split('@')[0] : 'the athlete',
+    age: profile?.age,
+    weight_kg: profile?.weight_kg,
+    coach_style: profile?.coach_style ?? 'scientist',
+    goal: profile?.goal,
+    target_event_name: profile?.target_event_name,
+    target_event_date: profile?.target_event_date,
+    training_days_per_week: profile?.training_days_per_week,
+    w_prime_total: profile?.w_prime_total,
+    ftp_watts: latest?.ftp_watts,
+    watts_per_kg: latest?.watts_per_kg,
+    ftp_change: latest && prev ? latest.ftp_watts - prev.ftp_watts : null,
+    ctl: current.ctl,
+    atl: current.atl,
+    tsb: current.tsb,
+    history_weeks: weeks.length,
+    avg_days_per_week: null,
+    recovery_score: recovery?.recovery_score,
+    readiness_label: recovery?.readiness_label,
+    recent_rides: (rides || []).map(
+      (r) => `${r.ride_date}: ${r.distance_km != null ? `${Math.round(r.distance_km)}km` : 'ride'}${r.normalized_power ? ` @ NP ${r.normalized_power}W` : ''}`
+    ),
+    feedback_summary: completionRate != null ? `completion ${completionRate}% over last ${feedback.length} workouts` : null,
+    warnings: [],
+    _weeks: weeks,
+    _ftpHistory: ftpHistory,
+  };
+}
+
+// ===========================================================================
+// 2. Weekly plan generator (prompt 2)
+// ===========================================================================
+const PLAN_SCHEMA = `{
+  "week_theme": "string",
+  "coach_intro": "2-3 sentence personal intro",
+  "tss_target": number,
+  "workouts": [{
+    "day": "monday|tuesday|wednesday|thursday|friday|saturday|sunday",
+    "type": "endurance|threshold|vo2max|recovery|rest|long_ride",
+    "title": "string",
+    "duration_min": number,
+    "intensity_zone": number,
+    "description": "plain language — what to do and why",
+    "key_metric": "string",
+    "coach_tip": "string",
+    "is_key_workout": boolean
+  }],
+  "week_focus": "one sentence",
+  "warning": "string or null"
+}`;
+
+async function generateWeeklyPlan(userId, weekStart) {
+  const cacheKey = `week_${isoWeek(new Date(weekStart))}`;
+  const cached = await getCached(userId, 'weekly_plan', cacheKey);
+  if (cached.hit) return { ...cached.data, _cached: true, _generated_at: cached.generated_at };
+
+  const athlete = await gatherAthleteContext(userId);
+  const recent4 = (athlete._weeks || []).slice(-4);
+  const days = athlete.training_days_per_week ?? 4;
+  const recovery = athlete.recovery_score ?? 70;
+
+  const system = buildCoachSystemPrompt(athlete);
+  const task = [
+    `Generate a personalized training plan for the week starting ${weekStart}.`,
+    `Recovery today is ${recovery}/100. Available training days: ${days}.`,
+    `Recent weekly TSS: ${recent4.map((w) => Math.round(w.tss)).join(', ') || 'n/a'}.`,
+    'Respect the 80/20 rule (≈80% low intensity, ≈20% hard) and include at least one full rest day.',
+    `If recovery < 60, reduce intensity across all workouts. Generate ${days} training days plus rest days to cover the week.`,
+    `Return JSON exactly matching this schema: ${PLAN_SCHEMA}`,
+  ].join('\n');
+
+  const { content, tokens } = await callOpenAI(
+    [
+      { role: 'system', content: system },
+      { role: 'user', content: task },
+    ],
+    { json: true, maxTokens: 1100 }
+  );
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw Object.assign(new Error('Coach returned malformed plan JSON'), { statusCode: 502 });
+  }
+  const result = { ...parsed, week_start: weekStart };
+  await saveCache(userId, 'weekly_plan', cacheKey, result, tokens, MODEL, TTL_DEFAULTS.weekly_plan);
+  return { ...result, _cached: false };
+}
+
 module.exports = {
   generateSystemPrompt,
+  buildCoachSystemPrompt,
+  gatherAthleteContext,
+  generateWeeklyPlan,
   analyzeWeek,
   analyzeTrend,
   analyzeRide,
@@ -355,4 +534,5 @@ module.exports = {
   describeFitnessState,
   describeFtpTrend,
   avgWeeklyTss,
+  STYLE_INSTRUCTIONS,
 };

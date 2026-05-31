@@ -23,6 +23,7 @@ const usersRoutes = require('./src/routes/users');
 const recoveryRoutes = require('./src/routes/recovery');
 const trainingRoutes = require('./src/routes/training');
 const integrationsRoutes = require('./src/routes/integrations');
+const coachRoutes = require('./src/routes/coach');
 
 // Mock external APIs in development when MOCK_EXTERNAL_APIS=true (no-op otherwise).
 require('./src/mock/mockServer').install();
@@ -53,6 +54,7 @@ app.use('/profile', profileRoutes);
 app.use('/recovery', recoveryRoutes);
 app.use('/training', trainingRoutes);
 app.use('/integrations', integrationsRoutes);
+app.use('/coach', coachRoutes);
 app.use(cacheRoutes);
 app.use('/webhooks', webhookRoutes);
 
