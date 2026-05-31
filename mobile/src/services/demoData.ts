@@ -209,26 +209,58 @@ export function demoGoalInsight(goalId: string) {
 function mondayThisWeek(): string {
   return mondayWeeksAgo(0);
 }
+const DEMO_PHASE = { phase: 'build', phase_week: 2, phase_total_weeks: 6, tss_target: 460 };
+const DEMO_INTRO = "This week we keep building your threshold — one hard session, a long ride, and easy riding around them. Hold the easy days truly easy so the hard days count.";
+
 export function demoTrainingPlan() {
   const workouts = [
-    { day: 'Monday', type: 'Rest', duration_min: 0, intensity: 'easy', description: 'Full rest day. Light stretching or a walk — let your legs absorb the weekend load.' },
-    { day: 'Tuesday', type: 'Threshold', duration_min: 75, intensity: 'hard', description: '3×12 min at 95–100% FTP (≈285W) with 5 min easy between. Your key session — fuel well beforehand.' },
-    { day: 'Wednesday', type: 'Endurance', duration_min: 90, intensity: 'easy', description: 'Steady Zone 2 ride. Keep it conversational — this builds your aerobic base without adding fatigue.' },
-    { day: 'Thursday', type: 'VO2max', duration_min: 70, intensity: 'hard', description: '5×4 min hard (110–115% FTP) with 4 min recovery. Lifts your top-end 5-min power.' },
-    { day: 'Friday', type: 'Recovery', duration_min: 45, intensity: 'easy', description: 'Easy spin to flush the legs. Stay in Zone 1 — this is active recovery, not training.' },
-    { day: 'Saturday', type: 'Long ride', duration_min: 150, intensity: 'moderate', description: 'Long endurance ride with a few tempo efforts on the climbs. The big aerobic stimulus of the week.' },
-    { day: 'Sunday', type: 'Endurance', duration_min: 80, intensity: 'easy', description: 'Relaxed Zone 2 to round out the week. Cut it short if Saturday left you tired.' },
+    { day: 'Monday', type: 'rest', duration_min: 0, intensity: 'easy', zone: 1, is_key_workout: false, description: 'Full rest day. Light stretching or a walk — let your legs absorb the weekend load.' },
+    { day: 'Tuesday', type: 'threshold', duration_min: 75, intensity: 'hard', zone: 4, is_key_workout: true, description: '3×12 min at 95–100% FTP (≈285W) with 5 min easy between. Your key session — fuel well beforehand.' },
+    { day: 'Wednesday', type: 'endurance', duration_min: 90, intensity: 'easy', zone: 2, is_key_workout: false, description: 'Steady Zone 2 ride. Keep it conversational — this builds your aerobic base without adding fatigue.' },
+    { day: 'Thursday', type: 'sweet spot', duration_min: 70, intensity: 'moderate', zone: 3, is_key_workout: false, description: '2×20 min at 88–93% FTP. Big aerobic bang for the buck without deep fatigue.' },
+    { day: 'Friday', type: 'recovery', duration_min: 45, intensity: 'easy', zone: 1, is_key_workout: false, description: 'Easy spin to flush the legs. Stay in Zone 1 — this is active recovery, not training.' },
+    { day: 'Saturday', type: 'long ride', duration_min: 150, intensity: 'moderate', zone: 2, is_key_workout: true, description: 'Long endurance ride with a few tempo efforts on the climbs. The big aerobic stimulus of the week.' },
+    { day: 'Sunday', type: 'endurance', duration_min: 80, intensity: 'easy', zone: 2, is_key_workout: false, description: 'Relaxed Zone 2 to round out the week. Cut it short if Saturday left you tired.' },
   ];
   return {
     id: 'demo-plan-1',
     week_start: mondayThisWeek(),
+    ...DEMO_PHASE,
+    week_theme: 'Threshold build with a big weekend ride',
+    coach_intro: DEMO_INTRO,
     plan_json: {
       week_start: mondayThisWeek(),
-      summary: 'Build week — sweet-spot and VO2max focus around a big weekend endurance ride. ~460 TSS target.',
+      ...DEMO_PHASE,
+      week_theme: 'Threshold build with a big weekend ride',
+      coach_intro: DEMO_INTRO,
+      summary: DEMO_INTRO,
       workouts,
     },
     generated_at: new Date().toISOString(),
   };
+}
+
+export function demoPhase() {
+  return {
+    ...DEMO_PHASE,
+    weeks_to_event: null,
+    rationale: 'Raising your threshold and sustainable power with focused intensity.',
+    next_phase: 'peak',
+    weeks_until_next_phase: 4,
+  };
+}
+
+export function demoPlanHistory() {
+  const phases = ['build', 'build', 'base', 'base', 'recovery', 'base'];
+  const pcts = [null, 96, 88, 72, 100, 64];
+  return phases.map((phase, i) => ({
+    id: `demo-hist-${i}`,
+    week_start: mondayWeeksAgo(i),
+    phase,
+    completion_pct: pcts[i],
+    plan_json: { phase, workouts: [] },
+    generated_at: new Date().toISOString(),
+  }));
 }
 
 export function demoLatestRide() {

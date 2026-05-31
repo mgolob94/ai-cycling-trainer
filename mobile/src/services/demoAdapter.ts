@@ -24,6 +24,8 @@ import {
   demoCoachMessage,
   demoTrainingPlan,
   demoLatestRide,
+  demoPhase,
+  demoPlanHistory,
 } from './demoData';
 
 function parseBody(config: InternalAxiosRequestConfig): Record<string, unknown> {
@@ -49,6 +51,8 @@ function demoPayload(method: string, path: string, query: URLSearchParams, body:
     if (path.endsWith('/goals')) return demoGoals();
     if (path.endsWith('/sync/status')) return demoSyncStatus();
     if (path.endsWith('/plans/current')) return demoTrainingPlan();
+    if (path.endsWith('/plans/phase')) return demoPhase();
+    if (path.endsWith('/plans')) return demoPlanHistory();
     if (path.endsWith('/rides/latest')) return demoLatestRide();
     if (path.endsWith('/rides')) return MockData.rides(Number(query.get('limit')) || 50);
     return null;
@@ -56,6 +60,7 @@ function demoPayload(method: string, path: string, query: URLSearchParams, body:
   if (method === 'post') {
     if (path.endsWith('/ftp/calculate')) return { ftp_watts: 287, recorded: false };
     if (path.endsWith('/plans/generate')) return demoTrainingPlan();
+    if (path.endsWith('/plans/event')) return demoPhase();
     if (path.endsWith('/records/scan')) return demoRecords();
     if (/\/goals\/[^/]+\/insight$/.test(path)) return demoGoalInsight(path.split('/').slice(-2)[0]);
     if (path.endsWith('/goals')) {

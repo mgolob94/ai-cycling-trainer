@@ -8,13 +8,43 @@ export interface Workout {
   duration_min: number;
   intensity: string;
   description: string;
+  zone?: number;
+  is_key_workout?: boolean;
 }
 
 export interface TrainingPlan {
   id: string;
   week_start: string;
-  plan_json: { week_start?: string; summary?: string; workouts: Workout[] };
+  phase?: string;
+  phase_week?: number;
+  phase_total_weeks?: number;
+  tss_target?: number;
+  week_theme?: string;
+  coach_intro?: string;
+  completion_pct?: number;
+  tss_achieved?: number;
+  plan_json: {
+    week_start?: string;
+    summary?: string;
+    week_theme?: string;
+    coach_intro?: string;
+    phase?: string;
+    phase_week?: number;
+    phase_total_weeks?: number;
+    workouts: Workout[];
+  };
   generated_at: string;
+}
+
+export interface PhaseResult {
+  phase: string;
+  phase_week: number;
+  phase_total_weeks: number;
+  weeks_to_event: number | null;
+  tss_target: number;
+  rationale: string;
+  next_phase: string;
+  weeks_until_next_phase: number;
 }
 
 export interface Ride {
