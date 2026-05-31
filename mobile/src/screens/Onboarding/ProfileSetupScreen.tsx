@@ -104,6 +104,8 @@ export default function ProfileSetupScreen({ navigation }: Props) {
   // Safe default: beginner (least jargon). Saved to storage immediately on tap.
   const [knowledgeLevel, setKnowledgeLevel] = useState<KnowledgeLevel>('beginner');
   const [coachStyle, setCoachStyle] = useState<CoachStyle>('scientist');
+  const [days, setDays] = useState(4);
+  const [longRideDay, setLongRideDay] = useState<'saturday' | 'sunday'>('saturday');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -138,6 +140,9 @@ export default function ProfileSetupScreen({ navigation }: Props) {
         goal,
         knowledge_level: knowledgeLevel,
         coach_style: coachStyle,
+        available_days_per_week: days,
+        training_days_per_week: days,
+        preferred_long_ride_day: longRideDay,
       });
 
       if (upsertError) {
@@ -182,6 +187,36 @@ export default function ProfileSetupScreen({ navigation }: Props) {
           value={weight}
           onChangeText={setWeight}
         />
+
+        <Text style={styles.label}>Training days / week</Text>
+        <View style={styles.optionRow}>
+          {[2, 3, 4, 5, 6].map((d) => (
+            <TouchableOpacity
+              key={d}
+              style={[styles.chip, days === d && styles.chipSelected]}
+              onPress={() => setDays(d)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.chipText, days === d && styles.chipTextSelected]}>{d}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.label}>Long ride day</Text>
+        <View style={styles.optionRow}>
+          {(['saturday', 'sunday'] as const).map((d) => (
+            <TouchableOpacity
+              key={d}
+              style={[styles.chip, longRideDay === d && styles.chipSelected]}
+              onPress={() => setLongRideDay(d)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.chipText, longRideDay === d && styles.chipTextSelected]}>
+                {d === 'saturday' ? 'Sat' : 'Sun'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <Text style={styles.label}>Fitness level</Text>
         <OptionGroup options={FITNESS_LEVELS} value={fitnessLevel} onChange={setFitnessLevel} />

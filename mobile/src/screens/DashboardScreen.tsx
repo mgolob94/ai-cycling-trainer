@@ -27,6 +27,9 @@ import {
   clearStravaSkipped,
 } from '../services/stravaOnboarding';
 import { hasSeenMetricsIntro } from '../services/metricsIntro';
+import { checkForPendingSurvey, type SurveyTrigger } from '../services/surveyTrigger';
+import PostWorkoutSurvey from '../components/workout/PostWorkoutSurvey';
+import { useAuthStore } from '../store/useAuthStore';
 import { Feather } from '@expo/vector-icons';
 
 import { Text, Card, Badge, StatCard, SectionHeader, QuickToggle, Emoji } from '../components/ui';
@@ -165,6 +168,8 @@ export default function DashboardScreen() {
 
   const { high, medium, dismiss } = useNudges();
   const { track, config } = useKnowledgeLevel();
+  const userId = useAuthStore((s) => s.userId);
+  const [pendingSurvey, setPendingSurvey] = useState<SurveyTrigger | null>(null);
   const [bannerVisible, setBannerVisible] = useState(false);
   const [showSkipPrompt, setShowSkipPrompt] = useState(false);
   const [noEvent, setNoEvent] = useState(false);
@@ -222,6 +227,22 @@ export default function DashboardScreen() {
     useCallback(() => {
       refresh();
     }, [refresh])
+  );
+
+  // Surface the post-workout survey for a freshly synced ride (once per ride).
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId || !connected || isSyncing) return undefined;
+      let active = true;
+      checkForPendingSurvey(userId)
+        .then((s) => {
+          if (active && s) setPendingSurvey(s);
+        })
+        .catch(() => {});
+      return () => {
+        active = false;
+      };
+    }, [userId, connected, isSyncing])
   );
 
   useFocusEffect(
@@ -323,8 +344,10 @@ export default function DashboardScreen() {
         {/* Header */}
         <View style={styles.headerRow}>
           <View>
-            <Text variant="caption">{greeting()}</Text>
-            <Text variant="heading2" color={colors.textPrimary}>
+            <Text variant="label" color={colors.textDim}>
+              {greeting()}
+            </Text>
+            <Text variant="heading1" color={colors.textPrimary}>
               {name || '…'}
             </Text>
           </View>
@@ -412,7 +435,7 @@ export default function DashboardScreen() {
                 color={tsbInfo.color}
               />
             </View>
-            <Text variant="heading2" color="#FFFFFF" style={styles.heroStatus}>
+            <Text variant="stat" color="#FFFFFF" style={styles.heroStatus}>
               {tsbInfo.label}
             </Text>
             {/* Row 2 — today's advice */}
@@ -579,6 +602,16 @@ export default function DashboardScreen() {
       </ScrollView>
       <CoachFab />
       <EventSetup visible={eventOpen} onClose={() => setEventOpen(false)} onSaved={() => { loadEventState(); refresh(); }} />
+      <PostWorkoutSurvey
+        visible={pendingSurvey != null}
+        userId={userId ?? undefined}
+        stravaActivityId={pendingSurvey?.strava_activity_id}
+        rideTitle={pendingSurvey?.ride_title}
+        distanceKm={pendingSurvey?.distance_km}
+        workoutDate={pendingSurvey?.workout_date ?? undefined}
+        actualTss={pendingSurvey?.tss}
+        onDone={() => setPendingSurvey(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -614,7 +647,7 @@ const styles = StyleSheet.create({
 
   hero: { gap: spacing[1] },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[2] },
-  heroStatus: { fontSize: 26, fontWeight: '600' },
+  heroStatus: { fontSize: 40, lineHeight: 44, letterSpacing: -0.5 },
   heroAdvice: { lineHeight: 20, marginTop: spacing[1] },
   heroScale: { marginTop: spacing[4] },
   detailsToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: spacing[1], marginTop: spacing[3] },

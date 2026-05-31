@@ -1,35 +1,45 @@
 import { colors as lightColors } from './tokens';
 
-// Dark-mode overrides for the Emerald theme. iOS-style near-black surfaces (no
-// green tint on neutrals), a lighter emerald accent that pops on black, and a
-// deeper emerald for button backgrounds so white labels stay legible.
+// Dark-mode overrides — athletic / Strava-inspired. True warm black surfaces,
+// green used sparingly, achievement orange brighter for dark backgrounds.
 export const darkColors = {
   ...lightColors,
 
-  // Neutral surfaces — pure/near black, neutral (no green tint).
-  background: '#000000',
-  surface: '#0F0F0F',
-  surfaceRaised: '#1A1A1A',
-  surfaceHero: '#111111', // hero card — dark, not green
-  border: '#2A2A2A',
-  borderSubtle: '#1F1F1F',
+  // Neutral surfaces — true black with a warm tint.
+  background: '#0A0A09',
+  surface: '#141413',
+  surfaceRaised: '#1C1C1B',
+  surfaceHero: '#141413', // hero / form / FTP card — dark, not green
+  border: '#222221',
+  borderSubtle: '#1C1C1B',
 
-  // Text — white on black, neutral greys for secondary/tertiary.
-  textPrimary: '#FFFFFF',
-  textSecondary: '#A3A3A3',
-  textTertiary: '#525252',
-  textInverse: '#FFFFFF',
+  // Text — warm white, neutral greys.
+  textPrimary: '#F0EFEB',
+  textSecondary: '#787876',
+  textTertiary: '#3A3A38',
+  textInverse: '#0A0A09', // text on the lighter green primary
 
-  // Role aliases — deeper emerald for button bg, lighter emerald for accents.
-  primary: '#10B981', // button / CTA background (white text legible)
+  // Role aliases — lighter green pops on black.
+  primary: '#34D399',
   primaryLight: '#6EE7B7',
   primaryDark: '#065F46',
-  primaryTint: '#1A1A1A',
-  accent: '#34D399', // links / active tab / text accents — pops on black
+  primaryTint: '#1C1C1B',
+  accent: '#34D399',
   success: '#34D399',
   warning: '#FBBF24',
-  danger: '#FB7185',
+  danger: '#F87171',
   info: '#60A5FA',
+
+  // Athletic aliases
+  bg: '#0A0A09',
+  surfaceAlt: '#1C1C1B',
+  surfaceDark: '#0A0A09',
+  textDim: '#3A3A38',
+  green: '#34D399',
+  greenLight: 'rgba(52,211,153,0.12)',
+  greenDim: 'rgba(52,211,153,0.06)',
+  achievement: '#FF5733',
+  achievementBg: 'rgba(255,87,51,0.12)',
 } as const;
 
 export const DARK_TOKENS = darkColors;

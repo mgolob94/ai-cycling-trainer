@@ -55,43 +55,56 @@ export const palette = {
 
 // Power-zone colors — theme-independent (used by zone bars, charts, badges).
 export const zoneColors = {
-  z1: '#CBD5E1', // recovery
+  z1: '#94A3B8', // recovery
   z2: '#60A5FA', // endurance
   z3: '#34D399', // tempo
   z4: '#FBBF24', // threshold
   z5: '#F97316', // VO2max
-  z6: '#F43F5E', // anaerobic
+  z6: '#EF4444', // anaerobic
   z7: '#A855F7', // neuromuscular
 } as const;
 
 // Semantic colors (light theme). Dark overrides live in ./darkTokens.
+// Athletic / Strava-inspired: warm off-white surfaces, near-black text, green
+// used sparingly, and an achievement orange reserved for PRs/records only.
 export const colors = {
   ...palette,
 
-  // Neutral surfaces (slightly green-tinted whites)
-  background: '#F7FAF8',
+  // Neutral surfaces (warm, not clinical)
+  background: '#F5F5F3',
   surface: '#FFFFFF',
-  surfaceRaised: '#F0FAF5',
-  surfaceHero: '#059669', // hero cards — solid emerald in light
-  border: '#D1FAE5',
-  borderSubtle: '#ECFDF5',
+  surfaceRaised: '#EFEFED', // surface alt — used instead of borders where possible
+  surfaceHero: '#111110', // hero / form / FTP cards — dark, numbers pop
+  border: '#E8E8E6',
+  borderSubtle: '#F0EFEB',
 
-  // Text
-  textPrimary: '#0F172A',
-  textSecondary: '#475569',
-  textTertiary: '#94A3B8',
-  textInverse: '#FFFFFF', // text on primary / hero
+  // Text (warm near-black)
+  textPrimary: '#111110',
+  textSecondary: '#6B6B69',
+  textTertiary: '#ADADAA',
+  textInverse: '#FFFFFF', // text on green / on dark surfaces
 
   // Role aliases
-  primary: '#059669', // button / CTA background
+  primary: '#059669', // green — buttons / CTA (sparingly)
   primaryLight: '#34D399',
   primaryDark: '#065F46',
   primaryTint: '#ECFDF5',
   accent: '#059669', // links / active tab / text accents
   success: '#10B981',
-  warning: '#F59E0B',
-  danger: '#EF4444',
+  warning: '#D97706',
+  danger: '#DC2626',
   info: '#3B82F6',
+
+  // Athletic aliases (new design language)
+  bg: '#F5F5F3',
+  surfaceAlt: '#EFEFED',
+  surfaceDark: '#111110',
+  textDim: '#ADADAA',
+  green: '#059669',
+  greenLight: '#ECFDF5',
+  greenDim: '#D1FAE5',
+  achievement: '#E8420A', // PRs, records, milestones ONLY
+  achievementBg: '#FFF0EB',
 } as const;
 
 export const LIGHT_TOKENS = colors;
@@ -99,12 +112,13 @@ export const LIGHT_TOKENS = colors;
 // ---------------------------------------------------------------------------
 // Typography
 // ---------------------------------------------------------------------------
-// Family names match the keys registered with expo-font in App.tsx. "GeneralSans"
-// maps to General Sans (or its Outfit fallback); "JetBrainsMono" is used for
-// numbers, stats, and power values to give a sport/tech feel.
+// Athletic type stack (see ./typography for the full preset scale + the asset
+// map registered with expo-font in App.tsx). DM Sans for body/labels, Barlow
+// Condensed for big numbers, JetBrains Mono for live/precise data values.
 export const fontFamily = {
-  sans: 'GeneralSans',
-  mono: 'JetBrainsMono',
+  sans: 'DMSans_400Regular',
+  display: 'BarlowCondensed_900Black',
+  mono: 'JetBrainsMono_400Regular',
 } as const;
 
 export const fontSize = {

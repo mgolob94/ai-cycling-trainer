@@ -3,6 +3,7 @@ const { supabaseAdmin } = require('../db/supabase');
 const { summarizeRides } = require('./ai');
 const { getCached, saveCache, TTL_DEFAULTS, isoWeek, monthKey } = require('./aiCache');
 const phaseEngine = require('./phaseEngine');
+const { getFeedbackSummary } = require('./rideFeedback');
 
 const OPENAI_API_BASE = 'https://api.openai.com/v1';
 const MODEL = 'gpt-4o';
@@ -370,6 +371,28 @@ function riderCategoryFromWkg(wkg) {
 }
 
 /**
+ * Prompt lines describing the post-workout feedback patterns and the coaching
+ * rules to apply next week. Empty when there's no feedback yet.
+ */
+function feedbackPatternLines(p) {
+  if (!p || !p.count) return [];
+  const lines = [
+    'RECENT WORKOUT FEEDBACK (last ' + p.count + ' rides):',
+    `- Completion rate: ${p.completion_rate}%`,
+    `- Average perceived effort: ${p.avg_effort ?? '—'}/4`,
+    `- Rides rated 'too hard' (4/4): ${p.hard_count}`,
+    `- Rides rated 'too easy' (1/4): ${p.easy_count}`,
+  ];
+  const rules = [];
+  if (p.completion_rate != null && p.completion_rate < 70) rules.push('Completion is low — reduce the workout count by one and add a brief reassuring note.');
+  if (p.hard_count >= 3) rules.push('Several rides felt too hard — reduce next week\'s intensity by one zone.');
+  if (p.easy_count >= 3) rules.push('Several rides felt too easy — increase the weekly TSS target by ~5%.');
+  if (p.tired_pattern) rules.push('The athlete reports feeling tired after every ride — flag a recovery concern and ease the load.');
+  if (rules.length) lines.push('APPLY THESE ADJUSTMENTS THIS WEEK:', ...rules.map((r) => `- ${r}`));
+  return lines;
+}
+
+/**
  * Build the master coach system prompt from a rich athlete context object
  * (see gatherAthleteContext). The coach is a persistent persona that knows the
  * athlete and speaks in the first person.
@@ -400,6 +423,7 @@ function buildCoachSystemPrompt(athlete = {}) {
     a.recent_pattern ? `- Recent pattern: ${a.recent_pattern}` : '',
     a.recent_rides?.length ? `- Last rides: ${a.recent_rides.join('; ')}` : '',
     a.feedback_summary ? `- Feedback loop: ${a.feedback_summary}` : '',
+    ...feedbackPatternLines(a.feedback_patterns),
     a.warnings?.length ? `- WARNINGS: ${a.warnings.join('; ')}` : '',
     a.plan_summary
       ? `\nTHIS WEEK'S PLAN (the athlete's actual plan as shown in the app — when they ask about today's or tomorrow's session, reference THIS, do not invent a different workout):\n${a.plan_summary}`
@@ -414,14 +438,15 @@ function buildCoachSystemPrompt(athlete = {}) {
 
 /** Assemble the full athlete context for the coach from the database. */
 async function gatherAthleteContext(userId) {
-  const [{ data: profile }, { data: ftps }, { data: metrics }, { data: recovery }, { data: rides }, { data: feedback }, { data: planRow }] =
+  const [{ data: profile }, { data: ftps }, { data: metrics }, { data: recovery }, { data: rides }, feedbackSummary, { data: planRow }] =
     await Promise.all([
       supabaseAdmin.from('users').select('*').eq('id', userId).maybeSingle(),
       supabaseAdmin.from('ftp_tests').select('ftp_watts, watts_per_kg, test_date').eq('user_id', userId).order('test_date', { ascending: true }),
       supabaseAdmin.from('performance_metrics').select('*').eq('user_id', userId).order('week_start', { ascending: true }),
       supabaseAdmin.from('recovery_scores').select('recovery_score, readiness_label, date').eq('user_id', userId).order('date', { ascending: false }).limit(1).maybeSingle(),
       supabaseAdmin.from('rides').select('ride_date, distance_km, normalized_power, duration_sec').eq('user_id', userId).order('ride_date', { ascending: false }).limit(3),
-      supabaseAdmin.from('workout_feedback').select('workout_date, perceived_effort, completion_status').eq('user_id', userId).order('workout_date', { ascending: false }).limit(10),
+      // Post-workout survey patterns — the coach's learning loop.
+      getFeedbackSummary(userId, 10),
       // The single canonical weekly plan (training_plans) — so the coach
       // references the SAME plan the app shows, never an invented one.
       supabaseAdmin.from('training_plans').select('week_start, plan_json').eq('user_id', userId).order('week_start', { ascending: false }).limit(1).maybeSingle(),
@@ -433,8 +458,7 @@ async function gatherAthleteContext(userId) {
   const weeks = metrics || [];
   const current = weeks[weeks.length - 1] || {};
 
-  const completed = (feedback || []).filter((f) => f.completion_status === 'completed').length;
-  const completionRate = feedback?.length ? Math.round((completed / feedback.length) * 100) : null;
+  const completionRate = feedbackSummary.completion_rate;
 
   const planWorkouts = Array.isArray(planRow?.plan_json?.workouts) ? planRow.plan_json.workouts : [];
   const planSummary = planWorkouts.length
@@ -470,7 +494,8 @@ async function gatherAthleteContext(userId) {
     recent_rides: (rides || []).map(
       (r) => `${r.ride_date}: ${r.distance_km != null ? `${Math.round(r.distance_km)}km` : 'ride'}${r.normalized_power ? ` @ NP ${r.normalized_power}W` : ''}`
     ),
-    feedback_summary: completionRate != null ? `completion ${completionRate}% over last ${feedback.length} workouts` : null,
+    feedback_summary: completionRate != null ? `completion ${completionRate}% over last ${feedbackSummary.count} workouts` : null,
+    feedback_patterns: feedbackSummary,
     plan_summary: planSummary,
     warnings: [],
     _weeks: weeks,
@@ -601,7 +626,9 @@ async function generateWeeklyPlan(userId, weekStart) {
     await saveCache(userId, 'weekly_plan', cacheKey, planJson, tokens, MODEL, TTL_DEFAULTS.weekly_plan);
   }
 
-  // Normalize + enrich with server-known fields.
+  // Normalize + enrich with server-known fields. The feedback adjustment (if
+  // any) is recorded on the plan so the notification engine can tell the
+  // athlete the plan changed because of their workout feedback.
   planJson = {
     ...planJson,
     week_start: weekStart,
@@ -609,6 +636,7 @@ async function generateWeeklyPlan(userId, weekStart) {
     phase_week: phase.phase_week,
     phase_rationale: planJson.phase_rationale ?? phase.rationale,
     tss_target: planJson.tss_target ?? phase.tss_target,
+    feedback_adjustment: athlete.feedback_patterns?.adjustment ?? null,
   };
 
   const row = {

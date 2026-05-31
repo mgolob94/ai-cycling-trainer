@@ -25,6 +25,7 @@ const TTL_DEFAULTS = {
   midweek_checkin: 72, // 3 days
   endofweek_checkin: 168, // 1 week
   goal_insight: 168, // 1 week
+  ride_feedback: 8760, // 1 year — post-ride survey feedback never changes
 };
 
 const FALLBACK_TTL = 168;

@@ -309,26 +309,29 @@ export default function ProgressScreen() {
           <SkeletonLoader height={120} borderRadius={radius.lg} />
         ) : (
           <View style={styles.fitnessList}>
-            {fitnessCards.map((c) => (
-              <Card key={c.key} variant="tinted" style={styles.fitnessCard}>
-                <View style={styles.flex}>
+            <View style={[styles.triad, { backgroundColor: colors.surfaceRaised }]}>
+              {fitnessCards.map((c, i) => (
+                <View
+                  key={c.key}
+                  style={[styles.triadCol, i > 0 ? { borderLeftWidth: 1, borderLeftColor: colors.border } : null]}
+                >
+                  {showNumbers ? (
+                    <View style={styles.triadValueRow}>
+                      <Text variant="statMd" color={colors.textPrimary}>
+                        {c.value}
+                      </Text>
+                      <MetricTooltip metric={c.key} value={c.value} />
+                    </View>
+                  ) : null}
                   <Text variant="label" color={palette.slate400}>
                     {c.title}
                   </Text>
-                  <Text variant="body" color={colors.textPrimary} style={styles.fitnessPhrase}>
+                  <Text variant="caption" color={colors.textSecondary} style={styles.triadPhrase}>
                     {c.phrase}
                   </Text>
                 </View>
-                {showNumbers ? (
-                  <View style={styles.fitnessNumber}>
-                    <Text variant="statSm" color={colors.textSecondary}>
-                      {c.value}
-                    </Text>
-                    <MetricTooltip metric={c.key} value={c.value} />
-                  </View>
-                ) : null}
-              </Card>
-            ))}
+              ))}
+            </View>
             {!showNumbers ? (
               <Pressable style={styles.showNumbers} onPress={expandToIntermediate} hitSlop={6}>
                 <Text variant="label" color={colors.accent}>
@@ -404,10 +407,13 @@ export default function ProgressScreen() {
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.prScroll}>
               {goldRecord ? (
-                <View style={[styles.prCard, styles.goldCard]}>
-                  <Text variant="statMd" color={palette.amber600}>
+                <View style={[styles.prCard, styles.goldCard, { backgroundColor: colors.achievementBg, borderLeftColor: colors.achievement }]}>
+                  <Text variant="caption" color={colors.achievement} style={styles.bold}>
+                    ALL-TIME BEST
+                  </Text>
+                  <Text variant="statMd" color={colors.achievement}>
                     {goldRecord.value}
-                    <Text variant="caption" color={palette.amber600}>{` ${goldRecord.unit === 'watts' ? 'W' : goldRecord.unit}`}</Text>
+                    <Text variant="caption" color={colors.achievement}>{` ${goldRecord.unit === 'watts' ? 'W' : goldRecord.unit}`}</Text>
                   </Text>
                   <Text variant="caption">{RECORD_LABELS[goldRecord.record_type] ?? goldRecord.record_type}</Text>
                 </View>
@@ -546,9 +552,10 @@ const styles = StyleSheet.create({
   ftpLink: { marginTop: spacing[4] },
 
   fitnessList: { gap: spacing[2] },
-  fitnessCard: { flexDirection: 'row', alignItems: 'center', padding: spacing[4] },
-  fitnessPhrase: { fontWeight: '600', marginTop: 2 },
-  fitnessNumber: { alignItems: 'flex-end', flexDirection: 'row', gap: spacing[2] },
+  triad: { flexDirection: 'row', borderRadius: radius.lg, overflow: 'hidden' },
+  triadCol: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: spacing[4], paddingHorizontal: spacing[2] },
+  triadValueRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
+  triadPhrase: { textAlign: 'center' },
   showNumbers: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[1], paddingVertical: spacing[2] },
 
   chart: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 160, paddingTop: spacing[4] },
@@ -561,7 +568,7 @@ const styles = StyleSheet.create({
   section: { gap: spacing[3] },
   prScroll: { gap: spacing[3], paddingVertical: spacing[1] },
   prCard: { minWidth: 130, gap: spacing[1] },
-  goldCard: { minWidth: 130, gap: spacing[1], backgroundColor: palette.amber50, borderLeftColor: palette.amber600, borderLeftWidth: 3, borderRadius: radius.md, padding: 16 },
+  goldCard: { minWidth: 130, gap: spacing[1], borderLeftWidth: 3, borderRadius: radius.md, padding: 16 },
 
   coachHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[3] },
   coachIcon: { fontSize: 20 },

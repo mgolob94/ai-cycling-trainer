@@ -4,6 +4,7 @@ const ftpService = require('../services/ftp');
 const metrics = require('../services/metrics');
 const wprime = require('../services/wprime');
 const aiCoach = require('../services/aiCoach');
+const rideFeedback = require('../services/rideFeedback');
 
 /** Downsample an array to at most `target` evenly-spaced points. */
 function downsample(arr, target = 120) {
@@ -159,4 +160,30 @@ async function analyze(req, res, next) {
   }
 }
 
-module.exports = { listRides, getLatestRide, analyze };
+/**
+ * POST /rides/:strava_id/feedback — record the post-workout survey and return
+ * the coach's brief post-ride feedback.
+ * Body: { completion_status, perceived_effort, post_feeling, workout_date,
+ *         planned_tss, actual_tss }
+ */
+async function feedback(req, res, next) {
+  try {
+    const stravaId = req.params.strava_id;
+    const result = await rideFeedback.recordFeedback(req.user.id, stravaId, req.body || {});
+    res.json({ success: true, data: result, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** GET /rides/:strava_id/feedback — stored survey + coach feedback, or null. */
+async function getFeedback(req, res, next) {
+  try {
+    const data = await rideFeedback.getFeedback(req.user.id, req.params.strava_id);
+    res.json({ success: true, data, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { listRides, getLatestRide, analyze, feedback, getFeedback };
