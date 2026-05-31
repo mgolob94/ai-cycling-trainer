@@ -42,6 +42,8 @@ import FTPChart from '../components/FTPChart';
 import AIAnalysisBadge from '../components/AIAnalysisBadge';
 import { Text, Card, Badge, SectionHeader, Button, SkeletonLoader, Emoji } from '../components/ui';
 import MetricTooltip, { useMetricTooltip } from '../components/metrics/MetricTooltip';
+import FirstEncounterHint from '../components/metrics/FirstEncounterHint';
+import { METRIC_CONTEXT } from '../services/metricContext';
 import GoalsSection from '../components/goals/GoalsSection';
 import CoachFab from '../components/coach/CoachFab';
 import { scheduleWeeklySummary } from '../services/notifications';
@@ -169,6 +171,16 @@ export default function ProgressScreen() {
   const selWeek = selectedWeek != null ? tssWeeks[selectedWeek] : null;
   const selInfo = selWeek ? interpretWeeklyTSS(selWeek.tss, avgTss) : null;
 
+  // Weekly TSS context (P5): this week's label, vs-average line, guidance.
+  const weeklyRanges = METRIC_CONTEXT.tss.weeklyRanges ?? [];
+  const weekTss = current?.tss ?? 0;
+  const weeklyRange = weeklyRanges.find((r) => weekTss <= (r.max ?? 9999)) ?? null;
+  const vsPct = avgTss > 0 ? Math.round(((weekTss - avgTss) / avgTss) * 100) : 0;
+  const vsText =
+    vsPct > 3 ? `↑ ${vsPct}% above your 8-week average` : vsPct < -3 ? `↓ ${Math.abs(vsPct)}% below your 8-week average` : 'In line with your 8-week average';
+  const vsColor = vsPct > 40 ? colors.warning : vsPct > 3 ? colors.green : colors.textSecondary;
+  const selWeeklyRange = selWeek ? weeklyRanges.find((r) => selWeek.tss <= (r.max ?? 9999)) ?? null : null;
+
   // Staggered grow-in for the TSS bars.
   const barAnims = useRef<Animated.Value[]>([]).current;
   while (barAnims.length < tssWeeks.length) barAnims.push(new Animated.Value(0));
@@ -249,6 +261,7 @@ export default function ProgressScreen() {
           <SkeletonLoader height={120} borderRadius={radius.lg} />
         ) : (
           <Card variant="dark" padding={20}>
+            <FirstEncounterHint metric="ftp" />
             <Text variant="label" color={palette.slate400}>
               YOUR ENGINE
             </Text>
@@ -315,6 +328,7 @@ export default function ProgressScreen() {
                   key={c.key}
                   style={[styles.triadCol, i > 0 ? { borderLeftWidth: 1, borderLeftColor: colors.border } : null]}
                 >
+                  {c.key === 'ctl' ? <FirstEncounterHint metric="ctl" /> : null}
                   {showNumbers ? (
                     <View style={styles.triadValueRow}>
                       <Text variant="statMd" color={colors.textPrimary}>
@@ -353,7 +367,31 @@ export default function ProgressScreen() {
             <SkeletonLoader height={140} />
           ) : (
             <>
+              {/* This week's load + plain-language label */}
+              <View style={styles.tssHead}>
+                <Text variant="statMd" color={colors.textPrimary}>
+                  {Math.round(weekTss)}
+                  <Text variant="caption" color={colors.textSecondary}> TSS</Text>
+                </Text>
+                {weeklyRange ? (
+                  <View style={styles.tssHeadBadge}>
+                    <Text variant="label" color={colors.textSecondary}>
+                      {weeklyRange.label}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
               <View style={styles.chart}>
+                {/* 8-week average reference line (numbers users) */}
+                {showNumbers && avgTss > 0 ? (
+                  <View pointerEvents="none" style={[styles.avgLine, { bottom: 22 + (Math.min(avgTss, maxTss) / maxTss) * 120 }]}>
+                    <View style={[styles.avgDash, { borderColor: colors.textTertiary }]} />
+                    <Text variant="caption" color={colors.textTertiary} style={styles.avgLabel}>
+                      Your avg
+                    </Text>
+                  </View>
+                ) : null}
                 {tssWeeks.map((w, i) => {
                   const isCurrent = i === tssWeeks.length - 1;
                   const h = Math.max(4, (w.tss / maxTss) * 120);
@@ -384,14 +422,22 @@ export default function ProgressScreen() {
                   );
                 })}
               </View>
+
               {selInfo ? (
                 <Text variant="caption" color={colors.textPrimary} style={styles.chartCaption}>
-                  {relLabel(selectedWeek as number)}: {selInfo.label}, {selInfo.vsAverage}
+                  {relLabel(selectedWeek as number)}: {Math.round(selWeek!.tss)} TSS{selWeeklyRange ? ` · ${selWeeklyRange.label}` : ''}
                 </Text>
               ) : (
-                <Text variant="caption" color={palette.slate400} style={styles.chartCaption}>
-                  Tap a bar for details
-                </Text>
+                <View style={styles.tssContext}>
+                  <Text variant="caption" color={vsColor} style={styles.bold}>
+                    {vsText}
+                  </Text>
+                  {weeklyRange ? (
+                    <Text variant="caption" color={colors.textSecondary}>
+                      {weeklyRange.description}
+                    </Text>
+                  ) : null}
+                </View>
               )}
             </>
           )}
@@ -558,6 +604,12 @@ const styles = StyleSheet.create({
   triadPhrase: { textAlign: 'center' },
   showNumbers: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing[1], paddingVertical: spacing[2] },
 
+  tssHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginTop: spacing[2] },
+  tssHeadBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.xs, backgroundColor: 'transparent' },
+  tssContext: { marginTop: spacing[3], gap: 2 },
+  avgLine: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: spacing[1] },
+  avgDash: { flex: 1, borderTopWidth: 1, borderStyle: 'dashed', opacity: 0.6 },
+  avgLabel: { fontSize: 9 },
   chart: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 160, paddingTop: spacing[4] },
   barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: spacing[1] },
   bar: { width: '55%', borderRadius: radius.xs },

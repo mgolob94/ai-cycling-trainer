@@ -33,6 +33,13 @@ export interface NutritionGuide {
   daily: NutritionDay[];
 }
 
+export interface PlanReasoning {
+  headline?: string;
+  bullets?: string[];
+  key_workout?: { day?: string; why?: string };
+  what_to_expect?: string;
+}
+
 export interface TrainingPlan {
   id: string;
   week_start: string;
@@ -42,6 +49,7 @@ export interface TrainingPlan {
   tss_target?: number;
   week_theme?: string;
   coach_intro?: string;
+  reasoning?: PlanReasoning;
   completion_pct?: number;
   tss_achieved?: number;
   plan_json: {
@@ -49,6 +57,7 @@ export interface TrainingPlan {
     summary?: string;
     week_theme?: string;
     coach_intro?: string;
+    reasoning?: PlanReasoning;
     phase?: string;
     phase_week?: number;
     phase_total_weeks?: number;

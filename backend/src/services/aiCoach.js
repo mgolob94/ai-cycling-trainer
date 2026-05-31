@@ -540,6 +540,12 @@ const PLAN_SCHEMA = `{
       "note": "optional extra tip or null"
     }]
   },
+  "reasoning": {
+    "headline": "one punchy sentence, e.g. 'Lighter week — your body earned it.'",
+    "bullets": ["2-4 specific reasons, each starting with '→', referencing real numbers"],
+    "key_workout": { "day": "Monday|…|Sunday", "why": "why THIS is the most important session this week" },
+    "what_to_expect": "one sentence: the adaptation this week builds"
+  },
   "warning": "string or null"
 }`;
 
@@ -607,6 +613,7 @@ async function generateWeeklyPlan(userId, weekStart) {
       'Include exactly 2 off-bike strength sessions, cycling-specific (glutes, core, hip flexors, lower back). Put them on easier days — never the same day as a key ride. In peak/taper/recovery weeks make them lighter and shorter.',
       'Include a weekly nutrition fueling guide matched to the load (more fuel on hard/long days). Practical, plain language, no macro counting. during_ride only for rides longer than ~90 min, otherwise null.',
       'coach_intro and week_theme: warm, specific, plain English. Never mention CTL/ATL/TSB or the word "periodization".',
+      'reasoning: explain WHY this plan looks the way it does — personal and specific, referencing the athlete\'s actual numbers (fitness, fatigue, recent rides, phase). Never generic. This is shown to the athlete.',
       `Return JSON exactly matching this schema: ${PLAN_SCHEMA}`,
     ].join('\n');
 
@@ -650,6 +657,7 @@ async function generateWeeklyPlan(userId, weekStart) {
     tss_target: planJson.tss_target ?? phase.tss_target,
     week_theme: planJson.week_theme ?? null,
     coach_intro: planJson.coach_intro ?? null,
+    reasoning: planJson.reasoning ?? null,
     cache_key: cacheKey,
     is_cached: !!cached.hit,
     generated_at: new Date().toISOString(),

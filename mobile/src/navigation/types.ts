@@ -40,6 +40,8 @@ export type AppStackParamList = {
   FTPTestWizard: undefined;
   AIReport: undefined;
   MetricsIntro: undefined;
+  FirstSyncReveal: undefined;
+  MonthProgress: { data: import('../screens/MonthProgressScreen').MonthRevealData };
   RecoverySetup: undefined;
   NotificationSettings: undefined;
   CoachChat: undefined;

@@ -13,7 +13,7 @@ import {
   UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useRideAnalysis } from '../hooks/useRideAnalysis';
@@ -25,9 +25,13 @@ import { useAuthStore } from '../store/useAuthStore';
 import MultiLineChart from '../components/MultiLineChart';
 import PowerCurveChart from '../components/PowerCurveChart';
 import PostWorkoutSurvey from '../components/workout/PostWorkoutSurvey';
+import EffortRating from '../components/ride/EffortRating';
+import MetricBadge from '../components/metrics/MetricBadge';
+import FirstEncounterHint from '../components/metrics/FirstEncounterHint';
 import { Text } from '../components/ui';
 import { zoneColors, spacing, radius } from '../theme/tokens';
 import { DARK_TOKENS } from '../theme/useTheme';
+import type { MetricContextKey } from '../services/metricContext';
 import type { AppStackParamList } from '../navigation/types';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -58,15 +62,6 @@ function grouped(n: number): string {
   return Math.round(n).toLocaleString('en-US');
 }
 
-// Effort stars (1–5) from TSS — the beginner stand-in for raw training load.
-function effortFor(tss: number): { stars: number; label: string } {
-  if (tss <= 50) return { stars: 1, label: 'Easy ride' };
-  if (tss <= 100) return { stars: 2, label: 'Moderate effort' };
-  if (tss <= 150) return { stars: 3, label: 'Good workout' };
-  if (tss <= 200) return { stars: 4, label: 'Tough day' };
-  return { stars: 5, label: 'Extremely hard' };
-}
-
 // Plain-language one-liner from the ride's dominant power zone (beginner view).
 function plainSummary(zones: { zone: string; label: string; pct: number }[]): string {
   if (!zones.length) return 'Ride recorded.';
@@ -76,16 +71,6 @@ function plainSummary(zones: { zone: string; label: string; pct: number }[]): st
   if (d.zone === 'Z3') return `A steady tempo ride — mostly in the ${name} zone.`;
   if (d.zone === 'Z4') return `A hard threshold session — lots of time at ${name}.`;
   return `A high-intensity ride — significant time in ${name}.`;
-}
-
-function Stars({ count }: { count: number }) {
-  return (
-    <View style={styles.starsRow}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <Ionicons key={i} name={i <= count ? 'star' : 'star-outline'} size={20} color={i <= count ? c.warning : c.textDim} />
-      ))}
-    </View>
-  );
 }
 
 // Three green dots pulsing in sequence — the "coach is reviewing" loading state.
@@ -216,24 +201,19 @@ export default function RideDetailScreen({ route }: Props) {
                       value={analysis.variability_index != null ? `${analysis.variability_index}` : '—'}
                       label="VI"
                       onInfo={() => show('vi', analysis.variability_index ?? undefined)}
+                      badgeMetric="vi"
+                      badgeValue={analysis.variability_index ?? undefined}
                     />
                     <SecStat value={aiScore != null ? `${aiScore}` : '—'} label="AI SCORE" />
                     <SecStat value={workKj != null ? `${grouped(workKj)}` : '—'} label="KJ WORK" />
                   </View>
                 ) : (
-                  /* PLAIN SUMMARY + EFFORT STARS (beginner) */
+                  /* PLAIN SUMMARY + EFFORT RATING (beginner) */
                   <View style={styles.beginnerBlock}>
                     <Text variant="bodyLarge" color={c.textPrimary} style={styles.summary}>
                       {plainSummary(analysis.zones)}
                     </Text>
-                    {tss != null ? (
-                      <View style={styles.effortRow}>
-                        <Stars count={effortFor(tss).stars} />
-                        <Text variant="caption" color={c.textSecondary}>
-                          {effortFor(tss).label}
-                        </Text>
-                      </View>
-                    ) : null}
+                    {tss != null ? <EffortRating tss={tss} durationMin={dur ? Math.round(dur / 60) : undefined} level={level} onDark /> : null}
                   </View>
                 )}
 
@@ -282,20 +262,14 @@ export default function RideDetailScreen({ route }: Props) {
                   </View>
                 </View>
 
-                {/* WEEK CONTEXT — training load from this ride (numbers users) */}
+                {/* TRAINING LOAD — effort rating (intermediate = stars+TSS, advanced = TSS-first) */}
                 {showNumbers && tss != null ? (
                   <View style={[styles.section, { borderTopColor: c.border }]}>
+                    <FirstEncounterHint metric="tss" />
                     <Text variant="label" color={c.textDim}>
                       TRAINING LOAD
                     </Text>
-                    <View style={styles.loadRow}>
-                      <Text variant="stat" color={c.textPrimary} style={styles.loadValue}>
-                        {tss}
-                      </Text>
-                      <Text variant="label" color={c.textDim} style={styles.loadUnit}>
-                        TSS
-                      </Text>
-                    </View>
+                    <EffortRating tss={tss} durationMin={dur ? Math.round(dur / 60) : undefined} level={level} onDark />
                   </View>
                 ) : null}
 
@@ -330,6 +304,18 @@ export default function RideDetailScreen({ route }: Props) {
                     </Pressable>
                   )}
                 </View>
+
+                {/* PROGRESS SIGNAL — something the athlete might not have noticed */}
+                {feedback?.progress_signal ? (
+                  <View style={[styles.progressCard, { backgroundColor: c.greenDim, borderLeftColor: c.green }]}>
+                    <Text variant="label" color={c.green}>
+                      📈 PROGRESS SIGNAL
+                    </Text>
+                    <Text variant="body" color={c.textPrimary} style={styles.coachText}>
+                      {feedback.progress_signal}
+                    </Text>
+                  </View>
+                ) : null}
 
                 {showNumbers ? (
                 <>
@@ -432,8 +418,20 @@ function HeroStat({ value, format, label }: { value: number | null; format: (n: 
   );
 }
 
-// Secondary stat — smaller condensed number, optional ⓘ that opens a tooltip.
-function SecStat({ value, label, onInfo }: { value: string; label: string; onInfo?: () => void }) {
+// Secondary stat — smaller condensed number, optional ⓘ tooltip + range badge.
+function SecStat({
+  value,
+  label,
+  onInfo,
+  badgeMetric,
+  badgeValue,
+}: {
+  value: string;
+  label: string;
+  onInfo?: () => void;
+  badgeMetric?: MetricContextKey;
+  badgeValue?: number;
+}) {
   return (
     <View style={styles.secStat}>
       <Text variant="statMd" color={c.textPrimary}>
@@ -445,6 +443,7 @@ function SecStat({ value, label, onInfo }: { value: string; label: string; onInf
         </Text>
         {onInfo ? <Feather name="info" size={11} color={c.textDim} /> : null}
       </Pressable>
+      {badgeMetric && badgeValue != null ? <MetricBadge metric={badgeMetric} value={badgeValue} /> : null}
     </View>
   );
 }
@@ -468,17 +467,16 @@ const styles = StyleSheet.create({
   secStat: { width: '33.33%', alignItems: 'center', paddingVertical: spacing[3], gap: 2 },
   secLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 
-  // Beginner: plain summary + effort stars
+  // Beginner: plain summary + effort rating
   beginnerBlock: { gap: spacing[3] },
   summary: { lineHeight: 24, fontWeight: '600' },
-  effortRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
-  starsRow: { flexDirection: 'row', gap: 2 },
 
   // Sections
   section: { borderTopWidth: 1, paddingTop: spacing[4], gap: spacing[2] },
   coachText: { lineHeight: 22 },
   nextLabel: { marginTop: spacing[2] },
   cachedLabel: { fontSize: 10, alignSelf: 'flex-end' },
+  progressCard: { borderRadius: radius.md, borderLeftWidth: 3, padding: spacing[4], gap: spacing[2] },
   reviewingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   dotsRow: { flexDirection: 'row', gap: 4 },
   dot: { width: 6, height: 6, borderRadius: radius.full },
@@ -489,11 +487,6 @@ const styles = StyleSheet.create({
   zoneLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   zoneDot: { width: 8, height: 8, borderRadius: radius.full },
   zoneLegendText: {},
-
-  // Training load
-  loadRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing[2] },
-  loadValue: { fontSize: 40, lineHeight: 44 },
-  loadUnit: { marginBottom: spacing[2] },
 
   // Advanced
   advHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

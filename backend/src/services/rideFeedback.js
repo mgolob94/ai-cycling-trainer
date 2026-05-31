@@ -15,11 +15,11 @@ const EFFORT_LABEL = { 1: 'too easy', 2: 'about right', 3: 'hard', 4: 'too much'
 const FEELING_LABEL = { 1: 'fresh', 2: 'normal', 3: 'tired' };
 
 /** Minimal OpenAI chat call (kept local to avoid a cycle with aiCoach). */
-async function callOpenAI(messages, { maxTokens = 120, temperature = 0.5 } = {}) {
+async function callOpenAI(messages, { maxTokens = 160, temperature = 0.5, json = false } = {}) {
   if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not set');
   const { data } = await axios.post(
     `${OPENAI_API_BASE}/chat/completions`,
-    { model: MODEL, messages, temperature, max_tokens: maxTokens },
+    { model: MODEL, messages, temperature, max_tokens: maxTokens, ...(json ? { response_format: { type: 'json_object' } } : {}) },
     { headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' } }
   );
   const content = data.choices?.[0]?.message?.content;
@@ -54,7 +54,7 @@ async function generateRideFeedback(userId, stravaActivityId, survey = {}) {
   const cacheKey = cacheKeyFor(stravaActivityId);
   const cached = await getCached(userId, 'ride_feedback', cacheKey);
   if (cached.hit) {
-    return { feedback_text: cached.data?.feedback_text ?? '', cached: true };
+    return { feedback_text: cached.data?.feedback_text ?? '', progress_signal: cached.data?.progress_signal ?? null, cached: true };
   }
 
   // Gather context: ride, planned workout, FTP, recent metrics, phase, pattern.
@@ -89,26 +89,41 @@ async function generateRideFeedback(userId, stravaActivityId, survey = {}) {
     .join(', ') || 'no prior feedback';
 
   const system =
-    'You are a cycling coach giving brief post-ride feedback. ' +
-    'Max 2 sentences. Be specific to the numbers. ' +
-    'Start with what went well. End with one actionable observation. ' +
-    "Never start with 'Great job' or 'Well done' — be direct. Respond in English.";
+    'You are a cycling coach giving brief post-ride feedback. Respond with JSON only: ' +
+    '{ "feedback": string, "progress_signal": string | null }. ' +
+    'feedback: max 2 sentences, specific to the numbers, start with what went well, end with one actionable observation. ' +
+    "Never start with 'Great job' or 'Well done' — be direct. " +
+    'progress_signal: ONE positive, data-driven observation the athlete might not have noticed (e.g. higher power late in the ride, lower HR at the same power, a longer time at threshold than before). ' +
+    'Must be a genuine observation from the numbers, not generic praise. If there is no clear positive signal (bad/short/skipped ride), set progress_signal to null. Respond in English.';
 
   const user = [
-    `Ride: ${durMin ?? '?'}min, NP ${np ?? '?'}W${pctFtp != null ? ` (${pctFtp}% FTP)` : ''}, TSS ${ride?.tss ?? '?'}`,
+    `Ride: ${durMin ?? '?'}min, NP ${np ?? '?'}W${pctFtp != null ? ` (${pctFtp}% FTP)` : ''}, TSS ${ride?.tss ?? '?'}, avg HR ${ride?.avg_heart_rate ?? '?'}`,
     `Planned: ${planned?.type ?? 'unstructured'}${planned?.duration_min ? `, ${planned.duration_min}min` : ''}`,
     `Athlete felt: effort ${survey.perceived_effort ?? '?'}/4 (${EFFORT_LABEL[survey.perceived_effort] ?? '—'}), feeling after ${survey.post_feeling ?? '?'}/3 (${FEELING_LABEL[survey.post_feeling] ?? '—'})`,
     `Current phase: ${phase ?? 'unknown'}, TSB: ${metrics?.tsb != null ? Math.round(metrics.tsb) : '?'}`,
     `Last 5 rides pattern: ${patternSummary}`,
   ].join('\n');
 
-  const { content, tokens } = await callOpenAI([
-    { role: 'system', content: system },
-    { role: 'user', content: user },
-  ]);
+  const { content, tokens } = await callOpenAI(
+    [
+      { role: 'system', content: system },
+      { role: 'user', content: user },
+    ],
+    { json: true, maxTokens: 220 }
+  );
 
-  await saveCache(userId, 'ride_feedback', cacheKey, { feedback_text: content }, tokens, MODEL, FEEDBACK_TTL_HOURS);
-  return { feedback_text: content, cached: false };
+  let feedbackText = content;
+  let progressSignal = null;
+  try {
+    const parsed = JSON.parse(content);
+    feedbackText = String(parsed.feedback ?? '').trim();
+    progressSignal = parsed.progress_signal ? String(parsed.progress_signal).trim() : null;
+  } catch {
+    // Non-JSON fallback: treat the whole response as the feedback text.
+  }
+
+  await saveCache(userId, 'ride_feedback', cacheKey, { feedback_text: feedbackText, progress_signal: progressSignal }, tokens, MODEL, FEEDBACK_TTL_HOURS);
+  return { feedback_text: feedbackText, progress_signal: progressSignal, cached: false };
 }
 
 /**
@@ -145,7 +160,11 @@ async function recordFeedback(userId, stravaActivityId, survey = {}) {
     const result = await generateRideFeedback(userId, stravaActivityId, survey);
     await supabaseAdmin
       .from('workout_feedback')
-      .update({ coach_feedback: result.feedback_text, coach_feedback_generated_at: new Date().toISOString() })
+      .update({
+        coach_feedback: result.feedback_text,
+        coach_feedback_generated_at: new Date().toISOString(),
+        progress_signal: result.progress_signal ?? null,
+      })
       .eq('user_id', userId)
       .eq('strava_activity_id', stravaActivityId);
     return result;
@@ -159,7 +178,7 @@ async function recordFeedback(userId, stravaActivityId, survey = {}) {
 async function getFeedback(userId, stravaActivityId) {
   const { data } = await supabaseAdmin
     .from('workout_feedback')
-    .select('completion_status, perceived_effort, post_feeling, coach_feedback, coach_feedback_generated_at')
+    .select('completion_status, perceived_effort, post_feeling, coach_feedback, coach_feedback_generated_at, progress_signal')
     .eq('user_id', userId)
     .eq('strava_activity_id', stravaActivityId)
     .maybeSingle();

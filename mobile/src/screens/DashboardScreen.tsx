@@ -12,6 +12,7 @@ import {
   UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -41,6 +42,9 @@ import { useNudges } from '../hooks/useNudges';
 import { useKnowledgeLevel } from '../context/KnowledgeLevelContext';
 import TrainingScaleBar, { type ScaleZone } from '../components/metrics/TrainingScaleBar';
 import MetricTooltip from '../components/metrics/MetricTooltip';
+import FirstEncounterHint from '../components/metrics/FirstEncounterHint';
+import SyncInsightBanner from '../components/sync/SyncInsightBanner';
+import { getRange } from '../services/metricContext';
 import { interpretTSB, interpretATL } from '../services/metricsInterpreter';
 import { palette, spacing, radius, zoneColors } from '../theme/tokens';
 import { useThemeColors } from '../theme/useThemeColors';
@@ -170,6 +174,8 @@ export default function DashboardScreen() {
   const { track, config } = useKnowledgeLevel();
   const userId = useAuthStore((s) => s.userId);
   const [pendingSurvey, setPendingSurvey] = useState<SurveyTrigger | null>(null);
+  const [dailyContext, setDailyContext] = useState<string | null>(null);
+  const [syncInsight, setSyncInsight] = useState<string | null>(null);
   const [bannerVisible, setBannerVisible] = useState(false);
   const [showSkipPrompt, setShowSkipPrompt] = useState(false);
   const [noEvent, setNoEvent] = useState(false);
@@ -229,6 +235,60 @@ export default function DashboardScreen() {
     }, [refresh])
   );
 
+  // First-sync reveal — fires once after the initial Strava import finishes.
+  useFocusEffect(
+    useCallback(() => {
+      if (!connected || isInitialSyncing || !lastRide) return;
+      let active = true;
+      AsyncStorage.getItem('firstSyncRevealShown').then((seen) => {
+        if (seen || !active) return;
+        AsyncStorage.setItem('firstSyncRevealShown', '1').catch(() => {});
+        navigation.navigate('FirstSyncReveal');
+      });
+      return () => {
+        active = false;
+      };
+    }, [connected, isInitialSyncing, lastRide, navigation])
+  );
+
+  // Month-1 progress reveal — fires once when eligible (≥28 days, ≥8 rides).
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      AsyncStorage.getItem('monthRevealShown').then((seen) => {
+        if (seen || !active) return;
+        api
+          .post<ApiResponse<{ eligible: boolean } & Record<string, unknown>>>('/progress/monthly-reveal')
+          .then(({ data }) => {
+            if (!active || !data.data?.eligible) return;
+            AsyncStorage.setItem('monthRevealShown', '1').catch(() => {});
+            const { eligible, ...payload } = data.data;
+            navigation.navigate('MonthProgress', { data: payload as never });
+          })
+          .catch(() => {});
+      });
+      return () => {
+        active = false;
+      };
+    }, [navigation])
+  );
+
+  // Coach's one-liner: why today matters in the bigger picture.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      api
+        .get<ApiResponse<{ context: string | null }>>('/plans/daily-context')
+        .then(({ data }) => {
+          if (active) setDailyContext(data.data?.context ?? null);
+        })
+        .catch(() => {});
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
+
   // Surface the post-workout survey for a freshly synced ride (once per ride).
   useFocusEffect(
     useCallback(() => {
@@ -273,6 +333,21 @@ export default function DashboardScreen() {
     return () => clearTimeout(id);
   }, [newActivitiesAvailable]);
 
+  // "What we learned" insight after an incremental sync brings a new ride.
+  useEffect(() => {
+    if (!newActivitiesAvailable || !lastRide) return;
+    let active = true;
+    api
+      .post<ApiResponse<{ insight: string | null }>>(`/rides/${(lastRide as Ride).strava_id}/quick-insight`)
+      .then(({ data }) => {
+        if (active) setSyncInsight(data.data?.insight ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [newActivitiesAvailable, lastRide]);
+
   // One-time metrics education, after the first sync has produced metrics.
   const introChecked = useRef(false);
   useEffect(() => {
@@ -310,6 +385,15 @@ export default function DashboardScreen() {
   const recent4 = weeks.slice(-4);
   const avgTss = recent4.length ? recent4.reduce((s, w) => s + w.tss, 0) / recent4.length : 0;
   const tsbInfo = interpretTSB(tsb);
+  // Plain-language form-zone sentence for the scale bar (P6).
+  const tsbRange = getRange('tsb', tsb);
+  const formSentence = tsbRange
+    ? tsbRange.label === 'Overtrained'
+      ? "You're overtrained — rest is the only fix."
+      : tsbRange.label === 'Very fresh'
+        ? 'Very fresh — consider adding a workout.'
+        : `You're in the ${tsbRange.label} zone.`
+    : undefined;
   const atlInfo = interpretATL(atl, atlTrend, ctl);
   const tsbTrend = priorWeek ? tsb - priorWeek.tsb : 0;
 
@@ -337,6 +421,7 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+      {syncInsight ? <SyncInsightBanner text={syncInsight} onDismiss={() => { setSyncInsight(null); acknowledge(); }} /> : null}
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={palette.slate400} />}
@@ -421,6 +506,7 @@ export default function DashboardScreen() {
         {/* Hero — form today (plain language) */}
         <Animated.View style={heroStyle}>
           <Card variant="dark" padding={20} style={styles.hero} onPress={() => navigation.navigate('Progress')}>
+            <FirstEncounterHint metric="tsb" />
             {/* Row 1 — primary status */}
             <View style={styles.heroTop}>
               <Text variant="label" color={palette.slate400}>
@@ -444,7 +530,7 @@ export default function DashboardScreen() {
             </Text>
             {/* Row 3 — scale bar */}
             <View style={styles.heroScale}>
-              <TrainingScaleBar onDark value={tsb} min={-40} max={40} zones={TSB_ZONES} />
+              <TrainingScaleBar onDark value={tsb} min={-40} max={40} zones={TSB_ZONES} sentence={formSentence} />
             </View>
             {/* Row 4 — two plain-language trend chips (no numbers) */}
             <View style={styles.chipRow}>
@@ -542,6 +628,11 @@ export default function DashboardScreen() {
           ) : (
             <Text variant="caption">Your first plan is being built. Give it a moment.</Text>
           )}
+          {dailyContext ? (
+            <Text variant="caption" color={colors.textSecondary} style={styles.dailyContext}>
+              {dailyContext}
+            </Text>
+          ) : null}
         </View>
 
         {/* Medium-priority nudge */}
@@ -648,6 +739,7 @@ const styles = StyleSheet.create({
   hero: { gap: spacing[1] },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[2] },
   heroStatus: { fontSize: 40, lineHeight: 44, letterSpacing: -0.5 },
+  dailyContext: { fontStyle: 'italic', lineHeight: 19, marginTop: spacing[2] },
   heroAdvice: { lineHeight: 20, marginTop: spacing[1] },
   heroScale: { marginTop: spacing[4] },
   detailsToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: spacing[1], marginTop: spacing[3] },

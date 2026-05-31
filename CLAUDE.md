@@ -102,7 +102,8 @@ Connect Strava → AI builds full plan (training + nutrition + strength) → Tra
 ├── mobile/
 │   ├── src/
 │   │   ├── screens/
-│   │   │   ├── onboarding/       # Welcome, SignUp, Profile, GoalSetup, CoachStyle
+│   │   │   ├── onboarding/       # Welcome, SignUp, Profile, GoalSetup, CoachStyle, FirstSyncReveal
+│   │   │   ├── MonthProgressScreen.tsx  # "4 weeks in" reveal (fires once)
 │   │   │   ├── DashboardScreen.tsx
 │   │   │   ├── PlanScreen.tsx
 │   │   │   ├── RideDetailScreen.tsx
@@ -112,10 +113,13 @@ Connect Strava → AI builds full plan (training + nutrition + strength) → Tra
 │   │   │   # RecoveryScreen.tsx — HIDDEN (feature flag: recovery_screen=false)
 │   │   ├── components/
 │   │   │   ├── ui/               # Card, Button, Badge, Text, StatCard, Divider
-│   │   │   ├── metrics/          # TrainingScaleBar, MetricTooltip, ProgressiveStatCard
+│   │   │   ├── metrics/          # TrainingScaleBar, MetricTooltip, ProgressiveStatCard,
+│   │   │   │                     # MetricBadge, FirstEncounterHint
 │   │   │   ├── workout/          # WorkoutCard, PostWorkoutSurvey, StrengthDetailSheet
+│   │   │   ├── ride/             # EffortRating (stars/label/context from TSS)
 │   │   │   ├── dashboard/        # MorningCheckIn, WeekSummaryCard
-│   │   │   └── plan/             # EventSetup, PhaseHeader
+│   │   │   ├── sync/             # SyncInsightBanner (post-sync "what we learned")
+│   │   │   └── plan/             # EventSetup, PhaseHeader, PlanReasoningCard
 │   │   ├── hooks/                # useTrainingPlan, useSyncStatus, useFtp,
 │   │   │                         # useWeeklyMetrics, useGoals, useNudges, …
 │   │   ├── services/
@@ -126,6 +130,8 @@ Connect Strava → AI builds full plan (training + nutrition + strength) → Tra
 │   │   │   ├── demoData.ts       # Demo payloads
 │   │   │   ├── notifications.ts  # Push notifications
 │   │   │   ├── surveyTrigger.ts  # When to show the post-workout survey (AsyncStorage state)
+│   │   │   ├── metricContext.ts  # Single source of truth: metric meanings + ranges
+│   │   │   ├── tooltipTrigger.ts # One-time first-encounter hint state (AsyncStorage)
 │   │   │   └── mockData.ts       # Dev mock data
 │   │   ├── navigation/
 │   │   │   ├── index.tsx         # NavigationContainer + theme
@@ -157,7 +163,8 @@ Connect Strava → AI builds full plan (training + nutrition + strength) → Tra
 │   │   │   ├── adaptiveTraining.js # Silent recovery adaptation of today's workout
 │   │   │   ├── recoveryScore.js  # Daily recovery score (subjective proxy)
 │   │   │   ├── goalTracker.js    # Goal progress + AI insight
-│   │   │   ├── rideFeedback.js   # Post-workout survey → coach feedback + plan-adjust patterns
+│   │   │   ├── rideFeedback.js   # Post-workout survey → coach feedback + progress signal + plan-adjust patterns
+│   │   │   ├── dailyContext.js   # One-sentence "why today matters" for the Dashboard
 │   │   │   ├── aiCache.js        # Universal AI cache service
 │   │   │   └── notificationEngine.js  # Candidates + anti-spam + quiet hours
 │   │   ├── middleware/auth.js    # JWT verification (HS256 + JWKS)
@@ -175,7 +182,8 @@ Connect Strava → AI builds full plan (training + nutrition + strength) → Tra
 ├── scripts/
 │   ├── seedMockData.js
 │   ├── clearMockData.js
-│   └── validateMockData.js
+│   ├── validateMockData.js
+│   └── appStoreChecklist.js      # Scans project for App Store submission readiness
 │
 ├── docs/                         # All planning documents
 │   ├── ui-copy.md                # ← ALL UI text lives here
@@ -266,7 +274,9 @@ Connect Strava → AI builds full plan (training + nutrition + strength) → Tra
 | coach_intro | text | AI generated |
 | workouts | jsonb | Array of workout objects |
 | plan_json | jsonb | Full plan object — workouts + `nutrition` + `strength_sessions` + phase fields |
+| reasoning | jsonb | Why this week looks like this (headline, bullets, key_workout, what_to_expect) |
 | adapted_workout | jsonb | Recovery-adjusted version |
+| adaptation_reason | text | Plain-English note for the "Plan updated · Here's why" banner (cleared on dismiss) |
 | completion_pct | integer | Filled end of week |
 | tss_achieved | integer | From Strava |
 | cache_key | text | week_{YYYY-WW} |
@@ -364,6 +374,7 @@ Connect Strava → AI builds full plan (training + nutrition + strength) → Tra
 | actual_tss | real | |
 | coach_feedback | text | AI-generated post-ride note, cached |
 | coach_feedback_generated_at | timestamp | |
+| progress_signal | text | One positive, data-driven observation from the ride (or null) |
 | created_at | timestamp | |
 
 > The post-workout survey writes here (the coach's learning loop). Patterns from
@@ -439,6 +450,8 @@ Cache TTLs (`ai_analysis_cache.analysis_type`):
 - `weekly_summary`: 168h
 - `ride_analysis`: permanent
 - `ride_feedback`: permanent (8760h — post-ride survey feedback never changes)
+- `monthly_reveal`: permanent (8760h — the "4 weeks in" snapshot)
+- `sync_insight`: permanent (8760h — per-ride post-sync one-liner)
 - `recommendations`: 48h
 - `monthly_review`: 720h
 - `goal_insight`: 168h
@@ -594,6 +607,8 @@ All detailed prompts live in `/docs`. Use them with Claude Code.
 | `prompts-sledenje-napredku.md` | FTP, CTL/ATL/TSB, personal records |
 | `prompts-razumljive-metrike.md` | Plain language metrics |
 | `prompts-progresivno-razkrivanje.md` | Progressive disclosure system |
+| `prompts-data-clarity.md` | Metric context engine, badges, tooltips, effort rating, App Store checklist |
+| `prompts-aha-moments.md` | Make AI reasoning visible: first-sync reveal, plan reasoning, adaptive banner, progress signal, monthly reveal, daily context, sync insight |
 | `prompts-design-athletic.md` | Design system (fonts, colors, screens) |
 | `prompts-emerald-theme.md` | Emerald + black dark mode tokens |
 | `prompts-recovery-hidden.md` | Recovery (background only, UI hidden) |

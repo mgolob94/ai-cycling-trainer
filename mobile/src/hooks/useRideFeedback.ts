@@ -8,6 +8,7 @@ export interface RideFeedback {
   post_feeling: number | null;
   coach_feedback: string | null;
   coach_feedback_generated_at: string | null;
+  progress_signal: string | null;
 }
 
 /** Loads the stored survey + coach feedback for a ride (GET /rides/:id/feedback). */
