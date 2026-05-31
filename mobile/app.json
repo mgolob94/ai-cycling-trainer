@@ -42,7 +42,7 @@
       ]
     ],
     "extra": {
-      "apiBaseUrl": "http://192.168.31.117:3000/api",
+      "apiBaseUrl": "http://192.168.1.19:3000/api",
       "supabaseUrl": "https://dfatsmhkfqjjmhipdfeg.supabase.co",
       "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmYXRzbWhrZnFqam1oaXBkZmVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNzQ1NzUsImV4cCI6MjA5NTY1MDU3NX0.rpDZc_PcMpJSgbvFb3TSfsS9andoGeyQGBEtlQ4Gaqo",
       "stravaClientId": "171862"

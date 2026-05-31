@@ -88,6 +88,34 @@ function Stars({ count }: { count: number }) {
   );
 }
 
+// Three green dots pulsing in sequence — the "coach is reviewing" loading state.
+function LoadingDots() {
+  const d1 = useRef(new Animated.Value(0.3)).current;
+  const d2 = useRef(new Animated.Value(0.3)).current;
+  const d3 = useRef(new Animated.Value(0.3)).current;
+  useEffect(() => {
+    const pulse = (v: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(v, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(v, { toValue: 0.3, duration: 300, useNativeDriver: true }),
+          Animated.delay(300 - delay),
+        ])
+      );
+    const anims = [pulse(d1, 0), pulse(d2, 150), pulse(d3, 300)];
+    anims.forEach((a) => a.start());
+    return () => anims.forEach((a) => a.stop());
+  }, [d1, d2, d3]);
+  return (
+    <View style={styles.dotsRow}>
+      {[d1, d2, d3].map((v, i) => (
+        <Animated.View key={i} style={[styles.dot, { opacity: v, backgroundColor: c.green }]} />
+      ))}
+    </View>
+  );
+}
+
 export default function RideDetailScreen({ route }: Props) {
   const { stravaId } = route.params;
   const { analysis, loading, error } = useRideAnalysis(stravaId);
@@ -277,13 +305,23 @@ export default function RideDetailScreen({ route }: Props) {
                     AFTER THIS RIDE
                   </Text>
                   {feedbackLoading ? null : feedback?.coach_feedback ? (
-                    <Text variant="body" color={c.textSecondary} style={styles.coachText}>
-                      {feedback.coach_feedback}
-                    </Text>
+                    <>
+                      <Text variant="body" color={c.textSecondary} style={styles.coachText}>
+                        {feedback.coach_feedback}
+                      </Text>
+                      {feedback.coach_feedback_generated_at ? (
+                        <Text variant="caption" color={c.textDim} style={styles.cachedLabel}>
+                          {`Cached · ${feedback.coach_feedback_generated_at.slice(0, 10)}`}
+                        </Text>
+                      ) : null}
+                    </>
                   ) : feedback?.completion_status ? (
-                    <Text variant="caption" color={c.textSecondary} style={styles.coachText}>
-                      Your coach is reviewing this ride…
-                    </Text>
+                    <View style={styles.reviewingRow}>
+                      <LoadingDots />
+                      <Text variant="caption" color={c.textSecondary}>
+                        Your coach is reviewing this ride…
+                      </Text>
+                    </View>
                   ) : (
                     <Pressable onPress={() => setSurveyOpen(true)}>
                       <Text variant="caption" color={c.textDim} style={styles.coachText}>
@@ -440,6 +478,10 @@ const styles = StyleSheet.create({
   section: { borderTopWidth: 1, paddingTop: spacing[4], gap: spacing[2] },
   coachText: { lineHeight: 22 },
   nextLabel: { marginTop: spacing[2] },
+  cachedLabel: { fontSize: 10, alignSelf: 'flex-end' },
+  reviewingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  dotsRow: { flexDirection: 'row', gap: 4 },
+  dot: { width: 6, height: 6, borderRadius: radius.full },
 
   // Zones
   zoneBar: { flexDirection: 'row', height: 8, width: '100%', overflow: 'hidden', marginTop: spacing[1] },
