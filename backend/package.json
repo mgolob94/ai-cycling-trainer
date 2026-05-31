@@ -7,7 +7,10 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "test": "jest"
+    "test": "jest",
+    "seed": "node ../scripts/seedMockData.js",
+    "seed:clear": "node ../scripts/clearMockData.js",
+    "validate:mock": "node ../scripts/validateMockData.js"
   },
   "jest": {
     "testEnvironment": "node",
