@@ -50,12 +50,47 @@ const MOCK_ANALYSIS = {
   warning: null,
 };
 
+/** Canned conversational coach reply for chat (non-JSON) requests. */
+function mockChatReply(text) {
+  const lower = text.toLowerCase();
+  if (/tired|fatigue|sore|rest|exhaust/.test(lower)) {
+    return "Thanks for flagging that — let's keep today easy with an easy spin or a rest day, and prioritize sleep tonight. We'll pick the intensity back up once you're fresh.";
+  }
+  if (/tomorrow|workout|session|plan/.test(lower)) {
+    return "Tomorrow is your key threshold session: 3×12 min at 95–100% FTP with 5 min easy between. Fuel well beforehand and treat the rest of the week as support around it.";
+  }
+  if (/form|how am i|progress|doing/.test(lower)) {
+    return "You're in good form — your fitness (CTL) is climbing steadily while fatigue stays manageable, and your threshold power is trending up. Stay consistent and the gains will keep coming.";
+  }
+  if (/goal|ftp|target/.test(lower)) {
+    return "You're tracking well toward your goal. Keep your weekly threshold work consistent and add one long Zone 2 ride, and you'll stay on pace.";
+  }
+  return "Good question. Based on your recent training, keep building steadily — one quality session, one long endurance ride, and easy riding around them. Tell me how you're feeling and I'll adjust.";
+}
+
 function openAiReply(config) {
   openAiCalls += 1;
   console.log(`[MOCK OpenAI] Call #${openAiCalls} — saved ~$0.02`);
-  const body = String(config.data || '');
-  // Plan prompts mention "workouts"/"week_start"; everything else is analysis.
-  const content = /workouts|week_start/i.test(body) ? JSON.stringify(MOCK_PLAN) : JSON.stringify(MOCK_ANALYSIS);
+  const raw = String(config.data || '');
+  let body = {};
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    // keep {}
+  }
+
+  // JSON requests (plan / analysis / structured) ask for a json_object response;
+  // everything else is conversational (the coach chat).
+  const wantsJson = body.response_format?.type === 'json_object' || /response_format/.test(raw);
+  let content;
+  if (wantsJson) {
+    content = /workouts|week_start/i.test(raw) ? JSON.stringify(MOCK_PLAN) : JSON.stringify(MOCK_ANALYSIS);
+  } else {
+    const msgs = Array.isArray(body.messages) ? body.messages : [];
+    const lastUser = [...msgs].reverse().find((m) => m && m.role === 'user');
+    content = mockChatReply(String(lastUser?.content || ''));
+  }
+
   const response = {
     id: 'mock-cmpl',
     choices: [{ message: { role: 'assistant', content }, finish_reason: 'stop' }],

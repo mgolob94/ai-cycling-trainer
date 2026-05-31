@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
 
@@ -37,6 +38,7 @@ const QUICK_REPLIES = ['How is my form?', "What's tomorrow's workout?", "I'm tir
 export default function CoachChatScreen() {
   const { colors } = useTheme();
   const navigation = useNavigation<Nav>();
+  const headerHeight = useHeaderHeight();
   const [messages, setMessages] = useState<Msg[]>([
     { role: 'assistant', content: "Hi! I'm your coach. Ask me anything about your training, form, or how you feel." },
   ]);
@@ -80,7 +82,11 @@ export default function CoachChatScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['bottom']}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+      >
         <ScrollView
           ref={scrollRef}
           contentContainerStyle={styles.messages}
