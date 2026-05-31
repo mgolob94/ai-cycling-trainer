@@ -1,6 +1,7 @@
 import { NavigationContainer, DefaultTheme, DarkTheme, type Theme } from '@react-navigation/native';
 
 import { useAuthStore } from '../store/useAuthStore';
+import { useDemoStore } from '../store/useDemoStore';
 import AuthStack from './AuthStack';
 import AppStack from './AppStack';
 import { navigationRef } from './navigationRef';
@@ -15,6 +16,7 @@ export { navigationRef };
  */
 export default function Navigation() {
   const token = useAuthStore((state) => state.token);
+  const demo = useDemoStore((state) => state.demo);
   const { colors, isDark } = useTheme();
 
   const navTheme: Theme = {
@@ -32,7 +34,7 @@ export default function Navigation() {
 
   return (
     <NavigationContainer ref={navigationRef} theme={navTheme}>
-      {token ? <AppStack /> : <AuthStack />}
+      {token || demo ? <AppStack /> : <AuthStack />}
     </NavigationContainer>
   );
 }

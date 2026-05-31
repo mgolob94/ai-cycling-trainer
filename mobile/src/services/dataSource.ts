@@ -5,16 +5,16 @@ import * as appleHealth from './appleHealth';
 import { supabase } from './supabase';
 import { api, type ApiResponse } from './api';
 import { useAuthStore } from '../store/useAuthStore';
+import { useDemoStore } from '../store/useDemoStore';
 
 // Universal data-source wrapper. This is the ONLY data module screens/hooks
-// should import — never appleHealth/garmin/whoop directly. It transparently
-// returns mock data on the simulator (dev) and real data on devices.
-//
-// On mobile, Garmin/Whoop data is synced to Supabase by the backend, so the
-// "real" path reads HRV/sleep/recovery/rides from Supabase (Apple Health is the
-// one source fetched live on-device).
+// should import — never appleHealth/garmin/whoop directly. It returns mock data
+// on the dev simulator OR in demo mode, and real data otherwise.
 
-export const USE_MOCK = __DEV__ && !isDevice;
+const DEV_SIMULATOR = __DEV__ && !isDevice;
+function mockActive(): boolean {
+  return DEV_SIMULATOR || useDemoStore.getState().demo;
+}
 
 type Source = 'apple_health' | 'garmin' | 'whoop' | null;
 
@@ -80,11 +80,11 @@ async function sinceDateISO(days: number): Promise<string> {
 
 export const DataSource = {
   isMockMode(): boolean {
-    return USE_MOCK;
+    return mockActive();
   },
 
   async getHRV(days = 30): Promise<HRVReading[]> {
-    if (USE_MOCK) {
+    if (mockActive()) {
       console.log('[MOCK] Returning mock HRV data');
       return MockData.hrv(days);
     }
@@ -103,7 +103,7 @@ export const DataSource = {
   },
 
   async getSleep(days = 30): Promise<SleepSession[]> {
-    if (USE_MOCK) {
+    if (mockActive()) {
       console.log('[MOCK] Returning mock sleep data');
       return MockData.sleep(days);
     }
@@ -122,7 +122,7 @@ export const DataSource = {
   },
 
   async getRecoveryScore(date: string): Promise<RecoveryScore | null> {
-    if (USE_MOCK) {
+    if (mockActive()) {
       const scores = MockData.recovery(1);
       return (scores[0] as RecoveryScore) ?? null;
     }
@@ -138,7 +138,7 @@ export const DataSource = {
   },
 
   async getRides(limit = 50): Promise<Ride[]> {
-    if (USE_MOCK) {
+    if (mockActive()) {
       console.log('[MOCK] Returning mock rides');
       return MockData.rides(limit) as unknown as Ride[];
     }
