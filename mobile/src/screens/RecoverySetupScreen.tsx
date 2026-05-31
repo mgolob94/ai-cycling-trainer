@@ -62,7 +62,7 @@ export default function RecoverySetupScreen() {
 
   const finish = async () => {
     await markRecoverySetupSeen();
-    navigation.navigate('Tabs', { screen: 'Recovery' });
+    navigation.navigate('Recovery');
   };
 
   const connectApple = async () => {

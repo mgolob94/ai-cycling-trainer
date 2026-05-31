@@ -11,6 +11,7 @@ import FTPTestWizard from '../screens/FTPTestWizard';
 import AIReportScreen from '../screens/AIReportScreen';
 import MetricsIntroScreen from '../screens/MetricsIntroScreen';
 import RecoverySetupScreen from '../screens/RecoverySetupScreen';
+import RecoveryScreen from '../screens/RecoveryScreen';
 import DevToolsScreen from '../screens/DevToolsScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import CoachChatScreen from '../screens/CoachChatScreen';
@@ -53,6 +54,8 @@ export default function AppStack() {
       <Stack.Screen name="AIReport" component={AIReportScreen} options={{ title: 'AI analysis' }} />
       <Stack.Screen name="MetricsIntro" component={MetricsIntroScreen} options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="RecoverySetup" component={RecoverySetupScreen} options={{ headerShown: false, presentation: 'modal' }} />
+      {/* Recovery is hidden from the tab bar (v2) but still reachable via deep links / coach. */}
+      <Stack.Screen name="Recovery" component={RecoveryScreen} options={{ title: 'Recovery' }} />
       <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Notifications' }} />
       <Stack.Screen name="CoachChat" component={CoachChatScreen} options={{ title: 'AI Coach' }} />
       {__DEV__ ? <Stack.Screen name="DevTools" component={DevToolsScreen} options={{ title: 'Dev Tools' }} /> : null}

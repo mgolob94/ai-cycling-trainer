@@ -12,6 +12,27 @@ export interface Workout {
   is_key_workout?: boolean;
 }
 
+export interface StrengthSession {
+  day: string;
+  focus: string;
+  duration_min: number;
+  exercises: string[];
+  reason?: string;
+}
+
+export interface NutritionDay {
+  day: string;
+  pre_ride?: string | null;
+  during_ride?: string | null;
+  post_ride?: string | null;
+  note?: string | null;
+}
+
+export interface NutritionGuide {
+  week_focus?: string;
+  daily: NutritionDay[];
+}
+
 export interface TrainingPlan {
   id: string;
   week_start: string;
@@ -32,6 +53,8 @@ export interface TrainingPlan {
     phase_week?: number;
     phase_total_weeks?: number;
     workouts: Workout[];
+    strength_sessions?: StrengthSession[];
+    nutrition?: NutritionGuide;
   };
   generated_at: string;
 }

@@ -235,6 +235,22 @@ export function demoTrainingPlan() {
       coach_intro: DEMO_INTRO,
       summary: DEMO_INTRO,
       workouts,
+      strength_sessions: [
+        { day: 'Monday', focus: 'Glutes & core', duration_min: 30, exercises: ['Goblet squats', 'Single-leg deadlifts', 'Plank variations', 'Glute bridges'], reason: 'Stronger glutes and core mean more power and a stable position on the bike.' },
+        { day: 'Thursday', focus: 'Hip flexors & lower back', duration_min: 25, exercises: ['Hip flexor stretches', 'Bird dogs', 'Step-ups', 'Back extensions'], reason: 'Keeps your hips mobile and your back resilient for long rides.' },
+      ],
+      nutrition: {
+        week_focus: 'A build week — fuel the two hard days and the long ride well; keep easy days lighter.',
+        daily: [
+          { day: 'Monday', pre_ride: 'Normal breakfast — rest day.', during_ride: null, post_ride: 'Balanced dinner with protein and veg.', note: 'Hydrate well ahead of Tuesday.' },
+          { day: 'Tuesday', pre_ride: 'Carb-rich meal 2–3h before (oats, banana).', during_ride: 'A gel or banana for the threshold efforts.', post_ride: 'Protein + carbs within 30 min (recovery shake or eggs on toast).', note: null },
+          { day: 'Wednesday', pre_ride: 'Light carbs before the Zone 2 ride.', during_ride: null, post_ride: 'Normal balanced meal.', note: null },
+          { day: 'Thursday', pre_ride: 'Solid meal before sweet spot.', during_ride: 'Sip carbs if you go over an hour.', post_ride: 'Protein-forward recovery meal.', note: null },
+          { day: 'Friday', pre_ride: 'Easy day — eat to appetite.', during_ride: null, post_ride: 'Light, balanced dinner.', note: null },
+          { day: 'Saturday', pre_ride: 'Big carb breakfast 2–3h before the long ride.', during_ride: '60–90g carbs/hour — bars, gels, drink mix.', post_ride: 'Refuel hard: carbs + protein within the hour.', note: 'This is your biggest fueling day.' },
+          { day: 'Sunday', pre_ride: 'Light breakfast before the easy ride.', during_ride: null, post_ride: 'Normal meals, rehydrate.', note: null },
+        ],
+      },
     },
     generated_at: new Date().toISOString(),
   };

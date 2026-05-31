@@ -498,6 +498,23 @@ const PLAN_SCHEMA = `{
     "description": "what to do and why, plain language",
     "is_key_workout": boolean
   }],
+  "strength_sessions": [{
+    "day": "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday",
+    "focus": "e.g. Glutes & core",
+    "duration_min": number,
+    "exercises": ["plain-language exercise names"],
+    "reason": "one sentence — how this supports your riding"
+  }],
+  "nutrition": {
+    "week_focus": "1 sentence fueling theme for the week",
+    "daily": [{
+      "day": "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday",
+      "pre_ride": "what/when to eat before",
+      "during_ride": "fuel during the ride, or null for short/rest days",
+      "post_ride": "recovery nutrition after",
+      "note": "optional extra tip or null"
+    }]
+  },
   "warning": "string or null"
 }`;
 
@@ -562,6 +579,8 @@ async function generateWeeklyPlan(userId, weekStart) {
       '',
       'Cover all 7 days (rest days have type "rest", duration_min 0). Mark the single most important session is_key_workout: true.',
       'Use human workout types like "long easy ride", "threshold intervals", "sweet spot", "active recovery spin", "VO2max efforts" — never robotic names.',
+      'Include exactly 2 off-bike strength sessions, cycling-specific (glutes, core, hip flexors, lower back). Put them on easier days — never the same day as a key ride. In peak/taper/recovery weeks make them lighter and shorter.',
+      'Include a weekly nutrition fueling guide matched to the load (more fuel on hard/long days). Practical, plain language, no macro counting. during_ride only for rides longer than ~90 min, otherwise null.',
       'coach_intro and week_theme: warm, specific, plain English. Never mention CTL/ATL/TSB or the word "periodization".',
       `Return JSON exactly matching this schema: ${PLAN_SCHEMA}`,
     ].join('\n');
@@ -571,7 +590,7 @@ async function generateWeeklyPlan(userId, weekStart) {
         { role: 'system', content: system },
         { role: 'user', content: task },
       ],
-      { json: true, maxTokens: 1200 }
+      { json: true, maxTokens: 1900 }
     );
     tokens = res.tokens;
     try {

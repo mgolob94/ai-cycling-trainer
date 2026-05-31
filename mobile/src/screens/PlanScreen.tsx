@@ -143,6 +143,7 @@ export default function PlanScreen() {
   );
 
   const workouts = plan?.plan_json?.workouts ?? [];
+  const strength = plan?.plan_json?.strength_sessions ?? [];
   const coachIntro = plan?.coach_intro ?? plan?.plan_json?.coach_intro;
   const phaseKey = (phase?.phase ?? plan?.phase ?? plan?.plan_json?.phase ?? '').toLowerCase();
   const meta = PHASE_META[phaseKey];
@@ -253,6 +254,34 @@ export default function PlanScreen() {
               </View>
             </View>
 
+            {strength.length > 0 ? (
+              <View style={styles.section}>
+                <SectionHeader title="STRENGTH" />
+                <View style={styles.list}>
+                  {strength.map((s, i) => (
+                    <Card key={`${s.day}-${i}`} variant="default" style={styles.strengthCard}>
+                      <View style={styles.dayRow}>
+                        <Emoji size={15}>🏋️</Emoji>
+                        <Text variant="body" style={styles.bold}>
+                          {s.day}
+                        </Text>
+                        <View style={styles.flex} />
+                        <Badge label={`${s.duration_min} min`} color="emerald" />
+                      </View>
+                      <Text variant="caption" color={colors.textTertiary}>
+                        {s.focus}
+                      </Text>
+                      {s.exercises?.length ? (
+                        <Text variant="caption" color={colors.textSecondary} style={styles.desc}>
+                          {s.exercises.join(' · ')}
+                        </Text>
+                      ) : null}
+                    </Card>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
             <Button label="Generate a new plan" variant="ghost" size="md" loading={generating} onPress={generatePlan} />
           </>
         )}
@@ -326,6 +355,7 @@ const styles = StyleSheet.create({
   cardHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing[3] },
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   desc: { lineHeight: 19 },
+  strengthCard: { gap: spacing[2] },
 
   historyHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing[3] },
   historyRow: { gap: spacing[2], paddingRight: spacing[4] },
