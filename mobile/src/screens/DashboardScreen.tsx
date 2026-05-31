@@ -36,7 +36,7 @@ import { useKnowledgeLevel } from '../context/KnowledgeLevelContext';
 import TrainingScaleBar, { type ScaleZone } from '../components/metrics/TrainingScaleBar';
 import MetricTooltip from '../components/metrics/MetricTooltip';
 import { interpretTSB, interpretATL } from '../services/metricsInterpreter';
-import { palette, spacing, radius } from '../theme/tokens';
+import { palette, spacing, radius, zoneColors } from '../theme/tokens';
 import { useThemeColors } from '../theme/useThemeColors';
 import type { AppStackParamList } from '../navigation/types';
 
@@ -79,11 +79,11 @@ function greeting(): string {
 function intensityColor(intensity: string): string {
   switch (intensity?.toLowerCase()) {
     case 'easy':
-      return '#60A5FA'; // Z2
+      return zoneColors.z2;
     case 'moderate':
-      return '#34D399'; // Z3
+      return zoneColors.z3;
     case 'hard':
-      return '#F97316'; // Z5
+      return zoneColors.z5;
     default:
       return palette.slate200;
   }

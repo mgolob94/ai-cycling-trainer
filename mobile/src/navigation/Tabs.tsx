@@ -36,8 +36,8 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const { colors, isDark } = useThemeColors();
   const { newActivitiesAvailable } = useSyncStatus();
 
-  const activeColor = isDark ? colors.textPrimary : palette.slate900;
-  const inactiveColor = palette.slate400;
+  const activeColor = colors.primary;
+  const inactiveColor = colors.textTertiary;
 
   // Animated scaleX for each tab's top border (slides in on activation).
   const borders = useRef<Record<string, Animated.Value>>({}).current;

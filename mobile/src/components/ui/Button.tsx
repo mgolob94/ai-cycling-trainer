@@ -3,7 +3,7 @@ import { Pressable, ActivityIndicator, View, StyleSheet, type ViewStyle } from '
 import * as Haptics from 'expo-haptics';
 
 import Text from './Text';
-import { palette, radius, spacing } from '../../theme/tokens';
+import { radius, spacing } from '../../theme/tokens';
 import { useThemeColors } from '../../theme/useThemeColors';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -40,7 +40,7 @@ export default function Button({
   onPress,
   style,
 }: Props) {
-  const { colors, isDark } = useThemeColors();
+  const { colors } = useThemeColors();
   const dims = SIZE[size];
 
   const { bg, fg, border } = (() => {
@@ -53,11 +53,7 @@ export default function Button({
         return { bg: colors.danger, fg: '#FFFFFF', border: 'transparent' };
       case 'primary':
       default:
-        return {
-          bg: isDark ? palette.slate50 : palette.slate900,
-          fg: isDark ? palette.slate900 : '#FFFFFF',
-          border: 'transparent',
-        };
+        return { bg: colors.primary, fg: '#FFFFFF', border: 'transparent' };
     }
   })();
 

@@ -1,6 +1,6 @@
 // Design tokens — the single source of truth for every visual decision in the
-// app. Theme: Antracit / Slate (premium, neutral, light). Deliberately distinct
-// from Strava (no orange in the core palette).
+// app. Theme: Indigo / Violet (v1.0 MVP brand). Neutral surfaces are indigo-
+// tinted rather than pure gray so the whole UI reads as one cohesive palette.
 //
 // Consume these everywhere instead of hardcoding values. A dark-mode override
 // set lives in ./darkTokens; ./useTheme picks the right set at runtime.
@@ -9,67 +9,80 @@
 // Color palette
 // ---------------------------------------------------------------------------
 export const palette = {
-  // Primary — Antracit Slate
-  slate50: '#F8F8F7',
-  slate100: '#EEEEED',
-  slate200: '#D4D4D2',
-  slate400: '#8C8C89',
-  slate600: '#4A4A47',
-  slate800: '#1F1F1E',
-  slate900: '#0D0D0C',
+  // Neutral ramp — indigo-tinted (slate* names kept for compatibility).
+  slate50: '#F8F7FF',
+  slate100: '#F1F0FF',
+  slate200: '#E0E7FF',
+  slate400: '#818CF8',
+  slate600: '#4338CA',
+  slate800: '#2D2A5E',
+  slate900: '#1E1B4B',
 
-  // Accent — Electric Indigo (calls to action, active states)
-  indigo50: '#EEEEFF',
-  indigo100: '#C7C7FF',
-  indigo400: '#6366F1',
-  indigo600: '#4338CA',
-  indigo800: '#1E1B5E',
+  // Brand — Indigo / Violet (CTA, active states, accents)
+  indigo50: '#EEF2FF', // primary-tint
+  indigo100: '#C7D2FE',
+  indigo400: '#818CF8', // primary-light
+  indigo600: '#4F46E5', // primary
+  indigo800: '#1E1B4B', // primary-dark
 
   // Success — Emerald
   emerald50: '#ECFDF5',
   emerald400: '#34D399',
-  emerald600: '#059669',
+  emerald600: '#10B981',
 
   // Warning — Amber
   amber50: '#FFFBEB',
   amber400: '#FBBF24',
-  amber600: '#D97706',
+  amber600: '#F59E0B',
 
   // Danger — Rose
   rose50: '#FFF1F2',
   rose400: '#FB7185',
-  rose600: '#E11D48',
+  rose600: '#F43F5E',
 
   // Info — Sky
   sky50: '#F0F9FF',
   sky400: '#38BDF8',
-  sky600: '#0284C7',
+  sky600: '#0EA5E9',
+} as const;
+
+// Power-zone colors — theme-independent (used by zone bars, charts, badges).
+export const zoneColors = {
+  z1: '#CBD5E1', // recovery
+  z2: '#818CF8', // endurance
+  z3: '#34D399', // tempo
+  z4: '#F59E0B', // threshold
+  z5: '#F97316', // VO2max
+  z6: '#F43F5E', // anaerobic
 } as const;
 
 // Semantic colors (light theme). Dark overrides live in ./darkTokens.
 export const colors = {
   ...palette,
 
-  // Neutral surfaces
-  background: '#FAFAF9',
+  // Neutral surfaces (indigo-tinted)
+  background: '#F8F7FF',
   surface: '#FFFFFF',
-  surfaceRaised: '#F4F4F3',
-  border: '#E8E8E6',
-  borderSubtle: '#F0F0EE',
+  surfaceRaised: '#F1F0FF',
+  border: '#E0E7FF',
+  borderSubtle: '#EEF2FF',
 
   // Text
-  textPrimary: '#0D0D0C',
-  textSecondary: '#525250',
-  textTertiary: '#9C9C99',
-  textInverse: '#FAFAF9',
+  textPrimary: '#1E1B4B',
+  textSecondary: '#4338CA',
+  textTertiary: '#818CF8',
+  textInverse: '#FFFFFF',
 
-  // Role aliases (point at the ramp shade the UI uses by default)
-  primary: palette.slate900,
-  accent: palette.indigo600,
-  success: palette.emerald600,
-  warning: palette.amber600,
-  danger: palette.rose600,
-  info: palette.sky600,
+  // Role aliases
+  primary: '#4F46E5',
+  primaryLight: '#818CF8',
+  primaryDark: '#1E1B4B',
+  primaryTint: '#EEF2FF',
+  accent: '#4F46E5',
+  success: '#10B981',
+  warning: '#F59E0B',
+  danger: '#F43F5E',
+  info: '#0EA5E9',
 } as const;
 
 // ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@ import { Feather } from '@expo/vector-icons';
 
 import { useTrainingPlan, type Workout } from '../hooks/useTrainingPlan';
 import { Text, Card, Badge, Button, SectionHeader, SkeletonLoader, Emoji } from '../components/ui';
-import { spacing, radius, palette } from '../theme/tokens';
+import { spacing, radius, palette, zoneColors } from '../theme/tokens';
 import { useThemeColors } from '../theme/useThemeColors';
 
 type BadgeColor = 'default' | 'indigo' | 'emerald' | 'amber' | 'rose' | 'sky';
@@ -33,13 +33,13 @@ function intensityBadge(intensity: string): BadgeColor {
 function intensityBar(intensity: string): string {
   switch (intensity?.toLowerCase()) {
     case 'easy':
-      return palette.sky400;
+      return zoneColors.z2;
     case 'moderate':
-      return palette.emerald400;
+      return zoneColors.z3;
     case 'hard':
-      return palette.amber400;
+      return zoneColors.z5;
     default:
-      return palette.indigo400;
+      return zoneColors.z2;
   }
 }
 

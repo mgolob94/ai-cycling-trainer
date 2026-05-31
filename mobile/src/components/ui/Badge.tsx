@@ -24,7 +24,7 @@ const LIGHT_MAP: Record<BadgeColor, { bg: string; fg: string }> = {
 // Dark: translucent tint of the accent + bright (400) text for strong contrast.
 const DARK_MAP: Record<BadgeColor, { bg: string; fg: string }> = {
   default: { bg: 'rgba(212,212,210,0.14)', fg: palette.slate200 },
-  indigo: { bg: 'rgba(99,102,241,0.22)', fg: palette.indigo400 },
+  indigo: { bg: 'rgba(129,140,248,0.22)', fg: palette.indigo400 },
   emerald: { bg: 'rgba(52,211,153,0.20)', fg: palette.emerald400 },
   amber: { bg: 'rgba(251,191,36,0.20)', fg: palette.amber400 },
   rose: { bg: 'rgba(251,113,133,0.20)', fg: palette.rose400 },

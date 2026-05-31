@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from 'react';
 import { View, Pressable, Animated, StyleSheet, type ViewStyle, type StyleProp } from 'react-native';
 
-import { palette, radius, shadows } from '../../theme/tokens';
+import { radius, shadows } from '../../theme/tokens';
 import { useThemeColors } from '../../theme/useThemeColors';
 
 type CardVariant = 'default' | 'raised' | 'dark' | 'tinted';
@@ -31,7 +31,7 @@ export default function Card({ variant = 'default', padding = 16, onPress, style
         return { backgroundColor: colors.surface, borderRadius: radius.lg, ...shadows.md };
       case 'dark':
         return {
-          backgroundColor: isDark ? colors.surface : palette.slate900,
+          backgroundColor: colors.primaryDark,
           borderRadius: radius.lg,
           borderWidth: isDark ? 1 : 0,
           borderColor: colors.border,
