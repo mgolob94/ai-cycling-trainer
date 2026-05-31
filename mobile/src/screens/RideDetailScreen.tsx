@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -7,23 +7,31 @@ import {
   Dimensions,
   Pressable,
   LayoutAnimation,
+  Animated,
+  Easing,
   Platform,
   UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { useRideAnalysis, type PowerZone } from '../hooks/useRideAnalysis';
+import { useRideAnalysis } from '../hooks/useRideAnalysis';
+import { useRideFeedback } from '../hooks/useRideFeedback';
 import { useFtp } from '../hooks/useFtp';
 import { useKnowledgeLevel } from '../context/KnowledgeLevelContext';
 import { useMetricTooltip, type MetricKey } from '../components/metrics/MetricTooltip';
+import { useAuthStore } from '../store/useAuthStore';
 import MultiLineChart from '../components/MultiLineChart';
 import PowerCurveChart from '../components/PowerCurveChart';
-import AIAnalysisBadge from '../components/AIAnalysisBadge';
-import { Text, Card, SectionHeader, Button } from '../components/ui';
-import { palette, spacing, radius } from '../theme/tokens';
-import { useTheme } from '../theme/useTheme';
+import PostWorkoutSurvey from '../components/workout/PostWorkoutSurvey';
+import EffortRating from '../components/ride/EffortRating';
+import MetricBadge from '../components/metrics/MetricBadge';
+import FirstEncounterHint from '../components/metrics/FirstEncounterHint';
+import { Text } from '../components/ui';
+import { zoneColors, spacing, radius } from '../theme/tokens';
+import { DARK_TOKENS } from '../theme/useTheme';
+import type { MetricContextKey } from '../services/metricContext';
 import type { AppStackParamList } from '../navigation/types';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -31,79 +39,63 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 type Props = NativeStackScreenProps<AppStackParamList, 'RideDetail'>;
-type View3 = 'beginner' | 'intermediate' | 'advanced';
 
-const ZONE_COLORS: Record<string, string> = {
-  Z1: '#7FB3D5',
-  Z2: '#2D7DD2',
-  Z3: '#2E9E5B',
-  Z4: '#F5A623',
-  Z5: '#F97316',
-  Z6: '#E2483D',
-  Z7: '#A855F7',
-};
-
-// Coggan power-zone bounds as fractions of FTP (upper open for the top zone).
-const ZONE_FRAC: Record<string, [number, number | null]> = {
-  Z1: [0, 0.55],
-  Z2: [0.55, 0.75],
-  Z3: [0.75, 0.9],
-  Z4: [0.9, 1.05],
-  Z5: [1.05, 1.2],
-  Z6: [1.2, 1.5],
-  Z7: [1.5, null],
-};
+// Activity detail is intentionally always dark (Strava-style), regardless of the
+// app theme — numbers pop on black, nothing competes.
+const c = DARK_TOKENS;
 
 function formatDuration(sec: number | null): string {
   if (!sec) return '—';
   const h = Math.floor(sec / 3600);
-  const m = Math.round((sec % 3600) / 60);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
 }
 
 function avgSpeed(distanceKm: number | null, durationSec: number | null): string {
   if (!distanceKm || !durationSec) return '—';
-  return `${(distanceKm / (durationSec / 3600)).toFixed(1)} km/h`;
+  return `${(distanceKm / (durationSec / 3600)).toFixed(1)}`;
 }
 
-// Effort → 1–5 stars + label (beginner-friendly stand-in for raw TSS).
-function effortFor(tss: number | null): { stars: number; label: string } {
-  if (tss == null) return { stars: 0, label: 'Effort unknown' };
-  if (tss <= 50) return { stars: 1, label: 'Easy ride' };
-  if (tss <= 100) return { stars: 2, label: 'Moderate effort' };
-  if (tss <= 150) return { stars: 3, label: 'Good workout' };
-  if (tss <= 200) return { stars: 4, label: 'Tough day' };
-  return { stars: 5, label: 'Extremely hard' };
+// "1,240" — thousands separator for big hero numbers.
+function grouped(n: number): string {
+  return Math.round(n).toLocaleString('en-US');
 }
 
-function plainSummary(dominant: PowerZone | undefined): string {
-  if (!dominant) return 'Ride recorded.';
-  const z = dominant.zone;
-  const name = dominant.label.toLowerCase();
-  if (z === 'Z1' || z === 'Z2') return `A solid aerobic ride — mostly in the ${name} zone.`;
-  if (z === 'Z3') return `A steady tempo ride — mostly in the ${name} zone.`;
-  if (z === 'Z4') return `A hard threshold session — lots of time at ${name}.`;
+// Plain-language one-liner from the ride's dominant power zone (beginner view).
+function plainSummary(zones: { zone: string; label: string; pct: number }[]): string {
+  if (!zones.length) return 'Ride recorded.';
+  const d = [...zones].sort((a, b) => b.pct - a.pct)[0];
+  const name = d.label.toLowerCase();
+  if (d.zone === 'Z1' || d.zone === 'Z2') return `A solid aerobic ride — mostly in the ${name} zone.`;
+  if (d.zone === 'Z3') return `A steady tempo ride — mostly in the ${name} zone.`;
+  if (d.zone === 'Z4') return `A hard threshold session — lots of time at ${name}.`;
   return `A high-intensity ride — significant time in ${name}.`;
 }
 
-function zoneWattRange(zone: string, ftp: number | null): string | null {
-  if (!ftp) return null;
-  const frac = ZONE_FRAC[zone];
-  if (!frac) return null;
-  const lo = Math.round(frac[0] * ftp);
-  return frac[1] == null ? `${lo}+ W` : `${lo}–${Math.round(frac[1] * ftp)} W`;
-}
-
-function Stars({ count }: { count: number }) {
+// Three green dots pulsing in sequence — the "coach is reviewing" loading state.
+function LoadingDots() {
+  const d1 = useRef(new Animated.Value(0.3)).current;
+  const d2 = useRef(new Animated.Value(0.3)).current;
+  const d3 = useRef(new Animated.Value(0.3)).current;
+  useEffect(() => {
+    const pulse = (v: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(v, { toValue: 1, duration: 300, useNativeDriver: true }),
+          Animated.timing(v, { toValue: 0.3, duration: 300, useNativeDriver: true }),
+          Animated.delay(300 - delay),
+        ])
+      );
+    const anims = [pulse(d1, 0), pulse(d2, 150), pulse(d3, 300)];
+    anims.forEach((a) => a.start());
+    return () => anims.forEach((a) => a.stop());
+  }, [d1, d2, d3]);
   return (
-    <View style={styles.starsRow}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <Ionicons
-          key={i}
-          name={i <= count ? 'star' : 'star-outline'}
-          size={22}
-          color={i <= count ? palette.amber400 : palette.slate200}
-        />
+    <View style={styles.dotsRow}>
+      {[d1, d2, d3].map((v, i) => (
+        <Animated.View key={i} style={[styles.dot, { opacity: v, backgroundColor: c.green }]} />
       ))}
     </View>
   );
@@ -111,285 +103,392 @@ function Stars({ count }: { count: number }) {
 
 export default function RideDetailScreen({ route }: Props) {
   const { stravaId } = route.params;
-  const { colors } = useTheme();
-  const { analysis, loading, error, regenerate } = useRideAnalysis(stravaId);
+  const { analysis, loading, error } = useRideAnalysis(stravaId);
+  const { feedback, loading: feedbackLoading, refetch: refetchFeedback } = useRideFeedback(stravaId);
+  const userId = useAuthStore((s) => s.userId);
   const ftp = useFtp();
-  const { level, track } = useKnowledgeLevel();
+  const { level, config, track } = useKnowledgeLevel();
   const { show } = useMetricTooltip();
 
-  const initialView: View3 = level === 'advanced' ? 'advanced' : level === 'intermediate' ? 'intermediate' : 'beginner';
-  const [view, setView] = useState<View3>(initialView);
+  // Progressive disclosure: beginner = plain language + effort stars + zone names;
+  // intermediate = + numeric stat cards + zone numbers; advanced = + W′/power-curve
+  // (shown by default for advanced via config.defaultExpanded).
+  const showNumbers = level !== 'beginner';
+  const [showAdvanced, setShowAdvanced] = useState(config.defaultExpanded);
+  const [surveyOpen, setSurveyOpen] = useState(false);
 
-  const chartWidth = Dimensions.get('window').width - spacing[5] * 2 - spacing[5] * 2;
-
-  const stepTo = (next: View3, trigger?: 'show_more') => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setView(next);
-    if (trigger) track(trigger);
-  };
-
-  // ⓘ: open the metric's explanation sheet AND reveal the advanced view.
-  const handleInfo = (metric: MetricKey, value: number | null) => {
-    show(metric, value ?? undefined);
-    if (view !== 'advanced') stepTo('advanced');
+  // Entrance: content slides up 20px + fades in once the analysis is ready.
+  const entrance = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!loading && analysis) {
+      entrance.setValue(0);
+      Animated.timing(entrance, { toValue: 1, duration: 250, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    }
+  }, [loading, analysis, entrance]);
+  const entranceStyle = {
+    opacity: entrance,
+    transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
   };
 
   const ftpWatts = ftp.ftp?.ftp_watts ?? null;
+  const chartWidth = Dimensions.get('window').width - spacing[5] * 2;
+
+  const toggleAdvanced = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setShowAdvanced((v) => {
+      if (!v) track('show_more');
+      return !v;
+    });
+  };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: c.background }]} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.container}>
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator color={colors.accent} />
-            <Text variant="caption">Analyzing your ride…</Text>
+            <ActivityIndicator color={c.green} />
+            <Text variant="caption" color={c.textSecondary}>
+              Analyzing your ride…
+            </Text>
           </View>
         ) : error ? (
-          <Card variant="default">
-            <Text variant="body" color={palette.rose600}>
+          <View style={styles.center}>
+            <Text variant="body" color={c.danger}>
               {error}
             </Text>
-          </Card>
+          </View>
         ) : analysis ? (
           (() => {
             const np = analysis.normalized_power ?? analysis.ride.avg_power_w ?? null;
             const dur = analysis.ride.duration_sec;
             const tss =
               ftpWatts && np && dur ? Math.round(((dur * np * (np / ftpWatts)) / (ftpWatts * 3600)) * 100) : null;
-            const effort = effortFor(tss);
-            const dominant = [...analysis.zones].sort((a, b) => b.pct - a.pct)[0];
-            const showNumbers = view !== 'beginner';
-            const showAdvanced = view === 'advanced';
+            const workKj = analysis.ride.avg_power_w && dur ? Math.round((analysis.ride.avg_power_w * dur) / 1000) : null;
+            const aiScore = analysis.ai_analysis.execution_score;
+            const visibleZones = analysis.zones.filter((z) => z.pct >= 5);
             const powerCurvePoints = Object.entries(analysis.power_curve || {}).map(([d, w]) => ({
               duration_sec: Number(d),
               power_watts: w,
             }));
 
             return (
-              <>
-                {/* Always-clear basics */}
-                <Card variant="default">
-                  <Text variant="heading3" color={colors.textPrimary}>
-                    {analysis.ride.ride_date ?? 'Ride'}
-                  </Text>
-                  <View style={styles.basics}>
-                    <Basic label="Distance" value={analysis.ride.distance_km != null ? `${analysis.ride.distance_km.toFixed(1)} km` : '—'} />
-                    <Basic label="Duration" value={formatDuration(dur)} />
-                    <Basic label="Avg speed" value={avgSpeed(analysis.ride.distance_km, dur)} />
-                    <Basic label="Elevation" value={analysis.ride.elevation_m != null ? `${Math.round(analysis.ride.elevation_m)} m` : '—'} />
-                  </View>
-                </Card>
+              <Animated.View style={[styles.animWrap, entranceStyle]}>
+                {/* Date / context line */}
+                <Text variant="label" color={c.textDim} style={styles.dateLine}>
+                  {analysis.ride.ride_date ?? 'Activity'}
+                </Text>
 
-                {/* Plain-language summary + effort stars */}
-                <Card variant="raised">
-                  <Text variant="bodyLarge" color={colors.textPrimary} style={styles.summary}>
-                    {plainSummary(dominant)}
-                  </Text>
-                  <View style={styles.effortRow}>
-                    <Stars count={effort.stars} />
-                    <Text variant="caption" color={colors.textSecondary}>
-                      {effort.label}
+                {/* HERO STATS — full bleed, no card; numbers count up on entry */}
+                <View style={styles.heroRow}>
+                  <HeroStat value={analysis.ride.distance_km} format={(n) => n.toFixed(1)} label="KM" />
+                  <View style={styles.vDivider} />
+                  {showNumbers ? (
+                    <HeroStat value={np} format={(n) => `${Math.round(n)}`} label="W NP" />
+                  ) : (
+                    <HeroStat value={dur} format={(n) => formatDuration(Math.round(n))} label="TIME" />
+                  )}
+                  <View style={styles.vDivider} />
+                  <HeroStat value={analysis.ride.elevation_m} format={(n) => grouped(n)} label="M ↑" />
+                </View>
+
+                {showNumbers ? (
+                  /* SECONDARY STATS — 2 rows of 3 (intermediate + advanced) */
+                  <View style={styles.secondaryGrid}>
+                    <SecStat value={formatDuration(dur)} label="TIME" />
+                    <SecStat value={avgSpeed(analysis.ride.distance_km, dur)} label="AVG KM/H" />
+                    <SecStat value={analysis.ride.avg_heart_rate != null ? `${Math.round(analysis.ride.avg_heart_rate)}` : '—'} label="BPM" />
+                    <SecStat
+                      value={analysis.variability_index != null ? `${analysis.variability_index}` : '—'}
+                      label="VI"
+                      onInfo={() => show('vi', analysis.variability_index ?? undefined)}
+                      badgeMetric="vi"
+                      badgeValue={analysis.variability_index ?? undefined}
+                    />
+                    <SecStat value={aiScore != null ? `${aiScore}` : '—'} label="AI SCORE" />
+                    <SecStat value={workKj != null ? `${grouped(workKj)}` : '—'} label="KJ WORK" />
+                  </View>
+                ) : (
+                  /* PLAIN SUMMARY + EFFORT RATING (beginner) */
+                  <View style={styles.beginnerBlock}>
+                    <Text variant="bodyLarge" color={c.textPrimary} style={styles.summary}>
+                      {plainSummary(analysis.zones)}
                     </Text>
+                    {tss != null ? <EffortRating tss={tss} durationMin={dur ? Math.round(dur / 60) : undefined} level={level} onDark /> : null}
                   </View>
-                </Card>
+                )}
 
-                {/* AI insight (always plain language) */}
-                <Card variant="default">
-                  <View style={styles.aiHeader}>
-                    <SectionHeader title="COACH ANALYSIS" />
-                    {analysis.ai_analysis.execution_score != null ? (
-                      <View style={styles.scoreBadge}>
-                        <Text variant="statMd" color={colors.accent}>
-                          {analysis.ai_analysis.execution_score}
-                        </Text>
-                        <Text variant="caption" color={colors.textSecondary}>
-                          /10
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <AIAnalysisBadge
-                    isCached={!!analysis.ai_analysis._cached}
-                    generatedAt={analysis.ai_analysis._generated_at}
-                    onRefresh={regenerate}
-                  />
-                  <Text variant="body" color={colors.textPrimary} style={styles.aiSummary}>
+                {/* AI COACH INSIGHT — plain text, green prefix, no box */}
+                <View style={[styles.section, { borderTopColor: c.border }]}>
+                  <Text variant="label" color={c.green}>
+                    COACH
+                  </Text>
+                  <Text variant="body" color={c.textPrimary} style={styles.coachText}>
                     {analysis.ai_analysis.ride_summary}
                   </Text>
-                  <Text variant="label" color={palette.slate400} style={styles.aiLabel}>
-                    NEXT TIME
-                  </Text>
-                  <Text variant="caption" color={colors.textSecondary} style={styles.aiText}>
-                    {analysis.ai_analysis.improvement_tip}
-                  </Text>
-                </Card>
+                  {analysis.ai_analysis.improvement_tip ? (
+                    <>
+                      <Text variant="label" color={c.textDim} style={styles.nextLabel}>
+                        NEXT TIME
+                      </Text>
+                      <Text variant="caption" color={c.textSecondary} style={styles.coachText}>
+                        {analysis.ai_analysis.improvement_tip}
+                      </Text>
+                    </>
+                  ) : null}
+                </View>
 
-                {/* Zone distribution (names only for beginners; + Z# otherwise) */}
-                <Card variant="default">
-                  <SectionHeader title="TIME IN ZONES" />
-                  <View style={styles.zoneList}>
-                    {analysis.zones.map((z) => {
-                      const range = showAdvanced ? zoneWattRange(z.zone, ftpWatts) : null;
-                      return (
-                        <View key={z.zone} style={styles.zoneRow}>
-                          <Text variant="caption" color={colors.textPrimary} style={styles.zoneName}>
-                            {showNumbers ? `${z.zone} ${z.label}` : z.label}
-                            {range ? <Text variant="caption" color={colors.textTertiary}>{`  ${range}`}</Text> : null}
-                          </Text>
-                          <View style={[styles.zoneTrack, { backgroundColor: colors.surfaceRaised }]}>
-                            <View
-                              style={[styles.zoneFill, { width: `${z.pct}%`, backgroundColor: ZONE_COLORS[z.zone] ?? palette.emerald400 }]}
-                            />
-                          </View>
-                          <Text variant="caption" color={colors.textSecondary} style={styles.zonePct}>
-                            {z.pct}%
-                          </Text>
-                        </View>
-                      );
-                    })}
+                {/* ZONE DISTRIBUTION */}
+                <View style={[styles.section, { borderTopColor: c.border }]}>
+                  <Text variant="label" color={c.textDim}>
+                    TIME IN ZONES
+                  </Text>
+                  <View style={styles.zoneBar}>
+                    {analysis.zones.map((z) => (
+                      <View
+                        key={z.zone}
+                        style={{ flex: Math.max(z.pct, 0.01), backgroundColor: zoneColors[z.zone.toLowerCase() as keyof typeof zoneColors] ?? c.green }}
+                      />
+                    ))}
                   </View>
-                </Card>
+                  <View style={styles.zoneLegend}>
+                    {visibleZones.map((z) => (
+                      <View key={z.zone} style={styles.zoneLegendItem}>
+                        <View style={[styles.zoneDot, { backgroundColor: zoneColors[z.zone.toLowerCase() as keyof typeof zoneColors] ?? c.green }]} />
+                        <Text variant="caption" color={c.textPrimary} style={styles.zoneLegendText}>
+                          {showNumbers ? `${z.zone} ${z.pct}%` : z.label}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
 
-                {/* Intermediate: numeric metrics + W' depletion */}
-                {showNumbers ? (
-                  <Card variant="default">
-                    <SectionHeader title="THE NUMBERS" />
-                    <View style={styles.metricGrid}>
-                      <MetricBlock label="NP" value={np != null ? `${Math.round(np)}` : '—'} unit="W" metric="np" onInfo={() => handleInfo('np', np)} />
-                      <MetricBlock label="VI" value={analysis.variability_index != null ? `${analysis.variability_index}` : '—'} metric="vi" onInfo={() => handleInfo('vi', analysis.variability_index)} />
-                      <MetricBlock label="EF" value={analysis.efficiency_factor != null ? `${analysis.efficiency_factor}` : '—'} metric="ef" onInfo={() => handleInfo('ef', analysis.efficiency_factor)} />
-                      <MetricBlock label="TSS" value={tss != null ? `${tss}` : '—'} metric="tss" onInfo={() => handleInfo('tss', tss)} />
-                    </View>
-                    <Text variant="caption" color={colors.textSecondary} style={styles.wprimeLine}>
-                      You used {analysis.wprime.w_prime_depletion_percent}% of your anaerobic capacity (W′).
+                {/* TRAINING LOAD — effort rating (intermediate = stars+TSS, advanced = TSS-first) */}
+                {showNumbers && tss != null ? (
+                  <View style={[styles.section, { borderTopColor: c.border }]}>
+                    <FirstEncounterHint metric="tss" />
+                    <Text variant="label" color={c.textDim}>
+                      TRAINING LOAD
                     </Text>
-                  </Card>
+                    <EffortRating tss={tss} durationMin={dur ? Math.round(dur / 60) : undefined} level={level} onDark />
+                  </View>
                 ) : null}
 
-                {/* Advanced: charts + full zone ranges */}
+                {/* POST-WORKOUT COACH FEEDBACK (the survey loop) */}
+                <View style={[styles.section, { borderTopColor: c.border }]}>
+                  <Text variant="label" color={c.green}>
+                    AFTER THIS RIDE
+                  </Text>
+                  {feedbackLoading ? null : feedback?.coach_feedback ? (
+                    <>
+                      <Text variant="body" color={c.textSecondary} style={styles.coachText}>
+                        {feedback.coach_feedback}
+                      </Text>
+                      {feedback.coach_feedback_generated_at ? (
+                        <Text variant="caption" color={c.textDim} style={styles.cachedLabel}>
+                          {`Cached · ${feedback.coach_feedback_generated_at.slice(0, 10)}`}
+                        </Text>
+                      ) : null}
+                    </>
+                  ) : feedback?.completion_status ? (
+                    <View style={styles.reviewingRow}>
+                      <LoadingDots />
+                      <Text variant="caption" color={c.textSecondary}>
+                        Your coach is reviewing this ride…
+                      </Text>
+                    </View>
+                  ) : (
+                    <Pressable onPress={() => setSurveyOpen(true)}>
+                      <Text variant="caption" color={c.textDim} style={styles.coachText}>
+                        Rate this ride to get coach feedback →
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+
+                {/* PROGRESS SIGNAL — something the athlete might not have noticed */}
+                {feedback?.progress_signal ? (
+                  <View style={[styles.progressCard, { backgroundColor: c.greenDim, borderLeftColor: c.green }]}>
+                    <Text variant="label" color={c.green}>
+                      📈 PROGRESS SIGNAL
+                    </Text>
+                    <Text variant="body" color={c.textPrimary} style={styles.coachText}>
+                      {feedback.progress_signal}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {showNumbers ? (
+                <>
+                {/* ADVANCED — W′ balance + power curve, progressively disclosed */}
                 {showAdvanced ? (
                   <>
-                    <Card variant="default">
-                      <View style={styles.cardHeadRow}>
-                        <SectionHeader title="W′ BALANCE OVER TIME" />
+                    <View style={[styles.section, { borderTopColor: c.border }]}>
+                      <View style={styles.advHead}>
+                        <Text variant="label" color={c.textDim}>
+                          W′ BALANCE
+                        </Text>
                         <Pressable hitSlop={10} onPress={() => show('wprime', analysis.wprime.w_prime_total)}>
-                          <Feather name="info" size={14} color={palette.slate400} />
+                          <Feather name="info" size={14} color={c.textDim} />
                         </Pressable>
                       </View>
                       <MultiLineChart
                         width={chartWidth}
                         labels={analysis.wprime.balance_stream.map(() => '')}
-                        series={[{ color: '#7D3CFF', values: analysis.wprime.balance_stream }]}
+                        series={[{ color: '#A855F7', values: analysis.wprime.balance_stream }]}
                       />
-                      <Text variant="caption" color={colors.textSecondary}>
+                      <Text variant="caption" color={c.textSecondary}>
                         Min {Math.round(analysis.wprime.min_w_prime_balance)} J · {analysis.wprime.w_prime_depletion_percent}% depleted · {analysis.wprime.match_count} matches
                       </Text>
-                    </Card>
+                    </View>
 
                     {powerCurvePoints.length ? (
-                      <Card variant="default">
-                        <SectionHeader title="POWER CURVE" />
+                      <View style={[styles.section, { borderTopColor: c.border }]}>
+                        <Text variant="label" color={c.textDim}>
+                          POWER CURVE
+                        </Text>
                         <PowerCurveChart width={chartWidth} points={powerCurvePoints} />
-                      </Card>
+                      </View>
                     ) : null}
                   </>
                 ) : null}
 
-                {/* Progressive CTA */}
-                {view === 'beginner' ? (
-                  <Button label="Show details" variant="secondary" onPress={() => stepTo('intermediate', 'show_more')} />
-                ) : view === 'intermediate' ? (
-                  <View style={styles.ctaRow}>
-                    <Button label="Show advanced" variant="ghost" size="sm" onPress={() => stepTo('advanced')} />
-                    <Button label="Hide details" variant="ghost" size="sm" onPress={() => stepTo('beginner')} />
-                  </View>
-                ) : (
-                  <Button label="Hide details" variant="ghost" size="sm" onPress={() => stepTo('beginner')} />
-                )}
-              </>
+                <Pressable style={styles.advToggle} onPress={toggleAdvanced} hitSlop={8}>
+                  <Text variant="label" color={c.green}>
+                    {showAdvanced ? 'HIDE DETAILS' : 'SHOW ADVANCED'}
+                  </Text>
+                  <Feather name={showAdvanced ? 'chevron-up' : 'chevron-down'} size={16} color={c.green} />
+                </Pressable>
+                </>
+                ) : null}
+              </Animated.View>
             );
           })()
         ) : null}
       </ScrollView>
+
+      <PostWorkoutSurvey
+        visible={surveyOpen}
+        userId={userId ?? undefined}
+        stravaActivityId={stravaId}
+        rideTitle={analysis?.ride.ride_date ? `${analysis.ride.ride_date} ride` : 'Your ride'}
+        distanceKm={analysis?.ride.distance_km ?? null}
+        workoutDate={analysis?.ride.ride_date ?? undefined}
+        onDone={() => {
+          setSurveyOpen(false);
+          refetchFeedback();
+        }}
+      />
     </SafeAreaView>
   );
 }
 
-function Basic({ label, value }: { label: string; value: string }) {
-  const { colors } = useTheme();
+// Number that counts from 0 → target over 600ms (easeOutQuart) — fast start,
+// smooth stop, no bounce. Drives the hero stats on entry.
+function CountUp({ value, format, style }: { value: number; format: (n: number) => string; style?: object }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  const [display, setDisplay] = useState(() => format(0));
+  useEffect(() => {
+    const id = anim.addListener(({ value: v }) => setDisplay(format(v)));
+    Animated.timing(anim, { toValue: value, duration: 600, easing: Easing.out(Easing.poly(4)), useNativeDriver: false }).start();
+    return () => anim.removeListener(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
   return (
-    <View style={styles.basic}>
-      <Text variant="statSm" color={colors.textPrimary}>
-        {value}
-      </Text>
-      <Text variant="label" color={palette.slate400}>
+    <Text variant="stat" color={c.textPrimary} style={style}>
+      {display}
+    </Text>
+  );
+}
+
+// Hero number — BarlowCondensed-Black, oversized, with an uppercase unit label.
+function HeroStat({ value, format, label }: { value: number | null; format: (n: number) => string; label: string }) {
+  return (
+    <View style={styles.heroStat}>
+      {value != null ? (
+        <CountUp value={value} format={format} style={styles.heroValue} />
+      ) : (
+        <Text variant="stat" color={c.textPrimary} style={styles.heroValue}>
+          —
+        </Text>
+      )}
+      <Text variant="label" color={c.textDim}>
         {label}
       </Text>
     </View>
   );
 }
 
-function MetricBlock({
-  label,
+// Secondary stat — smaller condensed number, optional ⓘ tooltip + range badge.
+function SecStat({
   value,
-  unit,
+  label,
   onInfo,
+  badgeMetric,
+  badgeValue,
 }: {
-  label: string;
   value: string;
-  unit?: string;
-  metric: MetricKey;
-  onInfo: () => void;
+  label: string;
+  onInfo?: () => void;
+  badgeMetric?: MetricContextKey;
+  badgeValue?: number;
 }) {
-  const { colors } = useTheme();
   return (
-    <View style={styles.metricBlock}>
-      <Text variant="statSm" color={colors.textPrimary}>
+    <View style={styles.secStat}>
+      <Text variant="statMd" color={c.textPrimary}>
         {value}
-        {unit ? <Text variant="caption" color={colors.textSecondary}>{` ${unit}`}</Text> : null}
       </Text>
-      <View style={styles.metricLabelRow}>
-        <Text variant="label" color={palette.slate400}>
+      <Pressable style={styles.secLabelRow} disabled={!onInfo} onPress={onInfo} hitSlop={8}>
+        <Text variant="label" color={c.textDim}>
           {label}
         </Text>
-        <Pressable onPress={onInfo} hitSlop={10} accessibilityLabel="What is this?">
-          <Feather name="info" size={12} color={palette.slate400} />
-        </Pressable>
-      </View>
+        {onInfo ? <Feather name="info" size={11} color={c.textDim} /> : null}
+      </Pressable>
+      {badgeMetric && badgeValue != null ? <MetricBadge metric={badgeMetric} value={badgeValue} /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  container: { padding: spacing[5], gap: spacing[4], paddingBottom: spacing[10] },
-  center: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing[10], gap: spacing[2] },
+  container: { paddingHorizontal: spacing[5], paddingTop: spacing[4], paddingBottom: spacing[12], gap: spacing[5] },
+  center: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing[16], gap: spacing[2] },
+  animWrap: { gap: spacing[5] },
 
-  basics: { flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing[3] },
-  basic: { width: '50%', marginBottom: spacing[3], gap: 2 },
+  dateLine: { marginBottom: -spacing[2] },
 
-  summary: { fontWeight: '600', lineHeight: 24 },
-  effortRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginTop: spacing[3] },
-  starsRow: { flexDirection: 'row', gap: 2 },
+  // Hero
+  heroRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing[2] },
+  heroStat: { flex: 1, alignItems: 'center', gap: 2 },
+  heroValue: { fontSize: 50, lineHeight: 54 },
+  vDivider: { width: 1, alignSelf: 'stretch', backgroundColor: c.border, marginVertical: spacing[2] },
 
-  aiHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  scoreBadge: { flexDirection: 'row', alignItems: 'flex-end', gap: 2 },
-  aiSummary: { lineHeight: 22, marginTop: spacing[2] },
-  aiLabel: { marginTop: spacing[4] },
-  aiText: { lineHeight: 20, marginTop: 2 },
+  // Secondary grid
+  secondaryGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  secStat: { width: '33.33%', alignItems: 'center', paddingVertical: spacing[3], gap: 2 },
+  secLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 
-  zoneList: { gap: spacing[2], marginTop: spacing[2] },
-  zoneRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
-  zoneName: { flex: 1 },
-  zoneTrack: { width: 90, height: 12, borderRadius: radius.sm, overflow: 'hidden' },
-  zoneFill: { height: '100%', borderRadius: radius.sm },
-  zonePct: { width: 40, textAlign: 'right' },
+  // Beginner: plain summary + effort rating
+  beginnerBlock: { gap: spacing[3] },
+  summary: { lineHeight: 24, fontWeight: '600' },
 
-  metricGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing[2] },
-  metricBlock: { width: '25%', gap: 2, marginBottom: spacing[2] },
-  metricLabelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
-  wprimeLine: { marginTop: spacing[3], lineHeight: 19 },
+  // Sections
+  section: { borderTopWidth: 1, paddingTop: spacing[4], gap: spacing[2] },
+  coachText: { lineHeight: 22 },
+  nextLabel: { marginTop: spacing[2] },
+  cachedLabel: { fontSize: 10, alignSelf: 'flex-end' },
+  progressCard: { borderRadius: radius.md, borderLeftWidth: 3, padding: spacing[4], gap: spacing[2] },
+  reviewingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  dotsRow: { flexDirection: 'row', gap: 4 },
+  dot: { width: 6, height: 6, borderRadius: radius.full },
 
-  cardHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  ctaRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  // Zones
+  zoneBar: { flexDirection: 'row', height: 8, width: '100%', overflow: 'hidden', marginTop: spacing[1] },
+  zoneLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3], marginTop: spacing[1] },
+  zoneLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  zoneDot: { width: 8, height: 8, borderRadius: radius.full },
+  zoneLegendText: {},
+
+  // Advanced
+  advHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  advToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing[3] },
 });

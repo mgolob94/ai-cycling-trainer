@@ -7,6 +7,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTrainingPlan, type Workout, type TrainingPlan, type PhaseResult } from '../hooks/useTrainingPlan';
 import { api, type ApiResponse } from '../services/api';
 import EventSetup from '../components/plan/EventSetup';
+import PlanReasoningCard from '../components/plan/PlanReasoningCard';
 import { Text, Card, Badge, Button, SectionHeader, SkeletonLoader, Emoji } from '../components/ui';
 import { spacing, radius, palette, zoneColors } from '../theme/tokens';
 import { useThemeColors } from '../theme/useThemeColors';
@@ -121,18 +122,26 @@ export default function PlanScreen() {
   const [history, setHistory] = useState<TrainingPlan[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [eventOpen, setEventOpen] = useState(false);
+  const [adaptation, setAdaptation] = useState<string | null>(null);
 
   const loadExtras = useCallback(async () => {
     try {
-      const [ph, hist] = await Promise.all([
+      const [ph, hist, adapt] = await Promise.all([
         api.get<ApiResponse<PhaseResult>>('/plans/phase'),
         api.get<ApiResponse<TrainingPlan[]>>('/plans'),
+        api.get<ApiResponse<{ adapted: boolean; reason: string | null }>>('/plans/adaptation-status'),
       ]);
       setPhase(ph.data.data ?? null);
       setHistory((hist.data.data ?? []).slice(0, 8));
+      setAdaptation(adapt.data.data?.adapted ? adapt.data.data.reason : null);
     } catch {
       // non-fatal
     }
+  }, []);
+
+  const dismissAdaptation = useCallback(() => {
+    setAdaptation(null);
+    api.post('/plans/adaptation-status/dismiss').catch(() => {});
   }, []);
 
   useFocusEffect(
@@ -145,6 +154,7 @@ export default function PlanScreen() {
   const workouts = plan?.plan_json?.workouts ?? [];
   const strength = plan?.plan_json?.strength_sessions ?? [];
   const coachIntro = plan?.coach_intro ?? plan?.plan_json?.coach_intro;
+  const reasoning = plan?.reasoning ?? plan?.plan_json?.reasoning;
   const phaseKey = (phase?.phase ?? plan?.phase ?? plan?.plan_json?.phase ?? '').toLowerCase();
   const meta = PHASE_META[phaseKey];
   const phaseWeek = phase?.phase_week ?? plan?.phase_week ?? plan?.plan_json?.phase_week;
@@ -237,7 +247,27 @@ export default function PlanScreen() {
           </Card>
         ) : (
           <>
-            {coachIntro ? (
+            {adaptation ? (
+              <View style={[styles.adaptBanner, { backgroundColor: colors.surfaceRaised, borderLeftColor: colors.primary }]}>
+                <View style={styles.adaptHead}>
+                  <Text variant="caption" color={colors.textPrimary} style={styles.bold}>
+                    Plan updated · Here's why
+                  </Text>
+                  <Pressable onPress={dismissAdaptation} hitSlop={10}>
+                    <Text variant="caption" color={colors.primary} style={styles.bold}>
+                      Got it
+                    </Text>
+                  </Pressable>
+                </View>
+                <Text variant="caption" color={colors.textSecondary} style={styles.adaptBody}>
+                  {adaptation}
+                </Text>
+              </View>
+            ) : null}
+
+            {reasoning ? (
+              <PlanReasoningCard reasoning={reasoning} generatedAt={plan?.generated_at} onRefresh={generatePlan} />
+            ) : coachIntro ? (
               <Card variant="tinted">
                 <Text variant="body" color={colors.textPrimary} style={styles.intro}>
                   {coachIntro}
@@ -341,6 +371,9 @@ const styles = StyleSheet.create({
   rationale: { lineHeight: 18 },
 
   intro: { lineHeight: 22 },
+  adaptBanner: { borderRadius: radius.md, borderLeftWidth: 3, padding: spacing[4], gap: spacing[2] },
+  adaptHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  adaptBody: { lineHeight: 20 },
 
   empty: { alignItems: 'center', gap: spacing[3], paddingVertical: spacing[8] },
   emptyText: { textAlign: 'center', lineHeight: 20, marginBottom: spacing[2], paddingHorizontal: spacing[4] },

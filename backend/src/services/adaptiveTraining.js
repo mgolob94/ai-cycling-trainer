@@ -175,9 +175,15 @@ async function adaptTodayForUser(userId, date = new Date().toISOString().slice(0
   const warning = shouldWarnUser(adapted.adaptation.recovery_score, original);
 
   const payload = { date, original, adapted, warning };
+  // Plain-English reason shown in the "Plan updated · Here's why" banner — only
+  // when the workout was actually changed (otherwise clear any stale reason).
+  const a = adapted.adaptation;
+  const adaptationReason = a.adapted
+    ? `Today's ${original.type} was adjusted — your recovery is ${a.recovery_score}/100 (${a.readiness_label ?? a.label ?? 'low'}). ${a.note}`
+    : null;
   const { error } = await supabaseAdmin
     .from('training_plans')
-    .update({ adapted_workout: payload })
+    .update({ adapted_workout: payload, adaptation_reason: adaptationReason })
     .eq('id', plan.id);
   if (error) throw error;
 

@@ -1,10 +1,6 @@
 import type { TextStyle } from 'react-native';
-import {
-  Outfit_400Regular,
-  Outfit_500Medium,
-  Outfit_600SemiBold,
-  Outfit_700Bold,
-} from '@expo-google-fonts/outfit';
+import { BarlowCondensed_700Bold, BarlowCondensed_900Black } from '@expo-google-fonts/barlow-condensed';
+import { DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
 import {
   JetBrainsMono_400Regular,
   JetBrainsMono_500Medium,
@@ -14,28 +10,32 @@ import {
 
 import { colors } from './tokens';
 
-// Custom fonts ship one static face per weight, so each weight is its own
-// family name. "GeneralSans" maps to Outfit (General Sans isn't on Google
-// Fonts — Outfit is the approved fallback). "JetBrainsMono" is used for
-// numbers, stats, and power values.
+// Athletic, Strava-inspired type system:
+//   display — Barlow Condensed (big numbers, hero stats, titles): condensed,
+//             earned-feeling, used by sports brands rather than SaaS.
+//   sans    — DM Sans (body, labels): clean, not generic.
+//   mono    — JetBrains Mono (live data / precise values).
 export const fonts = {
-  sansRegular: 'Outfit_400Regular',
-  sansMedium: 'Outfit_500Medium',
-  sansSemibold: 'Outfit_600SemiBold',
-  sansBold: 'Outfit_700Bold',
+  display: 'BarlowCondensed_700Bold',
+  displayBlack: 'BarlowCondensed_900Black',
+  sansRegular: 'DMSans_400Regular',
+  sansMedium: 'DMSans_500Medium',
+  sansSemibold: 'DMSans_600SemiBold',
+  sansBold: 'DMSans_700Bold',
   monoRegular: 'JetBrainsMono_400Regular',
   monoMedium: 'JetBrainsMono_500Medium',
   monoSemibold: 'JetBrainsMono_600SemiBold',
   monoBold: 'JetBrainsMono_700Bold',
 } as const;
 
-// Asset map handed to useFonts() in App.tsx. Keys must equal the family names
-// referenced above.
+// Asset map handed to useFonts() in App.tsx. Keys must equal the family names.
 export const fontAssets = {
-  Outfit_400Regular,
-  Outfit_500Medium,
-  Outfit_600SemiBold,
-  Outfit_700Bold,
+  BarlowCondensed_700Bold,
+  BarlowCondensed_900Black,
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
   JetBrainsMono_400Regular,
   JetBrainsMono_500Medium,
   JetBrainsMono_600SemiBold,
@@ -46,24 +46,24 @@ export const fontAssets = {
 // is kept to match the design spec and to inform the pre-load system fallback.
 export const typography = {
   heading1: {
-    fontFamily: fonts.sansBold,
-    fontSize: 30,
+    fontFamily: fonts.display,
+    fontSize: 32,
     fontWeight: '700',
-    letterSpacing: -0.8,
+    letterSpacing: -0.4,
     color: colors.textPrimary,
   },
   heading2: {
-    fontFamily: fonts.sansSemibold,
-    fontSize: 24,
-    fontWeight: '600',
-    letterSpacing: -0.5,
+    fontFamily: fonts.display,
+    fontSize: 26,
+    fontWeight: '700',
+    letterSpacing: -0.3,
     color: colors.textPrimary,
   },
   heading3: {
-    fontFamily: fonts.sansSemibold,
-    fontSize: 20,
-    fontWeight: '600',
-    letterSpacing: -0.3,
+    fontFamily: fonts.display,
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: -0.2,
     color: colors.textPrimary,
   },
   bodyLarge: {
@@ -95,23 +95,30 @@ export const typography = {
     color: colors.textSecondary,
   },
   stat: {
-    fontFamily: fonts.monoBold,
-    fontSize: 38,
-    fontWeight: '700',
-    letterSpacing: -1,
-    color: colors.textPrimary,
-  },
-  statMd: {
-    fontFamily: fonts.monoSemibold,
-    fontSize: 24,
-    fontWeight: '600',
+    fontFamily: fonts.displayBlack,
+    fontSize: 44,
+    fontWeight: '900',
     letterSpacing: -0.5,
     color: colors.textPrimary,
   },
+  statMd: {
+    fontFamily: fonts.display,
+    fontSize: 26,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    color: colors.textPrimary,
+  },
   statSm: {
-    fontFamily: fonts.monoMedium,
-    fontSize: 17,
-    fontWeight: '500',
+    fontFamily: fonts.display,
+    fontSize: 19,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  // Live / precise data values — monospace.
+  data: {
+    fontFamily: fonts.monoRegular,
+    fontSize: 14,
+    fontWeight: '400',
     color: colors.textPrimary,
   },
 } satisfies Record<string, TextStyle>;

@@ -4,6 +4,8 @@ const ftpService = require('../services/ftp');
 const metrics = require('../services/metrics');
 const wprime = require('../services/wprime');
 const aiCoach = require('../services/aiCoach');
+const rideFeedback = require('../services/rideFeedback');
+const { getCached, saveCache } = require('../services/aiCache');
 
 /** Downsample an array to at most `target` evenly-spaced points. */
 function downsample(arr, target = 120) {
@@ -159,4 +161,82 @@ async function analyze(req, res, next) {
   }
 }
 
-module.exports = { listRides, getLatestRide, analyze };
+/**
+ * POST /rides/:strava_id/feedback — record the post-workout survey and return
+ * the coach's brief post-ride feedback.
+ * Body: { completion_status, perceived_effort, post_feeling, workout_date,
+ *         planned_tss, actual_tss }
+ */
+async function feedback(req, res, next) {
+  try {
+    const stravaId = req.params.strava_id;
+    const result = await rideFeedback.recordFeedback(req.user.id, stravaId, req.body || {});
+    res.json({ success: true, data: result, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** GET /rides/:strava_id/feedback — stored survey + coach feedback, or null. */
+async function getFeedback(req, res, next) {
+  try {
+    const data = await rideFeedback.getFeedback(req.user.id, req.params.strava_id);
+    res.json({ success: true, data, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /rides/:strava_id/quick-insight — one-sentence "what we learned" line for
+ * the post-sync banner. Rule-based, cached permanently (a ride never changes).
+ */
+async function quickInsight(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const stravaId = req.params.strava_id;
+    const cacheKey = `sync_insight_${stravaId}`;
+
+    const cached = await getCached(userId, 'sync_insight', cacheKey);
+    if (cached.hit) return res.json({ success: true, data: { insight: cached.data?.insight ?? null }, error: null });
+
+    const { data: ride } = await supabaseAdmin
+      .from('rides')
+      .select('distance_km, duration_sec, tss, ride_date')
+      .eq('user_id', userId)
+      .eq('strava_id', stravaId)
+      .maybeSingle();
+    if (!ride) return res.status(404).json({ success: false, data: null, error: 'Ride not found' });
+
+    // Compare against the prior ~6 weeks (excluding this ride).
+    const since = new Date(Date.now() - 42 * 86400000).toISOString().slice(0, 10);
+    const { data: recent } = await supabaseAdmin
+      .from('rides')
+      .select('distance_km, tss, ride_date')
+      .eq('user_id', userId)
+      .neq('strava_id', stravaId)
+      .gte('ride_date', since);
+    const prior = recent || [];
+    const maxDist = Math.max(0, ...prior.map((r) => r.distance_km ?? 0));
+    const km = Math.round(ride.distance_km ?? 0);
+    const durMin = Math.round((ride.duration_sec ?? 0) / 60);
+
+    let insight;
+    if (km > 0 && km >= maxDist && prior.length >= 3) {
+      insight = `${km} km — your longest ride in 6 weeks. The plan steps up from here.`;
+    } else if ((ride.tss ?? 0) >= 120) {
+      insight = `Hard effort — ${Math.round(ride.tss)} TSS. Tomorrow's easy ride is perfect timing.`;
+    } else if (durMin > 0 && durMin < 40) {
+      insight = 'Short one today — no problem. Consistency over perfection.';
+    } else {
+      insight = 'Solid ride logged. Fitness updated.';
+    }
+
+    await saveCache(userId, 'sync_insight', cacheKey, { insight }, null, null, 8760);
+    res.json({ success: true, data: { insight }, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { listRides, getLatestRide, analyze, feedback, getFeedback, quickInsight };

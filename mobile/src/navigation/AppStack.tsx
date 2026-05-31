@@ -10,6 +10,8 @@ import RideDetailScreen from '../screens/RideDetailScreen';
 import FTPTestWizard from '../screens/FTPTestWizard';
 import AIReportScreen from '../screens/AIReportScreen';
 import MetricsIntroScreen from '../screens/MetricsIntroScreen';
+import FirstSyncRevealScreen from '../screens/Onboarding/FirstSyncRevealScreen';
+import MonthProgressScreen from '../screens/MonthProgressScreen';
 import RecoverySetupScreen from '../screens/RecoverySetupScreen';
 import RecoveryScreen from '../screens/RecoveryScreen';
 import DevToolsScreen from '../screens/DevToolsScreen';
@@ -53,6 +55,8 @@ export default function AppStack() {
       <Stack.Screen name="FTPTestWizard" component={FTPTestWizard} options={{ title: 'FTP test' }} />
       <Stack.Screen name="AIReport" component={AIReportScreen} options={{ title: 'AI analysis' }} />
       <Stack.Screen name="MetricsIntro" component={MetricsIntroScreen} options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="FirstSyncReveal" component={FirstSyncRevealScreen} options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+      <Stack.Screen name="MonthProgress" component={MonthProgressScreen} options={{ headerShown: false, presentation: 'fullScreenModal' }} />
       <Stack.Screen name="RecoverySetup" component={RecoverySetupScreen} options={{ headerShown: false, presentation: 'modal' }} />
       {/* Recovery is hidden from the tab bar (v2) but still reachable via deep links / coach. */}
       <Stack.Screen name="Recovery" component={RecoveryScreen} options={{ title: 'Recovery' }} />

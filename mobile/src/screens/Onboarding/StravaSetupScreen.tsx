@@ -43,10 +43,14 @@ export default function StravaSetupScreen(_props: Props) {
     })();
   }, []);
 
-  /** Store the session → flips navigation over to the app (Dashboard). */
+  /** Mark onboarding complete (+ kick off the first plan), then store the
+   *  session → flips navigation over to the app (Dashboard). */
   const finishOnboarding = () => {
     const c = creds.current;
-    if (c) setSession(c.token, c.userId);
+    if (!c) return;
+    setAuthToken(c.token);
+    api.post(`${apiOrigin}/onboarding/complete`).catch(() => {});
+    setSession(c.token, c.userId);
   };
 
   const handleConnect = async () => {

@@ -20,6 +20,8 @@ interface Props {
   showValue?: boolean;
   /** Use light label colors for placement on a dark surface (e.g. the hero card). */
   onDark?: boolean;
+  /** Optional plain-language sentence rendered below the bar (e.g. "You're in the Optimal zone."). */
+  sentence?: string;
 }
 
 /**
@@ -27,7 +29,7 @@ interface Props {
  * The indicator slides to position on mount (built-in Animated spring, since
  * reanimated is intentionally not installed).
  */
-export default function TrainingScaleBar({ value, min, max, zones, showValue = false, onDark = false }: Props) {
+export default function TrainingScaleBar({ value, min, max, zones, showValue = false, onDark = false, sentence }: Props) {
   const { colors } = useTheme();
   const mutedColor = onDark ? palette.slate400 : colors.textTertiary;
   const strongColor = onDark ? '#FFFFFF' : colors.textPrimary;
@@ -65,7 +67,7 @@ export default function TrainingScaleBar({ value, min, max, zones, showValue = f
           <Animated.View
             style={[
               styles.indicator,
-              { borderColor: colors.surface, transform: [{ translateX }] },
+              { borderColor: current?.color ?? colors.surface, borderWidth: 3, transform: [{ translateX }] },
             ]}
           />
         ) : null}
@@ -83,6 +85,12 @@ export default function TrainingScaleBar({ value, min, max, zones, showValue = f
           {zones[zones.length - 1]?.label}
         </Text>
       </View>
+
+      {sentence ? (
+        <Text variant="caption" color={onDark ? palette.slate200 : colors.textSecondary} style={styles.sentence}>
+          {sentence}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -119,4 +127,5 @@ const styles = StyleSheet.create({
     marginTop: spacing[1],
   },
   currentLabel: { textTransform: 'none', letterSpacing: 0, fontWeight: '700' },
+  sentence: { marginTop: spacing[2], lineHeight: 18 },
 });

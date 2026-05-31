@@ -18,6 +18,15 @@ const COOLDOWN_HOURS = {
   inactivity: 504, // 3 weeks
   lack_of_progress: 336, // 2 weeks
   phase_transition: 18, // fires once on the transition day
+  plan_adjusted: 18, // fires once when a feedback-adjusted plan is generated
+};
+
+// Plain-language push copy for a feedback-driven plan adjustment. Falls back to
+// the stored message; these keep the tone if the message is ever missing.
+const PLAN_ADJUSTED_FALLBACK = {
+  reduced: "Plan updated. Last week was tough — this week's intensity is dialled back slightly.",
+  increased: "Plan updated. You've been handling the load well — stepping it up a notch this week.",
+  volume: "Plan updated. Fewer workouts this week — better to nail 3 than rush through 5.",
 };
 
 /** Plain-language push copy for a phase transition (from → to). */
@@ -131,6 +140,25 @@ async function buildCandidates(userId, now) {
       .maybeSingle();
     const msg = phaseTransitionMessage(phaseRows[1]?.phase ?? null, phaseRows[0].phase, user);
     out.push({ type: 'phase_transition', title: msg.title, body: msg.body, deep_link: 'TrainingPlan' });
+  }
+
+  // Plan adjusted — this week's plan was changed because of workout feedback.
+  const { data: latestPlan } = await supabaseAdmin
+    .from('training_plans')
+    .select('plan_json, generated_at')
+    .eq('user_id', userId)
+    .order('week_start', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const adjustment = latestPlan?.plan_json?.feedback_adjustment;
+  const generatedToday = latestPlan?.generated_at && latestPlan.generated_at.slice(0, 10) === today;
+  if (adjustment && generatedToday) {
+    out.push({
+      type: 'plan_adjusted',
+      title: 'Plan updated',
+      body: adjustment.message || PLAN_ADJUSTED_FALLBACK[adjustment.kind] || PLAN_ADJUSTED_FALLBACK.reduced,
+      deep_link: 'TrainingPlan',
+    });
   }
 
   // 8. Inactivity — no rides in 10+ days (and rode before).

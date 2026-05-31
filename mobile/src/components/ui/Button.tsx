@@ -53,7 +53,7 @@ export default function Button({
         return { bg: colors.danger, fg: '#FFFFFF', border: 'transparent' };
       case 'primary':
       default:
-        return { bg: colors.primary, fg: '#FFFFFF', border: 'transparent' };
+        return { bg: colors.primary, fg: colors.textInverse, border: 'transparent' };
     }
   })();
 

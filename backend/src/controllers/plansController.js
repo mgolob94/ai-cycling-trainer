@@ -1,5 +1,6 @@
 const plans = require('../services/plans');
 const phaseEngine = require('../services/phaseEngine');
+const dailyContext = require('../services/dailyContext');
 const { supabaseAdmin } = require('../db/supabase');
 
 async function listPlans(req, res, next) {
@@ -74,4 +75,53 @@ async function setEvent(req, res, next) {
   }
 }
 
-module.exports = { listPlans, getCurrentPlan, generatePlan, getPhase, setEvent };
+/** GET /plans/adaptation-status — whether the latest plan was adapted + why. */
+async function adaptationStatus(req, res, next) {
+  try {
+    const { data } = await supabaseAdmin
+      .from('training_plans')
+      .select('adaptation_reason')
+      .eq('user_id', req.user.id)
+      .order('week_start', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    res.json({ success: true, data: { adapted: !!data?.adaptation_reason, reason: data?.adaptation_reason ?? null }, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** POST /plans/adaptation-status/dismiss — clear the adaptation reason once seen. */
+async function dismissAdaptation(req, res, next) {
+  try {
+    await supabaseAdmin
+      .from('training_plans')
+      .update({ adaptation_reason: null })
+      .eq('user_id', req.user.id)
+      .not('adaptation_reason', 'is', null);
+    res.json({ success: true, data: { cleared: true }, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** GET /plans/daily-context — one coaching sentence about why today matters. */
+async function dailyContextLine(req, res, next) {
+  try {
+    const context = await dailyContext.getDailyContext(req.user.id);
+    res.json({ success: true, data: { context }, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  listPlans,
+  getCurrentPlan,
+  generatePlan,
+  getPhase,
+  setEvent,
+  adaptationStatus,
+  dismissAdaptation,
+  dailyContextLine,
+};
