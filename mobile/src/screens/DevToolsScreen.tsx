@@ -25,7 +25,6 @@ const SCREENS: (keyof AppStackParamList)[] = [
   'Profile',
   'TrainingPlan',
   'StravaConnect',
-  'Periodization',
   'AIReport',
   'FTPTestWizard',
 ];

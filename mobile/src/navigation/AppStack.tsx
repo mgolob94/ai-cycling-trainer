@@ -7,7 +7,6 @@ import PlanScreen from '../screens/PlanScreen';
 import StravaConnectScreen from '../screens/StravaConnectScreen';
 import WeeklyComparisonScreen from '../screens/WeeklyComparisonScreen';
 import RideDetailScreen from '../screens/RideDetailScreen';
-import PeriodizationScreen from '../screens/PeriodizationScreen';
 import FTPTestWizard from '../screens/FTPTestWizard';
 import AIReportScreen from '../screens/AIReportScreen';
 import MetricsIntroScreen from '../screens/MetricsIntroScreen';
@@ -50,7 +49,6 @@ export default function AppStack() {
       <Stack.Screen name="StravaConnect" component={StravaConnectScreen} options={{ title: 'Connect Strava' }} />
       <Stack.Screen name="WeeklyComparison" component={WeeklyComparisonScreen} options={{ title: 'Weekly comparison' }} />
       <Stack.Screen name="RideDetail" component={RideDetailScreen} options={{ title: 'Ride analysis' }} />
-      <Stack.Screen name="Periodization" component={PeriodizationScreen} options={{ title: 'Season plan' }} />
       <Stack.Screen name="FTPTestWizard" component={FTPTestWizard} options={{ title: 'FTP test' }} />
       <Stack.Screen name="AIReport" component={AIReportScreen} options={{ title: 'AI analysis' }} />
       <Stack.Screen name="MetricsIntro" component={MetricsIntroScreen} options={{ headerShown: false, presentation: 'modal' }} />

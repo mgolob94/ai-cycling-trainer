@@ -516,7 +516,7 @@ export default function ProgressScreen() {
           {ftpStale ? (
             <Button label="Start FTP test" variant="primary" size="lg" onPress={() => navigation.navigate('FTPTestWizard')} />
           ) : null}
-          <Button label="View periodization →" variant="ghost" onPress={() => navigation.navigate('Periodization')} />
+          <Button label="View training plan →" variant="ghost" onPress={() => navigation.navigate('TrainingPlan')} />
         </View>
       </ScrollView>
       <CoachFab />

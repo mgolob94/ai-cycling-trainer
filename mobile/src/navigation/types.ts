@@ -35,7 +35,6 @@ export type AppStackParamList = {
   StravaConnect: undefined;
   WeeklyComparison: undefined;
   RideDetail: { stravaId: string };
-  Periodization: undefined;
   FTPTestWizard: undefined;
   AIReport: undefined;
   MetricsIntro: undefined;
