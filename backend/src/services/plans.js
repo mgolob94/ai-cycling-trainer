@@ -1,5 +1,6 @@
 const { supabaseAdmin } = require('../db/supabase');
 const ai = require('./ai');
+// Lazy require of aiCoach to avoid any require cycle at module-load time.
 
 /** Monday of the current week as an ISO date string (YYYY-MM-DD). */
 function currentWeekStart(date = new Date()) {
@@ -43,36 +44,11 @@ async function getRecentRides(userId) {
  * persist it to training_plans.
  */
 async function generateAndStorePlan(userId) {
-  const [profile, rides] = await Promise.all([
-    getUserProfile(userId),
-    getRecentRides(userId),
-  ]);
-
-  const planJson = await ai.generateWeeklyPlan(profile, rides);
-
-  // The model doesn't reliably know today's date, so compute week_start
-  // server-side and normalize the stored JSON to match.
-  const weekStart = currentWeekStart();
-  planJson.week_start = weekStart;
-
-  // Upsert so regenerating ("Generate new plan") replaces the current week's
-  // plan instead of colliding with the (user_id, week_start) unique constraint.
-  const { data, error } = await supabaseAdmin
-    .from('training_plans')
-    .upsert(
-      {
-        user_id: userId,
-        week_start: weekStart,
-        plan_json: planJson,
-        generated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,week_start' }
-    )
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+  // The canonical, phase-aware generator lives in aiCoach. It determines the
+  // current training phase, generates the week with that context, and upserts
+  // the training_plans row (one unified plan system).
+  const aiCoach = require('./aiCoach');
+  return aiCoach.generateWeeklyPlan(userId, currentWeekStart());
 }
 
 module.exports = {

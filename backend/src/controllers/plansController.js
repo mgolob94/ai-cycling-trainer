@@ -1,4 +1,5 @@
 const plans = require('../services/plans');
+const phaseEngine = require('../services/phaseEngine');
 const { supabaseAdmin } = require('../db/supabase');
 
 async function listPlans(req, res, next) {
@@ -42,4 +43,35 @@ async function generatePlan(req, res, next) {
   }
 }
 
-module.exports = { listPlans, getCurrentPlan, generatePlan };
+/** GET /plans/phase — the current training phase (recomputed). */
+async function getPhase(req, res, next) {
+  try {
+    const phase = await phaseEngine.determinePhase(req.user.id);
+    res.json({ success: true, data: phase, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /plans/event — set (or clear) the target event, then recompute the phase.
+ * Body: { target_event_name, target_event_date } — null/omitted clears the event
+ * (automatic progression). Returns the new phase result.
+ */
+async function setEvent(req, res, next) {
+  try {
+    const name = req.body?.target_event_name ?? null;
+    const date = req.body?.target_event_date ?? null;
+    const { error } = await supabaseAdmin
+      .from('users')
+      .update({ target_event_name: name, target_event_date: date })
+      .eq('id', req.user.id);
+    if (error) throw error;
+    const phase = await phaseEngine.determinePhase(req.user.id);
+    res.json({ success: true, data: phase, error: null });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { listPlans, getCurrentPlan, generatePlan, getPhase, setEvent };

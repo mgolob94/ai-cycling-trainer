@@ -17,7 +17,28 @@ const COOLDOWN_HOURS = {
   milestone_pr: 24,
   inactivity: 504, // 3 weeks
   lack_of_progress: 336, // 2 weeks
+  phase_transition: 18, // fires once on the transition day
 };
+
+/** Plain-language push copy for a phase transition (from → to). */
+function phaseTransitionMessage(from, to, user) {
+  const eventName = user?.target_event_name || 'your event';
+  switch (to) {
+    case 'build':
+      return from === 'recovery'
+        ? { title: 'Recovery complete ✓', body: 'Resuming the Build phase — fresh and ready!' }
+        : { title: 'Base is built 💪', body: 'Starting the Build phase — time for sharper, more intense sessions!' };
+    case 'peak':
+      return { title: 'Form is high ⚡', body: 'Entering the Peak phase — bringing your fitness to its sharpest.' };
+    case 'recovery':
+      return { title: 'Recovery week 🔄', body: 'Your body needs rest to absorb the work before the next push.' };
+    case 'taper':
+      return { title: 'Taper begins! 🏁', body: `${eventName} is close — cutting volume, keeping your form.` };
+    case 'base':
+    default:
+      return { title: 'New phase 📗', body: 'Starting a Base block — building your aerobic foundation.' };
+  }
+}
 
 function inQuietHours(now) {
   const h = now.getHours();
@@ -93,6 +114,23 @@ async function buildCandidates(userId, now) {
     .limit(3);
   if (weeks && weeks.length === 3 && weeks[0].tss < weeks[1].tss && weeks[1].tss < weeks[2].tss) {
     out.push({ type: 'lack_of_progress', title: 'Checking in', body: "The last few weeks have been quieter. All good? Your plan is here when you're ready.", deep_link: 'Progress' });
+  }
+
+  // Phase transition — a new phase started today (written by phaseEngine).
+  const { data: phaseRows } = await supabaseAdmin
+    .from('phase_history')
+    .select('phase, started_at')
+    .eq('user_id', userId)
+    .order('started_at', { ascending: false })
+    .limit(2);
+  if (phaseRows && phaseRows.length && phaseRows[0].started_at === today) {
+    const { data: user } = await supabaseAdmin
+      .from('users')
+      .select('target_event_name')
+      .eq('id', userId)
+      .maybeSingle();
+    const msg = phaseTransitionMessage(phaseRows[1]?.phase ?? null, phaseRows[0].phase, user);
+    out.push({ type: 'phase_transition', title: msg.title, body: msg.body, deep_link: 'TrainingPlan' });
   }
 
   // 8. Inactivity — no rides in 10+ days (and rode before).

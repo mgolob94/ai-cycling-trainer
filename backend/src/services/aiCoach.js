@@ -2,6 +2,7 @@ const axios = require('axios');
 const { supabaseAdmin } = require('../db/supabase');
 const { summarizeRides } = require('./ai');
 const { getCached, saveCache, TTL_DEFAULTS, isoWeek, monthKey } = require('./aiCache');
+const phaseEngine = require('./phaseEngine');
 
 const OPENAI_API_BASE = 'https://api.openai.com/v1';
 const MODEL = 'gpt-4o';
@@ -454,6 +455,7 @@ async function gatherAthleteContext(userId) {
     target_event_name: profile?.target_event_name,
     target_event_date: profile?.target_event_date,
     training_days_per_week: profile?.training_days_per_week,
+    preferred_long_ride_day: profile?.preferred_long_ride_day,
     w_prime_total: profile?.w_prime_total,
     ftp_watts: latest?.ftp_watts,
     watts_per_kg: latest?.watts_per_kg,
@@ -477,11 +479,144 @@ async function gatherAthleteContext(userId) {
   };
 }
 
-// NOTE: weekly-plan generation lives in services/plans.js (the single canonical
-// plan stored in training_plans and shown in the app). The coach reads that plan
-// via gatherAthleteContext().plan_summary so it never invents a separate one.
+// ===========================================================================
+// Weekly plan generator — phase-aware, single canonical plan (training_plans).
+// ===========================================================================
+const PLAN_SCHEMA = `{
+  "week_theme": "short plain-language theme for the week",
+  "coach_intro": "1-2 warm, specific sentences introducing the week",
+  "tss_target": number,
+  "phase": "base|build|peak|recovery|taper",
+  "phase_week": number,
+  "phase_rationale": "1 sentence: why this phase",
+  "workouts": [{
+    "day": "Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday",
+    "type": "endurance|tempo|threshold|vo2max|recovery|rest|long ride",
+    "duration_min": number,
+    "intensity": "easy|moderate|hard",
+    "zone": number,
+    "description": "what to do and why, plain language",
+    "is_key_workout": boolean
+  }],
+  "warning": "string or null"
+}`;
+
+const PHASE_INSTRUCTIONS = {
+  base:
+    'Focus: aerobic base. ~85% of riding in Z1–Z2. One long ride (90–150 min) on the preferred long-ride day. Avoid Z5–Z6 — build the foundation first. Goal: raise CTL steadily and establish consistency.',
+  build:
+    'Focus: threshold and VO2max. ~75% Z1–Z2, ~25% Z3–Z5. Key workouts: one threshold (Z4), one sweet spot (Z3–Z4), one long ride. At most one interval session. Goal: increase FTP and sustainable power.',
+  peak:
+    'Focus: race-specific fitness, sharpen form. ~70% Z1–Z2, ~30% Z4–Z6. Key workouts: one VO2max intervals, one threshold, one long ride. Goal: bring CTL to a maximum while staying fresh.',
+  recovery:
+    'Focus: full recovery. Only Z1–Z2, no intensity at all. Cut total duration ~40% from last week. Acknowledge in the coach_intro that this will feel too easy — that is correct and intentional.',
+  taper:
+    'Focus: arrive fresh at the event. Cut volume ~40% but keep 2 short intensity touches (Z4, ≤20 min). Goal: empty the fatigue tank while keeping the engine revved.',
+};
+
+/**
+ * Generate (and persist) the canonical weekly plan for a user, using the
+ * current training phase as context. Stores to training_plans (phase columns +
+ * plan_json) and returns the stored row. The AI call is cached per ISO week.
+ */
+async function generateWeeklyPlan(userId, weekStart) {
+  const phase = await phaseEngine.determinePhase(userId);
+  const athlete = await gatherAthleteContext(userId);
+  const recovery = athlete.recovery_score ?? 70;
+  const days = athlete.training_days_per_week ?? 4;
+  const longRideDay = athlete.preferred_long_ride_day ?? 'Saturday';
+  const cacheKey = `week_${isoWeek(new Date(weekStart))}`;
+
+  // Reuse the cached AI output unless recovery is very low (which changes the plan).
+  let planJson;
+  let tokens = null;
+  const cached = recovery >= 40 ? await getCached(userId, 'weekly_plan', cacheKey) : { hit: false };
+  if (cached.hit) {
+    planJson = cached.data;
+  } else {
+    const system = buildCoachSystemPrompt(athlete);
+    const eventLine = phase.weeks_to_event != null
+      ? `Event '${athlete.target_event_name ?? 'your event'}' in ${phase.weeks_to_event} weeks.`
+      : 'Building toward peak fitness — no specific event.';
+    const recoveryLine =
+      recovery < 40
+        ? 'Recovery is very low: replace ALL intensity with Z2 and add a short note explaining why.'
+        : recovery < 60
+        ? 'Recovery is low: reduce every intensity by one zone (Z5→Z4, Z4→Z3).'
+        : 'Recovery is good: train as planned.';
+
+    const task = [
+      `Generate a training plan for the week starting ${weekStart}.`,
+      '',
+      'PHASE CONTEXT:',
+      `Phase: ${phase.phase} (week ${phase.phase_week} of ${phase.phase_total_weeks})`,
+      eventLine,
+      `TSS target this week: ${phase.tss_target}`,
+      `Phase rationale: ${phase.rationale}`,
+      `Available training days: ${days}. Preferred long-ride day: ${longRideDay}.`,
+      '',
+      'PHASE-SPECIFIC INSTRUCTIONS:',
+      PHASE_INSTRUCTIONS[phase.phase] ?? PHASE_INSTRUCTIONS.base,
+      '',
+      `RECOVERY (score ${recovery}/100): ${recoveryLine}`,
+      '',
+      'Cover all 7 days (rest days have type "rest", duration_min 0). Mark the single most important session is_key_workout: true.',
+      `Return JSON exactly matching this schema: ${PLAN_SCHEMA}`,
+    ].join('\n');
+
+    const res = await callOpenAI(
+      [
+        { role: 'system', content: system },
+        { role: 'user', content: task },
+      ],
+      { json: true, maxTokens: 1200 }
+    );
+    tokens = res.tokens;
+    try {
+      planJson = JSON.parse(res.content);
+    } catch {
+      throw Object.assign(new Error('Coach returned malformed plan JSON'), { statusCode: 502 });
+    }
+    await saveCache(userId, 'weekly_plan', cacheKey, planJson, tokens, MODEL, TTL_DEFAULTS.weekly_plan);
+  }
+
+  // Normalize + enrich with server-known fields.
+  planJson = {
+    ...planJson,
+    week_start: weekStart,
+    phase: phase.phase,
+    phase_week: phase.phase_week,
+    phase_rationale: planJson.phase_rationale ?? phase.rationale,
+    tss_target: planJson.tss_target ?? phase.tss_target,
+  };
+
+  const row = {
+    user_id: userId,
+    week_start: weekStart,
+    plan_json: planJson,
+    workouts: planJson.workouts ?? [],
+    phase: phase.phase,
+    phase_week: phase.phase_week,
+    phase_total_weeks: phase.phase_total_weeks,
+    tss_target: planJson.tss_target ?? phase.tss_target,
+    week_theme: planJson.week_theme ?? null,
+    coach_intro: planJson.coach_intro ?? null,
+    cache_key: cacheKey,
+    is_cached: !!cached.hit,
+    generated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabaseAdmin
+    .from('training_plans')
+    .upsert(row, { onConflict: 'user_id,week_start' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
 
 module.exports = {
+  generateWeeklyPlan,
   generateSystemPrompt,
   buildCoachSystemPrompt,
   gatherAthleteContext,
