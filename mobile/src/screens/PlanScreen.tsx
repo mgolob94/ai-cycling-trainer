@@ -149,6 +149,9 @@ export default function PlanScreen() {
   const phaseWeek = phase?.phase_week ?? plan?.phase_week ?? plan?.plan_json?.phase_week;
   const phaseTotal = phase?.phase_total_weeks ?? plan?.phase_total_weeks ?? plan?.plan_json?.phase_total_weeks;
   const progress = phaseWeek && phaseTotal ? Math.min(1, phaseWeek / phaseTotal) : 0;
+  const hasEvent = phase != null && phase.weeks_to_event != null;
+  const noEvent = phase != null && phase.weeks_to_event == null;
+  const eventName = phase?.event_name ?? null;
 
   const toggleHistory = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -169,12 +172,11 @@ export default function PlanScreen() {
               <Text variant="caption" color={colors.textSecondary} style={styles.flex}>
                 {phaseWeek != null && phaseTotal != null ? `Week ${phaseWeek} of ${phaseTotal}` : ''}
               </Text>
-              <Text variant="caption" color={colors.primary} style={styles.bold}>
-                {phase?.weeks_to_event != null ? `${phase.weeks_to_event} wk to event` : 'Progress ↑'}
-              </Text>
-              <Pressable onPress={() => setEventOpen(true)} hitSlop={10} style={styles.addBtn}>
-                <Feather name="plus" size={18} color={colors.primary} />
-              </Pressable>
+              {phase?.weeks_to_event != null ? (
+                <Text variant="caption" color={colors.primary} style={styles.bold}>
+                  {phase.weeks_to_event} wk to event
+                </Text>
+              ) : null}
             </View>
             <View style={[styles.progressTrack, { backgroundColor: colors.surfaceRaised }]}>
               <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: colors.primary }]} />
@@ -185,6 +187,33 @@ export default function PlanScreen() {
               </Text>
             ) : null}
           </Card>
+        ) : null}
+
+        {/* Goal / event CTA — prominent when no event, compact edit when set */}
+        {noEvent ? (
+          <Pressable onPress={() => setEventOpen(true)}>
+            <Card variant="tinted" style={styles.goalCta}>
+              <View style={[styles.goalIcon, { backgroundColor: colors.primary }]}>
+                <Emoji size={18}>🏁</Emoji>
+              </View>
+              <View style={styles.flex}>
+                <Text variant="body" color={colors.textPrimary} style={styles.bold}>
+                  Add your goal event
+                </Text>
+                <Text variant="caption" color={colors.textSecondary}>
+                  Racing a Gran Fondo or sportif? The coach plans backwards from the date.
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={colors.primary} />
+            </Card>
+          </Pressable>
+        ) : hasEvent ? (
+          <Pressable onPress={() => setEventOpen(true)} style={styles.editGoal} hitSlop={6}>
+            <Feather name="flag" size={14} color={colors.primary} />
+            <Text variant="caption" color={colors.primary} style={styles.bold}>
+              {eventName ? `${eventName} · Edit goal` : 'Edit goal'}
+            </Text>
+          </Pressable>
         ) : null}
 
         {/* SECTION 2 — This week */}
@@ -275,7 +304,9 @@ const styles = StyleSheet.create({
 
   phaseCard: { gap: spacing[3] },
   phaseTop: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  addBtn: { padding: 2 },
+  goalCta: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  goalIcon: { width: 36, height: 36, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  editGoal: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], alignSelf: 'flex-start' },
   progressTrack: { height: 8, borderRadius: radius.full, overflow: 'hidden' },
   progressFill: { height: 8, borderRadius: radius.full },
   rationale: { lineHeight: 18 },

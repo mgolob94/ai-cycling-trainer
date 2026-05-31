@@ -15,7 +15,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { useTrainingPlan, type Ride, type Workout } from '../hooks/useTrainingPlan';
+import { useTrainingPlan, type Ride, type Workout, type PhaseResult } from '../hooks/useTrainingPlan';
+import { api, type ApiResponse } from '../services/api';
+import EventSetup from '../components/plan/EventSetup';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useWeeklyMetrics } from '../hooks/useWeeklyMetrics';
 import SyncIndicator from '../components/SyncIndicator';
@@ -27,7 +29,7 @@ import {
 import { hasSeenMetricsIntro } from '../services/metricsIntro';
 import { Feather } from '@expo/vector-icons';
 
-import { Text, Card, Badge, StatCard, SectionHeader, QuickToggle } from '../components/ui';
+import { Text, Card, Badge, StatCard, SectionHeader, QuickToggle, Emoji } from '../components/ui';
 import CoachFab from '../components/coach/CoachFab';
 import WeekSummaryCard from '../components/dashboard/WeekSummaryCard';
 import NudgeItem from '../components/dashboard/NudgeItem';
@@ -164,6 +166,23 @@ export default function DashboardScreen() {
   const { track, config } = useKnowledgeLevel();
   const [bannerVisible, setBannerVisible] = useState(false);
   const [showSkipPrompt, setShowSkipPrompt] = useState(false);
+  const [noEvent, setNoEvent] = useState(false);
+  const [eventOpen, setEventOpen] = useState(false);
+
+  // Whether the user has a target event set (drives the "add goal" banner).
+  const loadEventState = useCallback(async () => {
+    try {
+      const { data } = await api.get<ApiResponse<PhaseResult>>('/plans/phase');
+      setNoEvent(data.data != null && data.data.weeks_to_event == null);
+    } catch {
+      setNoEvent(false);
+    }
+  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadEventState();
+    }, [loadEventState])
+  );
   // Advanced users default to the intermediate (expanded) state; beginners stay
   // collapsed unless they expanded earlier this session.
   const [showDetails, setShowDetails] = useState(config.defaultExpanded || heroExpandedSession);
@@ -452,6 +471,26 @@ export default function DashboardScreen() {
           <WeekSummaryCard week={latest} prevWeek={priorWeek} avgTss={avgTss} />
         ) : null}
 
+        {/* Add-goal CTA — prominent when no target event is set */}
+        {noEvent ? (
+          <Pressable onPress={() => setEventOpen(true)}>
+            <Card variant="tinted" style={styles.goalCta}>
+              <View style={[styles.goalIcon, { backgroundColor: colors.primary }]}>
+                <Emoji size={18}>🏁</Emoji>
+              </View>
+              <View style={styles.flex}>
+                <Text variant="body" color={colors.textPrimary} style={styles.bold}>
+                  Add your goal event
+                </Text>
+                <Text variant="caption" color={colors.textSecondary}>
+                  Training for a race or Gran Fondo? Set the date and the coach plans backwards from it.
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={colors.primary} />
+            </Card>
+          </Pressable>
+        ) : null}
+
         {/* This week's plan */}
         <View style={styles.section}>
           <SectionHeader
@@ -528,6 +567,7 @@ export default function DashboardScreen() {
         ) : null}
       </ScrollView>
       <CoachFab />
+      <EventSetup visible={eventOpen} onClose={() => setEventOpen(false)} onSaved={() => { loadEventState(); refresh(); }} />
     </SafeAreaView>
   );
 }
@@ -548,6 +588,8 @@ const styles = StyleSheet.create({
   avatarText: { letterSpacing: 0 },
 
   banner: { paddingVertical: spacing[3] },
+  goalCta: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  goalIcon: { width: 36, height: 36, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   bannerRow: {
     flexDirection: 'row',
     alignItems: 'center',

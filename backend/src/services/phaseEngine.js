@@ -146,6 +146,7 @@ async function determinePhase(userId) {
     phase_week: result.phase_week,
     phase_total_weeks: result.phase_total_weeks,
     weeks_to_event,
+    event_name: user?.target_event_name ?? null,
     tss_target,
     rationale,
     next_phase: result.next_phase ?? NEXT_PHASE[result.phase] ?? 'build',

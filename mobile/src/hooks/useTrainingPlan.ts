@@ -41,6 +41,7 @@ export interface PhaseResult {
   phase_week: number;
   phase_total_weeks: number;
   weeks_to_event: number | null;
+  event_name?: string | null;
   tss_target: number;
   rationale: string;
   next_phase: string;
