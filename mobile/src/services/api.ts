@@ -1,6 +1,8 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
 
+import { installDemoAdapter } from './demoAdapter';
+
 const baseURL =
   (Constants.expoConfig?.extra?.apiBaseUrl as string) ?? 'http://localhost:3000/api';
 
@@ -9,6 +11,9 @@ const baseURL =
 export const apiOrigin = baseURL.replace(/\/api\/?$/, '');
 
 export const api = axios.create({ baseURL });
+
+// In demo mode, answer requests from local demo data instead of the backend.
+installDemoAdapter(api);
 
 /** Attach the Supabase access token to every request once it's known. */
 export function setAuthToken(token: string | null) {
