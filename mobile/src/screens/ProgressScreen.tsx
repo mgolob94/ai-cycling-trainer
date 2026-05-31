@@ -83,7 +83,7 @@ function trendWord(delta: number): string {
 
 export default function ProgressScreen() {
   const navigation = useNavigation<Nav>();
-  const { colors } = useThemeColors();
+  const { colors, isDark } = useThemeColors();
   const profile = useProfile();
   const metrics = useWeeklyMetrics();
   const ftp = useFtp();
@@ -331,10 +331,10 @@ export default function ProgressScreen() {
             ))}
             {!showNumbers ? (
               <Pressable style={styles.showNumbers} onPress={expandToIntermediate} hitSlop={6}>
-                <Text variant="label" color={palette.indigo600}>
+                <Text variant="label" color={colors.accent}>
                   Show numbers
                 </Text>
-                <Feather name="chevron-down" size={16} color={palette.indigo600} />
+                <Feather name="chevron-down" size={16} color={colors.accent} />
               </Pressable>
             ) : null}
           </View>
@@ -370,7 +370,7 @@ export default function ProgressScreen() {
                           styles.bar,
                           {
                             height: barAnims[i].interpolate({ inputRange: [0, 1], outputRange: [0, h] }),
-                            backgroundColor: isCurrent ? palette.slate800 : palette.slate200,
+                            backgroundColor: isCurrent ? colors.accent : isDark ? palette.slate600 : palette.slate200,
                           },
                         ]}
                       />
@@ -443,7 +443,7 @@ export default function ProgressScreen() {
             <View style={styles.chipRow}>
               {recs.recommendations.map((r, i) => (
                 <Pressable key={i} style={styles.chip} onPress={() => Alert.alert(r.action_cta, r.message)}>
-                  <Text variant="caption" color={palette.indigo600} style={styles.bold}>
+                  <Text variant="caption" color={colors.accent} style={styles.bold}>
                     {r.action_cta}
                   </Text>
                 </Pressable>

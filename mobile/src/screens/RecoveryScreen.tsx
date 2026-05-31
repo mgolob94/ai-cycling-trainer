@@ -317,7 +317,7 @@ export default function RecoveryScreen() {
               </View>
               {!s.is_connected ? (
                 <Pressable hitSlop={8} onPress={() => connectSource(s.source)}>
-                  <Text variant="caption" color={palette.indigo600} style={styles.bold}>
+                  <Text variant="caption" color={colors.accent} style={styles.bold}>
                     Connect →
                   </Text>
                 </Pressable>

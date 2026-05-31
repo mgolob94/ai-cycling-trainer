@@ -48,9 +48,9 @@ export default function Button({
       case 'secondary':
         return { bg: colors.surface, fg: colors.textPrimary, border: colors.textPrimary };
       case 'ghost':
-        return { bg: 'transparent', fg: palette.slate600, border: 'transparent' };
+        return { bg: 'transparent', fg: colors.textSecondary, border: 'transparent' };
       case 'danger':
-        return { bg: palette.rose600, fg: '#FFFFFF', border: 'transparent' };
+        return { bg: colors.danger, fg: '#FFFFFF', border: 'transparent' };
       case 'primary':
       default:
         return {

@@ -170,7 +170,7 @@ export default function ProfileScreen() {
                 Data display
               </Text>
               <View style={styles.rowRight}>
-                <Text variant="body" color={palette.indigo600}>
+                <Text variant="body" color={colors.accent}>
                   {LEVEL_META[level].label}
                 </Text>
                 <Feather name="chevron-right" size={18} color={palette.slate400} />
@@ -209,7 +209,7 @@ export default function ProfileScreen() {
               <Text variant="body" color={colors.textPrimary}>
                 Reminder time
               </Text>
-              <Text variant="body" color={palette.indigo600}>
+              <Text variant="body" color={colors.accent}>
                 {settings ? formatTime(settings.hour, settings.minute) : '—'}
               </Text>
             </Pressable>
@@ -271,7 +271,7 @@ export default function ProfileScreen() {
                 const sel = pendingLevel === l;
                 return (
                   <Pressable key={l} style={styles.optionRow} onPress={() => setPendingLevel(l)}>
-                    <View style={[styles.radio, { borderColor: sel ? palette.indigo600 : colors.border }]}>
+                    <View style={[styles.radio, { borderColor: sel ? colors.accent : colors.border }]}>
                       {sel ? <View style={styles.radioDot} /> : null}
                     </View>
                     <View style={styles.flex}>

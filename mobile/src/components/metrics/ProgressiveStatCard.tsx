@@ -144,10 +144,10 @@ export default function ProgressiveStatCard({ metric, value, unit, interpretatio
         </>
       ) : (
         <Pressable style={[styles.toggle, styles.toggleEnd]} onPress={expand} hitSlop={6}>
-          <Text variant="label" color={palette.indigo600}>
+          <Text variant="label" color={colors.accent}>
             Show more
           </Text>
-          <Feather name="chevron-down" size={16} color={palette.indigo600} />
+          <Feather name="chevron-down" size={16} color={colors.accent} />
         </Pressable>
       )}
     </Card>

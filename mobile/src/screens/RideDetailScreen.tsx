@@ -141,7 +141,7 @@ export default function RideDetailScreen({ route }: Props) {
       <ScrollView contentContainerStyle={styles.container}>
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator color={palette.indigo600} />
+            <ActivityIndicator color={colors.accent} />
             <Text variant="caption">Analyzing your ride…</Text>
           </View>
         ) : error ? (
@@ -199,7 +199,7 @@ export default function RideDetailScreen({ route }: Props) {
                     <SectionHeader title="COACH ANALYSIS" />
                     {analysis.ai_analysis.execution_score != null ? (
                       <View style={styles.scoreBadge}>
-                        <Text variant="statMd" color={palette.indigo600}>
+                        <Text variant="statMd" color={colors.accent}>
                           {analysis.ai_analysis.execution_score}
                         </Text>
                         <Text variant="caption" color={colors.textSecondary}>

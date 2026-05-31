@@ -17,7 +17,7 @@ import { Feather } from '@expo/vector-icons';
 
 import { api, apiOrigin, type ApiResponse } from '../services/api';
 import { Text } from '../components/ui';
-import { palette, spacing, radius } from '../theme/tokens';
+import { spacing, radius } from '../theme/tokens';
 import { useTheme } from '../theme/useTheme';
 import type { AppStackParamList } from '../navigation/types';
 
@@ -96,8 +96,8 @@ export default function CoachChatScreen() {
           {messages.map((m, i) => (
             <View key={i} style={[styles.bubbleRow, m.role === 'user' ? styles.rightRow : styles.leftRow]}>
               {m.role === 'assistant' ? (
-                <View style={styles.avatar}>
-                  <Text variant="label" color="#FFFFFF" style={styles.avatarText}>
+                <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+                  <Text variant="label" color={colors.textInverse} style={styles.avatarText}>
                     C
                   </Text>
                 </View>
@@ -106,11 +106,11 @@ export default function CoachChatScreen() {
                 style={[
                   styles.bubble,
                   m.role === 'user'
-                    ? { backgroundColor: palette.slate900 }
+                    ? { backgroundColor: colors.primary }
                     : { backgroundColor: colors.surfaceRaised },
                 ]}
               >
-                <Text variant="body" color={m.role === 'user' ? '#FFFFFF' : colors.textPrimary}>
+                <Text variant="body" color={m.role === 'user' ? colors.textInverse : colors.textPrimary}>
                   {m.content}
                 </Text>
               </View>
@@ -118,19 +118,19 @@ export default function CoachChatScreen() {
           ))}
           {sending ? (
             <View style={[styles.bubbleRow, styles.leftRow]}>
-              <View style={styles.avatar}>
-                <Text variant="label" color="#FFFFFF" style={styles.avatarText}>
+              <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+                <Text variant="label" color={colors.textInverse} style={styles.avatarText}>
                   C
                 </Text>
               </View>
               <View style={[styles.bubble, { backgroundColor: colors.surfaceRaised }]}>
-                <ActivityIndicator color={palette.slate400} />
+                <ActivityIndicator color={colors.textSecondary} />
               </View>
             </View>
           ) : null}
           {suggested ? (
             <Pressable style={styles.suggested} onPress={() => navigation.navigate(suggested.screen as never)}>
-              <Text variant="caption" color={palette.indigo600} style={styles.bold}>
+              <Text variant="caption" color={colors.accent} style={styles.bold}>
                 {suggested.label} →
               </Text>
             </Pressable>
@@ -154,7 +154,7 @@ export default function CoachChatScreen() {
         </ScrollView>
 
         {remaining != null && remaining < 5 ? (
-          <Text variant="caption" color={palette.amber600} style={styles.remaining}>
+          <Text variant="caption" color={colors.warning} style={styles.remaining}>
             {remaining} messages left this month
           </Text>
         ) : null}
@@ -169,8 +169,8 @@ export default function CoachChatScreen() {
             onSubmitEditing={() => send(input)}
             returnKeyType="send"
           />
-          <Pressable style={[styles.sendBtn, { backgroundColor: palette.slate900 }]} onPress={() => send(input)} disabled={sending}>
-            <Feather name="arrow-up" size={20} color="#FFFFFF" />
+          <Pressable style={[styles.sendBtn, { backgroundColor: colors.primary }]} onPress={() => send(input)} disabled={sending}>
+            <Feather name="arrow-up" size={20} color={colors.textInverse} />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   bubbleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing[2], maxWidth: '88%' },
   leftRow: { alignSelf: 'flex-start' },
   rightRow: { alignSelf: 'flex-end' },
-  avatar: { width: 28, height: 28, borderRadius: radius.full, backgroundColor: palette.slate800, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 28, height: 28, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
   avatarText: { letterSpacing: 0 },
   bubble: { borderRadius: radius.lg, paddingHorizontal: spacing[4], paddingVertical: spacing[3], flexShrink: 1 },
   suggested: { alignSelf: 'flex-start', marginLeft: 36, marginTop: -spacing[1] },

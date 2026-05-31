@@ -4,8 +4,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
 
 import { useDemoStore } from '../../store/useDemoStore';
+import { useThemeColors } from '../../theme/useThemeColors';
 import { Text } from '../ui';
-import { palette, spacing, radius, shadows } from '../../theme/tokens';
+import { spacing, radius, shadows } from '../../theme/tokens';
 import type { AppStackParamList } from '../../navigation/types';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
@@ -18,16 +19,17 @@ type Nav = NativeStackNavigationProp<AppStackParamList>;
 export default function CoachFab() {
   const navigation = useNavigation<Nav>();
   const demo = useDemoStore((s) => s.demo);
+  const { colors } = useThemeColors();
 
   return (
     <Pressable
-      style={[styles.fab, { bottom: spacing[4] + (demo ? 44 : 0) }]}
+      style={[styles.fab, { backgroundColor: colors.primary, bottom: spacing[4] + (demo ? 44 : 0) }]}
       onPress={() => navigation.navigate('CoachChat')}
       accessibilityRole="button"
       accessibilityLabel="Ask your AI coach"
     >
-      <Feather name="message-circle" size={22} color="#FFFFFF" />
-      <Text variant="label" color="#FFFFFF" style={styles.label}>
+      <Feather name="message-circle" size={22} color={colors.textInverse} />
+      <Text variant="label" color={colors.textInverse} style={styles.label}>
         Coach
       </Text>
     </Pressable>
@@ -42,7 +44,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[2],
-    backgroundColor: palette.slate900,
     paddingLeft: spacing[4],
     paddingRight: spacing[5],
     paddingVertical: spacing[3],

@@ -26,7 +26,7 @@ export default function NudgeItem({ nudge, onAction, onDismiss }: Props) {
         </Text>
         {nudge.action ? (
           <Pressable onPress={() => onAction?.(nudge.action!.screen)} hitSlop={6} style={styles.action}>
-            <Text variant="caption" color={palette.indigo600} style={styles.actionText}>
+            <Text variant="caption" color={colors.accent} style={styles.actionText}>
               {nudge.action.label} →
             </Text>
           </Pressable>

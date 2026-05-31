@@ -115,7 +115,7 @@ export default function RecoverySetupScreen() {
             <Card variant="tinted" style={styles.balanceCard}>
               <View style={styles.balanceRow}>
                 <View style={styles.balanceSide}>
-                  <Text variant="label" color={palette.indigo600}>
+                  <Text variant="label" color={colors.accent}>
                     TRAINING LOAD
                   </Text>
                   <View style={[styles.balanceBar, { backgroundColor: palette.indigo400 }]} />
@@ -220,7 +220,7 @@ export default function RecoverySetupScreen() {
           </View>
         ) : null}
 
-        {busy && step === 2 ? <ActivityIndicator color={palette.indigo600} style={styles.spinner} /> : null}
+        {busy && step === 2 ? <ActivityIndicator color={colors.accent} style={styles.spinner} /> : null}
       </ScrollView>
     </SafeAreaView>
   );

@@ -74,7 +74,7 @@ export default function NotificationSettingsScreen() {
                 <Text variant="body" color={colors.textPrimary}>
                   {c.label}
                 </Text>
-                <Text variant="caption" color={palette.indigo600}>
+                <Text variant="caption" color={colors.accent}>
                   Send a test
                 </Text>
               </Pressable>
@@ -94,7 +94,7 @@ export default function NotificationSettingsScreen() {
             <Text variant="body" color={colors.textPrimary}>
               From
             </Text>
-            <Text variant="body" color={palette.indigo600}>
+            <Text variant="body" color={colors.accent}>
               {fmt(quiet.startHour, 0)}
             </Text>
           </Pressable>
@@ -102,7 +102,7 @@ export default function NotificationSettingsScreen() {
             <Text variant="body" color={colors.textPrimary}>
               To
             </Text>
-            <Text variant="body" color={palette.indigo600}>
+            <Text variant="body" color={colors.accent}>
               {fmt(quiet.endHour, 0)}
             </Text>
           </Pressable>

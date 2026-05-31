@@ -335,7 +335,7 @@ export default function DashboardScreen() {
               <Text variant="caption" color={colors.textPrimary}>
                 New activity synced
               </Text>
-              <Text variant="caption" color={palette.indigo600} style={styles.bold}>
+              <Text variant="caption" color={colors.accent} style={styles.bold}>
                 Refresh
               </Text>
             </Card>
@@ -346,7 +346,7 @@ export default function DashboardScreen() {
               Connect Strava for more accurate training
             </Text>
             <Pressable onPress={() => navigation.navigate('StravaConnect')} hitSlop={8}>
-              <Text variant="caption" color={palette.indigo600} style={styles.bold}>
+              <Text variant="caption" color={colors.accent} style={styles.bold}>
                 Connect
               </Text>
             </Pressable>
@@ -506,7 +506,7 @@ export default function DashboardScreen() {
               onPress={() => navigation.navigate('RideDetail', { stravaId: (lastRide as Ride).strava_id })}
               hitSlop={6}
             >
-              <Text variant="caption" color={palette.indigo600} style={styles.bold}>
+              <Text variant="caption" color={colors.accent} style={styles.bold}>
                 View analysis →
               </Text>
             </Pressable>
@@ -518,7 +518,7 @@ export default function DashboardScreen() {
           <Pressable onPress={() => navigation.navigate('StravaConnect')}>
             <Card variant="tinted" style={styles.bannerRow}>
               <Text variant="caption">Last sync over 24h ago</Text>
-              <Text variant="caption" color={palette.indigo600} style={styles.bold}>
+              <Text variant="caption" color={colors.accent} style={styles.bold}>
                 Sync Strava
               </Text>
             </Card>

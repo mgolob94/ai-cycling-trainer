@@ -19,7 +19,7 @@ const TYPE_ORDER: GoalType[] = ['ftp_target', 'event', 'distance', 'consistency'
 function ProgressBar({ pct }: { pct: number }) {
   const { colors } = useThemeColors();
   const value = Math.max(0, Math.min(100, pct));
-  const fill = value >= 75 ? palette.emerald600 : value >= 40 ? palette.amber600 : palette.indigo600;
+  const fill = value >= 75 ? colors.success : value >= 40 ? colors.warning : colors.accent;
   return (
     <View style={[styles.barTrack, { backgroundColor: colors.surfaceRaised }]}>
       <View style={[styles.barFill, { width: `${value}%`, backgroundColor: fill }]} />
@@ -83,7 +83,7 @@ function GoalCard({ goal, fetchInsight }: { goal: Goal; fetchInsight: (id: strin
 }
 
 function AddGoalModal({ visible, onClose, onCreate }: { visible: boolean; onClose: () => void; onCreate: (g: NewGoal) => Promise<void> }) {
-  const { colors } = useThemeColors();
+  const { colors, isDark } = useThemeColors();
   const [type, setType] = useState<GoalType>('ftp_target');
   const [title, setTitle] = useState('');
   const [targetDate, setTargetDate] = useState('');
@@ -137,10 +137,10 @@ function AddGoalModal({ visible, onClose, onCreate }: { visible: boolean; onClos
               {TYPE_ORDER.map((t) => (
                 <Pressable
                   key={t}
-                  style={[styles.typeChip, { borderColor: type === t ? palette.indigo600 : colors.border, backgroundColor: type === t ? palette.indigo50 : 'transparent' }]}
+                  style={[styles.typeChip, { borderColor: type === t ? colors.accent : colors.border, backgroundColor: type === t ? (isDark ? 'rgba(99,102,241,0.18)' : palette.indigo50) : 'transparent' }]}
                   onPress={() => setType(t)}
                 >
-                  <Text variant="caption" color={type === t ? palette.indigo600 : colors.textSecondary}>
+                  <Text variant="caption" color={type === t ? colors.accent : colors.textSecondary}>
                     {TYPE_LABELS[t]}
                   </Text>
                 </Pressable>
@@ -173,6 +173,7 @@ function AddGoalModal({ visible, onClose, onCreate }: { visible: boolean; onClos
 }
 
 export default function GoalsSection() {
+  const { colors } = useThemeColors();
   const { goals, loading, createGoal, fetchInsight } = useGoals();
   const [adding, setAdding] = useState(false);
 
@@ -187,7 +188,7 @@ export default function GoalsSection() {
       </View>
 
       {active.length === 0 ? (
-        <Text variant="caption" color={palette.slate600} style={styles.empty}>
+        <Text variant="caption" color={colors.textSecondary} style={styles.empty}>
           No active goals yet. Set one and your coach will track your progress toward it.
         </Text>
       ) : (

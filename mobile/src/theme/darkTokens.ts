@@ -1,22 +1,33 @@
-import { colors as lightColors } from './tokens';
+import { colors as lightColors, palette } from './tokens';
 
-// Dark-mode overrides. Accent ramps (indigo/emerald/amber/rose/sky) are
-// theme-independent and carried over from the light set; only neutral surfaces
-// and text flip. The dark hero card uses an elevated dark surface (not pure
-// black) for subtle depth.
+// Dark-mode overrides. Neutral surfaces and text flip, and the semantic role
+// aliases (primary/accent/success/…) are remapped to LIGHTER ramp shades so
+// buttons, links, and status colors keep strong contrast on a dark background
+// (the light set's 600 shades are tuned for light backgrounds and go muddy on
+// dark). Modern + minimalist: deep neutral surfaces, bright legible accents.
 export const darkColors = {
   ...lightColors,
 
+  // Neutral surfaces — layered, not pure black, for subtle depth.
   background: '#0D0D0C',
   surface: '#1A1A19',
-  surfaceRaised: '#242423',
-  border: '#2E2E2C',
-  borderSubtle: '#222221',
+  surfaceRaised: '#262625',
+  border: '#34342F',
+  borderSubtle: '#262624',
 
-  textPrimary: '#F4F4F2',
-  textSecondary: '#9C9C99',
-  textTertiary: '#5C5C5A',
+  // Text — raised contrast so secondary/tertiary copy stays readable.
+  textPrimary: '#F5F5F3',
+  textSecondary: '#B4B4B0', // ~8:1 on background
+  textTertiary: '#86867F', // ~4.6:1 on background
   textInverse: '#0D0D0C',
+
+  // Semantic roles tuned for dark: light primary + brighter accents.
+  primary: palette.slate50,
+  accent: palette.indigo400,
+  success: palette.emerald400,
+  warning: palette.amber400,
+  danger: palette.rose400,
+  info: palette.sky400,
 } as const;
 
 export default darkColors;

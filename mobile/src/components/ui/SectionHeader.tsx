@@ -2,6 +2,7 @@ import { View, Pressable, StyleSheet } from 'react-native';
 
 import Text from './Text';
 import { palette, spacing } from '../../theme/tokens';
+import { useThemeColors } from '../../theme/useThemeColors';
 
 interface Props {
   title: string;
@@ -9,16 +10,17 @@ interface Props {
   action?: { label: string; onPress: () => void };
 }
 
-/** Row with an uppercase section title (slate-400) and an optional indigo action. */
+/** Row with an uppercase section title and an optional accent action link. */
 export default function SectionHeader({ title, action }: Props) {
+  const { colors, isDark } = useThemeColors();
   return (
     <View style={styles.row}>
-      <Text variant="label" color={palette.slate400} style={styles.title}>
+      <Text variant="label" color={isDark ? colors.textTertiary : palette.slate400} style={styles.title}>
         {title}
       </Text>
       {action ? (
         <Pressable onPress={action.onPress} hitSlop={8}>
-          <Text variant="caption" color={palette.indigo600} style={styles.action}>
+          <Text variant="caption" color={colors.accent} style={styles.action}>
             {action.label}
           </Text>
         </Pressable>

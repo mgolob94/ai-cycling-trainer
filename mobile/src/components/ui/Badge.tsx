@@ -2,6 +2,7 @@ import { View, StyleSheet } from 'react-native';
 
 import Text from './Text';
 import { palette, radius, spacing } from '../../theme/tokens';
+import { useThemeColors } from '../../theme/useThemeColors';
 
 type BadgeColor = 'default' | 'indigo' | 'emerald' | 'amber' | 'rose' | 'sky';
 
@@ -10,8 +11,8 @@ interface Props {
   color?: BadgeColor;
 }
 
-// Each color: a light background + a dark text tone from the same ramp.
-const COLOR_MAP: Record<BadgeColor, { bg: string; fg: string }> = {
+// Light: soft pastel bg + dark text from the same ramp.
+const LIGHT_MAP: Record<BadgeColor, { bg: string; fg: string }> = {
   default: { bg: palette.slate100, fg: palette.slate600 },
   indigo: { bg: palette.indigo50, fg: palette.indigo600 },
   emerald: { bg: palette.emerald50, fg: palette.emerald600 },
@@ -20,9 +21,20 @@ const COLOR_MAP: Record<BadgeColor, { bg: string; fg: string }> = {
   sky: { bg: palette.sky50, fg: palette.sky600 },
 };
 
+// Dark: translucent tint of the accent + bright (400) text for strong contrast.
+const DARK_MAP: Record<BadgeColor, { bg: string; fg: string }> = {
+  default: { bg: 'rgba(212,212,210,0.14)', fg: palette.slate200 },
+  indigo: { bg: 'rgba(99,102,241,0.22)', fg: palette.indigo400 },
+  emerald: { bg: 'rgba(52,211,153,0.20)', fg: palette.emerald400 },
+  amber: { bg: 'rgba(251,191,36,0.20)', fg: palette.amber400 },
+  rose: { bg: 'rgba(251,113,133,0.20)', fg: palette.rose400 },
+  sky: { bg: 'rgba(56,189,248,0.20)', fg: palette.sky400 },
+};
+
 /** Small status pill — uppercase, 11px, semibold, letter-spaced. */
 export default function Badge({ label, color = 'default' }: Props) {
-  const { bg, fg } = COLOR_MAP[color];
+  const { isDark } = useThemeColors();
+  const { bg, fg } = (isDark ? DARK_MAP : LIGHT_MAP)[color];
   return (
     <View style={[styles.pill, { backgroundColor: bg }]}>
       <Text variant="label" color={fg} style={styles.text}>
