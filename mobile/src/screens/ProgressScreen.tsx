@@ -445,7 +445,8 @@ export default function ProgressScreen() {
               ))}
             </View>
           ) : null}
-          <View style={styles.coachActions}>
+          <View style={styles.coachActionsRow}>
+            <Button label="Ask coach" variant="ghost" size="sm" onPress={() => navigation.navigate('CoachChat')} />
             <Button label="Full analysis →" variant="ghost" size="sm" onPress={() => navigation.navigate('AIReport')} />
           </View>
         </Card>
@@ -559,6 +560,7 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[3] },
   chip: { backgroundColor: palette.indigo50, borderRadius: radius.full, paddingHorizontal: spacing[3], paddingVertical: 6 },
   coachActions: { alignItems: 'flex-end', marginTop: spacing[2] },
+  coachActionsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing[2] },
 
   cardHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   wprimeHint: { marginTop: spacing[2] },

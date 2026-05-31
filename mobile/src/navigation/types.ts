@@ -41,5 +41,6 @@ export type AppStackParamList = {
   MetricsIntro: undefined;
   RecoverySetup: undefined;
   NotificationSettings: undefined;
+  CoachChat: undefined;
   DevTools: undefined;
 };
