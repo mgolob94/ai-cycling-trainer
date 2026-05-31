@@ -20,7 +20,7 @@ type Nav = NativeStackNavigationProp<AppStackParamList>;
 const TSB_ZONES: ScaleZone[] = [
   { from: -40, to: -20, label: 'Overreached', color: palette.rose400 },
   { from: -20, to: -5, label: 'Tired', color: palette.amber400 },
-  { from: -5, to: 12, label: 'Optimal', color: palette.indigo400 },
+  { from: -5, to: 12, label: 'Optimal', color: palette.emerald400 },
   { from: 12, to: 25, label: 'Fresh', color: palette.emerald400 },
   { from: 25, to: 40, label: 'Very fresh', color: palette.emerald600 },
 ];
@@ -102,7 +102,7 @@ export default function MetricsIntroScreen() {
           </Text>
           <View style={styles.legendRow}>
             <View style={styles.legendItem}>
-              <View style={[styles.dot, { backgroundColor: palette.indigo400 }]} />
+              <View style={[styles.dot, { backgroundColor: palette.emerald400 }]} />
               <Text variant="caption" color={colors.textSecondary}>
                 Fitness — slow & steady
               </Text>

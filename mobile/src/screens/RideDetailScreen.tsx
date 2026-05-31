@@ -238,7 +238,7 @@ export default function RideDetailScreen({ route }: Props) {
                           </Text>
                           <View style={[styles.zoneTrack, { backgroundColor: colors.surfaceRaised }]}>
                             <View
-                              style={[styles.zoneFill, { width: `${z.pct}%`, backgroundColor: ZONE_COLORS[z.zone] ?? palette.indigo400 }]}
+                              style={[styles.zoneFill, { width: `${z.pct}%`, backgroundColor: ZONE_COLORS[z.zone] ?? palette.emerald400 }]}
                             />
                           </View>
                           <Text variant="caption" color={colors.textSecondary} style={styles.zonePct}>

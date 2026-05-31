@@ -281,16 +281,16 @@ export default function ProgressScreen() {
                 <View style={styles.flex} />
                 {ftpHist.length ? (
                   <Pressable onPress={() => setShowFtpChart((v) => !v)} hitSlop={8} style={styles.ftpHistoryBtn}>
-                    <Text variant="caption" color={palette.indigo100}>
+                    <Text variant="caption" color={palette.emerald100}>
                       {showFtpChart ? 'Hide history' : 'History'}
                     </Text>
-                    <Feather name={showFtpChart ? 'chevron-up' : 'chevron-down'} size={14} color={palette.indigo100} />
+                    <Feather name={showFtpChart ? 'chevron-up' : 'chevron-down'} size={14} color={palette.emerald100} />
                   </Pressable>
                 ) : null}
               </View>
             ) : (
               <Pressable onPress={() => show('ftp', ftpWatts || undefined)} hitSlop={8} style={styles.ftpLink}>
-                <Text variant="caption" color={palette.indigo100} style={styles.bold}>
+                <Text variant="caption" color={palette.emerald100} style={styles.bold}>
                   What does FTP mean? →
                 </Text>
               </Pressable>
@@ -370,7 +370,7 @@ export default function ProgressScreen() {
                           styles.bar,
                           {
                             height: barAnims[i].interpolate({ inputRange: [0, 1], outputRange: [0, h] }),
-                            backgroundColor: isCurrent ? colors.accent : isDark ? palette.slate600 : palette.slate200,
+                            backgroundColor: isCurrent ? colors.accent : isDark ? colors.border : palette.slate200,
                           },
                         ]}
                       />
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
   coachIcon: { fontSize: 20 },
   coachText: { lineHeight: 23 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[3] },
-  chip: { backgroundColor: palette.indigo50, borderRadius: radius.full, paddingHorizontal: spacing[3], paddingVertical: 6 },
+  chip: { backgroundColor: palette.emerald50, borderRadius: radius.full, paddingHorizontal: spacing[3], paddingVertical: 6 },
   coachActions: { alignItems: 'flex-end', marginTop: spacing[2] },
   coachActionsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing[2] },
 
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
 
   toggleRow: { flexDirection: 'row', gap: spacing[2], marginBottom: spacing[3] },
   toggle: { flex: 1, paddingVertical: 6, borderRadius: radius.full, borderWidth: 1, borderColor: palette.slate200, alignItems: 'center' },
-  toggleActive: { backgroundColor: palette.slate900, borderColor: palette.slate900 },
+  toggleActive: { backgroundColor: palette.emerald600, borderColor: palette.emerald600 },
 
   cta: { marginTop: spacing[2], gap: spacing[2] },
 });

@@ -1,6 +1,6 @@
 // Design tokens — the single source of truth for every visual decision in the
-// app. Theme: Indigo / Violet (v1.0 MVP brand). Neutral surfaces are indigo-
-// tinted rather than pure gray so the whole UI reads as one cohesive palette.
+// app. Theme: Emerald Green (#059669) with auto/light/dark mode. Neutrals are
+// standard slate; the brand is emerald; indigo is reserved for info badges.
 //
 // Consume these everywhere instead of hardcoding values. A dark-mode override
 // set lives in ./darkTokens; ./useTheme picks the right set at runtime.
@@ -9,81 +9,92 @@
 // Color palette
 // ---------------------------------------------------------------------------
 export const palette = {
-  // Neutral ramp — indigo-tinted (slate* names kept for compatibility).
-  slate50: '#F8F7FF',
-  slate100: '#F1F0FF',
-  slate200: '#E0E7FF',
-  slate400: '#818CF8',
-  slate600: '#4338CA',
-  slate800: '#2D2A5E',
-  slate900: '#1E1B4B',
+  // Neutral ramp — slate (true neutral grays).
+  slate50: '#F8FAFC',
+  slate100: '#F1F5F9',
+  slate200: '#E2E8F0',
+  slate400: '#94A3B8',
+  slate600: '#475569',
+  slate800: '#1E293B',
+  slate900: '#0F172A',
 
-  // Brand — Indigo / Violet (CTA, active states, accents)
-  indigo50: '#EEF2FF', // primary-tint
-  indigo100: '#C7D2FE',
-  indigo400: '#818CF8', // primary-light
-  indigo600: '#4F46E5', // primary
-  indigo800: '#1E1B4B', // primary-dark
-
-  // Success — Emerald
+  // Brand — Emerald Green (CTA, active states, accents)
   emerald50: '#ECFDF5',
-  emerald400: '#34D399',
-  emerald600: '#10B981',
+  emerald100: '#D1FAE5',
+  emerald200: '#A7F3D0',
+  emerald300: '#6EE7B7',
+  emerald400: '#34D399', // primary (dark mode)
+  emerald500: '#10B981',
+  emerald600: '#059669', // primary (light mode) — main brand color
+  emerald700: '#047857',
+  emerald800: '#065F46',
+  emerald900: '#064E3B',
+
+  // Indigo — informational badges / chips only (NOT the brand anymore)
+  indigo50: '#EEF2FF',
+  indigo100: '#C7D2FE',
+  indigo400: '#818CF8',
+  indigo600: '#4F46E5',
+  indigo800: '#3730A3',
 
   // Warning — Amber
   amber50: '#FFFBEB',
   amber400: '#FBBF24',
   amber600: '#F59E0B',
 
-  // Danger — Rose
-  rose50: '#FFF1F2',
+  // Danger — Red
+  rose50: '#FEF2F2',
   rose400: '#FB7185',
-  rose600: '#F43F5E',
+  rose600: '#EF4444',
 
-  // Info — Sky
-  sky50: '#F0F9FF',
-  sky400: '#38BDF8',
-  sky600: '#0EA5E9',
+  // Info — Blue
+  sky50: '#EFF6FF',
+  sky400: '#60A5FA',
+  sky600: '#3B82F6',
 } as const;
 
 // Power-zone colors — theme-independent (used by zone bars, charts, badges).
 export const zoneColors = {
   z1: '#CBD5E1', // recovery
-  z2: '#818CF8', // endurance
+  z2: '#60A5FA', // endurance
   z3: '#34D399', // tempo
-  z4: '#F59E0B', // threshold
+  z4: '#FBBF24', // threshold
   z5: '#F97316', // VO2max
   z6: '#F43F5E', // anaerobic
+  z7: '#A855F7', // neuromuscular
 } as const;
 
 // Semantic colors (light theme). Dark overrides live in ./darkTokens.
 export const colors = {
   ...palette,
 
-  // Neutral surfaces (indigo-tinted)
-  background: '#F8F7FF',
+  // Neutral surfaces (slightly green-tinted whites)
+  background: '#F7FAF8',
   surface: '#FFFFFF',
-  surfaceRaised: '#F1F0FF',
-  border: '#E0E7FF',
-  borderSubtle: '#EEF2FF',
+  surfaceRaised: '#F0FAF5',
+  surfaceHero: '#059669', // hero cards — solid emerald in light
+  border: '#D1FAE5',
+  borderSubtle: '#ECFDF5',
 
   // Text
-  textPrimary: '#1E1B4B',
-  textSecondary: '#4338CA',
-  textTertiary: '#818CF8',
-  textInverse: '#FFFFFF',
+  textPrimary: '#0F172A',
+  textSecondary: '#475569',
+  textTertiary: '#94A3B8',
+  textInverse: '#FFFFFF', // text on primary / hero
 
   // Role aliases
-  primary: '#4F46E5',
-  primaryLight: '#818CF8',
-  primaryDark: '#1E1B4B',
-  primaryTint: '#EEF2FF',
-  accent: '#4F46E5',
+  primary: '#059669', // button / CTA background
+  primaryLight: '#34D399',
+  primaryDark: '#065F46',
+  primaryTint: '#ECFDF5',
+  accent: '#059669', // links / active tab / text accents
   success: '#10B981',
   warning: '#F59E0B',
-  danger: '#F43F5E',
-  info: '#0EA5E9',
+  danger: '#EF4444',
+  info: '#3B82F6',
 } as const;
+
+export const LIGHT_TOKENS = colors;
 
 // ---------------------------------------------------------------------------
 // Typography

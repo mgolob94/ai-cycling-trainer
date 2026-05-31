@@ -11,3 +11,5 @@ export { default as StatCard } from './StatCard';
 export { default as SectionHeader } from './SectionHeader';
 export { default as Divider } from './Divider';
 export { default as SkeletonLoader } from './SkeletonLoader';
+export { default as ThemeToggle } from './ThemeToggle';
+export { default as QuickToggle } from './QuickToggle';

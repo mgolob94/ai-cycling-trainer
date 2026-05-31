@@ -137,7 +137,7 @@ function AddGoalModal({ visible, onClose, onCreate }: { visible: boolean; onClos
               {TYPE_ORDER.map((t) => (
                 <Pressable
                   key={t}
-                  style={[styles.typeChip, { borderColor: type === t ? colors.accent : colors.border, backgroundColor: type === t ? (isDark ? 'rgba(129,140,248,0.18)' : palette.indigo50) : 'transparent' }]}
+                  style={[styles.typeChip, { borderColor: type === t ? colors.accent : colors.border, backgroundColor: type === t ? (isDark ? 'rgba(129,140,248,0.18)' : palette.emerald50) : 'transparent' }]}
                   onPress={() => setType(t)}
                 >
                   <Text variant="caption" color={type === t ? colors.accent : colors.textSecondary}>

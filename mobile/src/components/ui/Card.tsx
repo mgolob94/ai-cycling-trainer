@@ -30,8 +30,9 @@ export default function Card({ variant = 'default', padding = 16, onPress, style
       case 'raised':
         return { backgroundColor: colors.surface, borderRadius: radius.lg, ...shadows.md };
       case 'dark':
+        // "Hero" surface: solid emerald in light, neutral dark in dark mode.
         return {
-          backgroundColor: colors.primaryDark,
+          backgroundColor: colors.surfaceHero,
           borderRadius: radius.lg,
           borderWidth: isDark ? 1 : 0,
           borderColor: colors.border,

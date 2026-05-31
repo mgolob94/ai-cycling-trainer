@@ -119,7 +119,7 @@ export default function PostWorkoutSurvey({ visible, stravaActivityId, workoutDa
               <View style={styles.row}>
                 {EFFORT.map((e, i) => (
                   <Pressable key={e.label} style={styles.effort} onPress={() => setEffort(i)}>
-                    <View style={[styles.effortCircle, effort === i && { backgroundColor: colors.surfaceRaised, borderColor: palette.indigo400 }]}>
+                    <View style={[styles.effortCircle, effort === i && { backgroundColor: colors.surfaceRaised, borderColor: palette.emerald400 }]}>
                       <Emoji size={22}>{e.emoji}</Emoji>
                     </View>
                   </Pressable>
@@ -147,7 +147,7 @@ export default function PostWorkoutSurvey({ visible, stravaActivityId, workoutDa
               </View>
 
               <Pressable
-                style={[styles.submit, { backgroundColor: canFinish ? palette.slate900 : colors.border }]}
+                style={[styles.submit, { backgroundColor: canFinish ? colors.primary : colors.border }]}
                 disabled={!canFinish || submitting}
                 onPress={() => submit('completed')}
               >

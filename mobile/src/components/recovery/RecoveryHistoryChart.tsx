@@ -34,16 +34,16 @@ const SCORE_BANDS = [
   { from: 0, to: 30, color: palette.rose50 },
   { from: 30, to: 50, color: palette.amber50 },
   { from: 50, to: 70, color: palette.slate50 },
-  { from: 70, to: 85, color: palette.indigo50 },
+  { from: 70, to: 85, color: palette.emerald50 },
   { from: 85, to: 100, color: palette.emerald50 },
 ];
-const STAGE_COLORS = { deep: '#1E40AF', rem: palette.indigo400, light: palette.sky400, awake: palette.rose400 };
+const STAGE_COLORS = { deep: '#1E40AF', rem: palette.emerald400, light: palette.sky400, awake: palette.rose400 };
 
 function hrvColor(value: number, baseline: number | null | undefined): string {
-  if (!baseline) return palette.indigo400;
+  if (!baseline) return palette.emerald400;
   const pct = (value - baseline) / baseline;
   if (pct > 0.1) return palette.emerald400;
-  if (pct >= -0.1) return palette.indigo400;
+  if (pct >= -0.1) return palette.emerald400;
   if (pct >= -0.2) return palette.amber400;
   return palette.rose400;
 }
@@ -165,7 +165,7 @@ export default function RecoveryHistoryChart({ data }: { data: RecoveryHistoryPo
                         cx={xFor(i)}
                         cy={yScore(d.recovery_score)}
                         r={i === n - 1 ? 5 : selected === i ? 4 : 2}
-                        fill={i === n - 1 ? palette.slate900 : palette.slate600}
+                        fill={i === n - 1 ? palette.emerald600 : palette.slate600}
                       />
                     ) : null
                   )}
@@ -280,10 +280,10 @@ export default function RecoveryHistoryChart({ data }: { data: RecoveryHistoryPo
                       />
                     );
                   })}
-                  <Polyline points={scorePts} fill="none" stroke={palette.indigo400} strokeWidth={2} />
+                  <Polyline points={scorePts} fill="none" stroke={palette.emerald400} strokeWidth={2} />
                   {/* left axis: recovery 0/50/100 */}
                   {[0, 50, 100].map((v) => (
-                    <SvgText key={`l-${v}`} x={PAD.left - 4} y={yScore(v) + 3} fontSize={9} fill={palette.indigo400} textAnchor="end">
+                    <SvgText key={`l-${v}`} x={PAD.left - 4} y={yScore(v) + 3} fontSize={9} fill={palette.emerald400} textAnchor="end">
                       {v}
                     </SvgText>
                   ))}

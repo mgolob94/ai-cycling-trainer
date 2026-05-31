@@ -2,16 +2,29 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { colors as lightColors } from './tokens';
-import { darkColors } from './darkTokens';
+import { colors as lightColors, LIGHT_TOKENS } from './tokens';
+import { darkColors, DARK_TOKENS } from './darkTokens';
 
 export type ThemeMode = 'auto' | 'light' | 'dark';
+export type ColorScheme = 'light' | 'dark';
 export type ThemeColors = { [K in keyof typeof lightColors]: string };
+
+/** Resolve the token set for a given color scheme. */
+export function getTokens(scheme: ColorScheme): ThemeColors {
+  return scheme === 'dark' ? DARK_TOKENS : LIGHT_TOKENS;
+}
+
+export { LIGHT_TOKENS, DARK_TOKENS };
 
 interface ThemeContextValue {
   mode: ThemeMode;
   setMode: (mode: ThemeMode) => void;
+  /** Alias of setMode (matches the documented theme API). */
+  changeMode: (mode: ThemeMode) => void;
   colors: ThemeColors;
+  /** Alias of colors (matches the documented theme API). */
+  tokens: ThemeColors;
+  resolvedScheme: ColorScheme;
   isDark: boolean;
 }
 
@@ -21,7 +34,10 @@ const STORAGE_KEY = 'theme.mode';
 const ThemeContext = createContext<ThemeContextValue>({
   mode: 'auto',
   setMode: () => {},
+  changeMode: () => {},
   colors: lightColors,
+  tokens: lightColors,
+  resolvedScheme: 'light',
   isDark: false,
 });
 
@@ -43,11 +59,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   };
 
   const isDark = mode === 'auto' ? system === 'dark' : mode === 'dark';
+  const resolvedScheme: ColorScheme = isDark ? 'dark' : 'light';
 
-  const value = useMemo<ThemeContextValue>(
-    () => ({ mode, setMode, colors: isDark ? darkColors : lightColors, isDark }),
-    [mode, isDark]
-  );
+  const value = useMemo<ThemeContextValue>(() => {
+    const themeColors = isDark ? darkColors : lightColors;
+    return {
+      mode,
+      setMode,
+      changeMode: setMode,
+      colors: themeColors,
+      tokens: themeColors,
+      resolvedScheme,
+      isDark,
+    };
+  }, [mode, isDark, resolvedScheme]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

@@ -85,7 +85,7 @@ export default function WeekSummaryCard({ week, prevWeek = null, avgTss = 0, tss
         </Text>
       </View>
       <View style={[styles.barTrack, { backgroundColor: colors.surfaceRaised }]}>
-        <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: palette.indigo400 }]} />
+        <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: palette.emerald400 }]} />
       </View>
       <Text variant="caption" color={reached ? palette.emerald600 : colors.textSecondary} style={styles.goalLabel}>
         {reached ? 'Goal reached ✓' : `${remaining} TSS to go`}

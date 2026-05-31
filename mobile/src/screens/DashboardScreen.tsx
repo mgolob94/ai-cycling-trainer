@@ -27,7 +27,7 @@ import {
 import { hasSeenMetricsIntro } from '../services/metricsIntro';
 import { Feather } from '@expo/vector-icons';
 
-import { Text, Card, Badge, StatCard, SectionHeader } from '../components/ui';
+import { Text, Card, Badge, StatCard, SectionHeader, QuickToggle } from '../components/ui';
 import CoachFab from '../components/coach/CoachFab';
 import WeekSummaryCard from '../components/dashboard/WeekSummaryCard';
 import NudgeItem from '../components/dashboard/NudgeItem';
@@ -48,7 +48,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 const TSB_ZONES: ScaleZone[] = [
   { from: -40, to: -20, label: 'Overreached', color: palette.rose400 },
   { from: -20, to: -5, label: 'Tired', color: palette.amber400 },
-  { from: -5, to: 12, label: 'Optimal', color: palette.indigo400 },
+  { from: -5, to: 12, label: 'Optimal', color: palette.emerald400 },
   { from: 12, to: 25, label: 'Fresh', color: palette.emerald400 },
   { from: 25, to: 40, label: 'Very fresh', color: palette.emerald600 },
 ];
@@ -112,11 +112,12 @@ function formatDuration(seconds: number | null): string {
 const todayWeekday = new Date().toLocaleDateString('en-US', { weekday: 'long' });
 
 function WorkoutRow({ workout, isToday, onPress }: { workout: Workout; isToday: boolean; onPress?: () => void }) {
+  const { colors } = useThemeColors();
   const color = intensityColor(workout.intensity);
   const isRest = workout.type?.toLowerCase() === 'rest' || workout.duration_min === 0;
   return (
     <Card variant={isToday ? 'raised' : 'tinted'} padding={0} style={styles.workoutCard} onPress={onPress}>
-      <View style={[styles.workoutBar, { backgroundColor: isToday ? palette.slate900 : color, width: isToday ? 4 : 3 }]} />
+      <View style={[styles.workoutBar, { backgroundColor: isToday ? colors.primary : color, width: isToday ? 4 : 3 }]} />
       <View style={styles.workoutBody}>
         <View style={styles.workoutHead}>
           <View style={styles.workoutText}>
@@ -308,6 +309,7 @@ export default function DashboardScreen() {
             </Text>
           </View>
           <View style={styles.headerActions}>
+            <QuickToggle />
             <SyncIndicator
               isSyncing={isSyncing}
               newActivitiesAvailable={newActivitiesAvailable}

@@ -17,11 +17,11 @@ import {
   scheduleDailyReminder,
   type NotificationSettings,
 } from '../services/notifications';
-import { Text, Card, SectionHeader, Button, Emoji } from '../components/ui';
+import { Text, Card, SectionHeader, Button, Emoji, ThemeToggle } from '../components/ui';
 import { useKnowledgeLevel } from '../context/KnowledgeLevelContext';
 import type { KnowledgeLevel } from '../services/userLevel';
 import { palette, spacing, radius } from '../theme/tokens';
-import { useTheme, type ThemeMode } from '../theme/useTheme';
+import { useTheme } from '../theme/useTheme';
 
 function formatTime(hour: number, minute: number): string {
   const h = hour % 12 === 0 ? 12 : hour % 12;
@@ -29,12 +29,6 @@ function formatTime(hour: number, minute: number): string {
   const period = hour < 12 ? 'AM' : 'PM';
   return `${h}:${m} ${period}`;
 }
-
-const THEME_OPTIONS: { mode: ThemeMode; label: string }[] = [
-  { mode: 'auto', label: 'Auto' },
-  { mode: 'light', label: 'Light' },
-  { mode: 'dark', label: 'Dark' },
-];
 
 const LEVELS: KnowledgeLevel[] = ['beginner', 'intermediate', 'advanced'];
 const LEVEL_META: Record<KnowledgeLevel, { label: string; desc: string }> = {
@@ -45,7 +39,7 @@ const LEVEL_META: Record<KnowledgeLevel, { label: string; desc: string }> = {
 
 export default function ProfileScreen() {
   const clearSession = useAuthStore((state) => state.clearSession);
-  const { colors, isDark, mode, setMode } = useTheme();
+  const { colors, isDark } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
 
   // Dev-only: 5 quick taps on the version opens Dev Tools.
@@ -141,23 +135,19 @@ export default function ProfileScreen() {
         {/* Appearance */}
         <View style={styles.section}>
           <SectionHeader title="APPEARANCE" />
-          <Card variant="default" padding={spacing[1]}>
-            <View style={styles.segment}>
-              {THEME_OPTIONS.map((opt) => {
-                const active = mode === opt.mode;
-                return (
-                  <Pressable
-                    key={opt.mode}
-                    style={[styles.segmentItem, active && { backgroundColor: colors.textPrimary }]}
-                    onPress={() => setMode(opt.mode)}
-                  >
-                    <Text variant="caption" color={active ? colors.background : colors.textSecondary} style={styles.segmentText}>
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+          <Card variant="default">
+            <View style={styles.themeLabel}>
+              <Feather name="droplet" size={16} color={colors.primary} />
+              <Text variant="body" color={colors.textPrimary}>
+                App theme
+              </Text>
             </View>
+            <View style={styles.themeToggleWrap}>
+              <ThemeToggle />
+            </View>
+            <Text variant="caption" color={colors.textTertiary} style={styles.themeNote}>
+              Automatic follows your phone's appearance settings.
+            </Text>
           </Card>
         </View>
 
@@ -196,7 +186,7 @@ export default function ProfileScreen() {
               <Switch
                 value={settings?.enabled ?? false}
                 onValueChange={handleToggle}
-                trackColor={{ false: colors.border, true: palette.slate900 }}
+                trackColor={{ false: colors.border, true: colors.primary }}
                 thumbColor="#fff"
                 disabled={!settings}
               />
@@ -307,9 +297,9 @@ const styles = StyleSheet.create({
   container: { padding: spacing[5], gap: spacing[4], paddingBottom: spacing[10] },
   section: { gap: spacing[3], marginTop: spacing[2] },
 
-  segment: { flexDirection: 'row', gap: spacing[1] },
-  segmentItem: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: radius.sm },
-  segmentText: { fontWeight: '600', textTransform: 'none', letterSpacing: 0, fontSize: 13 },
+  themeLabel: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  themeToggleWrap: { marginTop: spacing[3] },
+  themeNote: { marginTop: spacing[3] },
 
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing[3] },
   rowBorder: { borderTopWidth: 1 },
@@ -333,7 +323,7 @@ const styles = StyleSheet.create({
   optionsList: { gap: spacing[1] },
   optionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[3] },
   radio: { width: 22, height: 22, borderRadius: radius.full, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  radioDot: { width: 10, height: 10, borderRadius: radius.full, backgroundColor: palette.indigo600 },
+  radioDot: { width: 10, height: 10, borderRadius: radius.full, backgroundColor: palette.emerald600 },
   optionTitle: { fontWeight: '600' },
   infoText: { lineHeight: 18 },
   saveBtn: { marginTop: spacing[2] },

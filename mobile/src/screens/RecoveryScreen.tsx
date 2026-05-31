@@ -17,7 +17,7 @@ import { useTheme } from '../theme/useTheme';
 
 function scoreColor(s: number): string {
   if (s >= 85) return palette.emerald400;
-  if (s >= 70) return palette.indigo400;
+  if (s >= 70) return palette.emerald400;
   if (s >= 50) return palette.amber400;
   if (s >= 30) return palette.rose400;
   return palette.rose600;
@@ -60,7 +60,7 @@ function sleepQuality(s: SleepSession | null): string {
   return frac >= 0.4 ? 'Great' : frac >= 0.25 ? 'Good' : 'Fair';
 }
 
-const STAGE_COLORS = { deep: '#1E40AF', rem: palette.indigo400, light: palette.sky400, awake: palette.rose400 };
+const STAGE_COLORS = { deep: '#1E40AF', rem: palette.emerald400, light: palette.sky400, awake: palette.rose400 };
 
 function ContributionBar({ label, value }: { label: string; value: number }) {
   return (

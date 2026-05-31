@@ -118,7 +118,7 @@ export default function RecoverySetupScreen() {
                   <Text variant="label" color={colors.accent}>
                     TRAINING LOAD
                   </Text>
-                  <View style={[styles.balanceBar, { backgroundColor: palette.indigo400 }]} />
+                  <View style={[styles.balanceBar, { backgroundColor: palette.emerald400 }]} />
                 </View>
                 <Feather name="repeat" size={18} color={colors.textTertiary} />
                 <View style={styles.balanceSide}>
@@ -203,7 +203,7 @@ export default function RecoverySetupScreen() {
                 const active = mood === i;
                 return (
                   <Pressable key={m.label} style={styles.mood} onPress={() => setMood(i)}>
-                    <View style={[styles.moodCircle, active && { backgroundColor: colors.surfaceRaised, borderColor: palette.indigo400 }]}>
+                    <View style={[styles.moodCircle, active && { backgroundColor: colors.surfaceRaised, borderColor: palette.emerald400 }]}>
                       <Emoji size={28}>{m.emoji}</Emoji>
                     </View>
                     <Text variant="caption" color={active ? colors.textPrimary : colors.textSecondary}>

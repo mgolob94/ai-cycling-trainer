@@ -15,6 +15,7 @@ import RecoverySetupScreen from '../screens/RecoverySetupScreen';
 import DevToolsScreen from '../screens/DevToolsScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import CoachChatScreen from '../screens/CoachChatScreen';
+import { QuickToggle } from '../components/ui';
 import { fonts } from '../theme/typography';
 import { useTheme } from '../theme/useTheme';
 import type { AppStackParamList } from './types';
@@ -33,6 +34,7 @@ export default function AppStack() {
     headerTintColor: colors.textSecondary,
     headerTitleStyle: { fontFamily: fonts.sansSemibold, fontSize: 20, color: colors.textPrimary },
     contentStyle: { backgroundColor: colors.background },
+    headerRight: () => <QuickToggle />,
     headerLeft: () =>
       navigation.canGoBack() ? (
         <Pressable onPress={() => navigation.goBack()} hitSlop={12}>

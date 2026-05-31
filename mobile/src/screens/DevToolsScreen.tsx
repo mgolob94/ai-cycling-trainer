@@ -167,7 +167,7 @@ function DevTools() {
           <View style={styles.navGrid}>
             {SCREENS.map((screen) => (
               <Pressable key={screen} style={[styles.navChip, { borderColor: colors.border }]} onPress={() => navigation.navigate(screen as never)}>
-                <Text variant="caption" color={palette.indigo600}>
+                <Text variant="caption" color={palette.emerald600}>
                   {screen}
                 </Text>
               </Pressable>
@@ -180,7 +180,7 @@ function DevTools() {
           <View style={styles.logHead}>
             <SectionHeader title="LOGS" />
             <Pressable onPress={refresh} hitSlop={8}>
-              <Text variant="caption" color={palette.indigo600}>
+              <Text variant="caption" color={palette.emerald600}>
                 Refresh
               </Text>
             </Pressable>
