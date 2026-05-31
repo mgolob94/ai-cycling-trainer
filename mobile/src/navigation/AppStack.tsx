@@ -13,6 +13,7 @@ import AIReportScreen from '../screens/AIReportScreen';
 import MetricsIntroScreen from '../screens/MetricsIntroScreen';
 import RecoverySetupScreen from '../screens/RecoverySetupScreen';
 import DevToolsScreen from '../screens/DevToolsScreen';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import { fonts } from '../theme/typography';
 import { useTheme } from '../theme/useTheme';
 import type { AppStackParamList } from './types';
@@ -51,6 +52,7 @@ export default function AppStack() {
       <Stack.Screen name="AIReport" component={AIReportScreen} options={{ title: 'AI analysis' }} />
       <Stack.Screen name="MetricsIntro" component={MetricsIntroScreen} options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="RecoverySetup" component={RecoverySetupScreen} options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} options={{ title: 'Notifications' }} />
       {__DEV__ ? <Stack.Screen name="DevTools" component={DevToolsScreen} options={{ title: 'Dev Tools' }} /> : null}
     </Stack.Navigator>
   );

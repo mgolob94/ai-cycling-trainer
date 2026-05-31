@@ -225,6 +225,18 @@ export default function ProfileScreen() {
           </Card>
         </View>
 
+        <View style={styles.section}>
+          <SectionHeader title="NOTIFICATIONS" />
+          <Card variant="default" padding={spacing[4]}>
+            <Pressable style={styles.row} onPress={() => navigation.navigate('NotificationSettings')}>
+              <Text variant="body" color={colors.textPrimary}>
+                Notification settings
+              </Text>
+              <Feather name="chevron-right" size={18} color={palette.slate400} />
+            </Pressable>
+          </Card>
+        </View>
+
         <View style={styles.actions}>
           <Button
             label={refreshingAll ? 'Refreshing…' : 'Refresh all analyses'}
