@@ -9,7 +9,8 @@ function startOfMonth() {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
 }
 
-const INJURY_RE = /injur|hurt|pain|sore knee|sick|ill|crash/i;
+// Word-bounded so short tokens (ill, sore) don't match inside "will", "score", etc.
+const INJURY_RE = /\b(injur\w*|hurt\w*|pain\w*|sore|sick|ill|crash\w*)\b/i;
 const PLAN_RE = /change.*plan|adjust.*plan|new plan|rest day|skip|reschedul/i;
 
 function mondayOf(date = new Date()) {
