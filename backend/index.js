@@ -24,6 +24,9 @@ const recoveryRoutes = require('./src/routes/recovery');
 const trainingRoutes = require('./src/routes/training');
 const integrationsRoutes = require('./src/routes/integrations');
 
+// Mock external APIs in development when MOCK_EXTERNAL_APIS=true (no-op otherwise).
+require('./src/mock/mockServer').install();
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 

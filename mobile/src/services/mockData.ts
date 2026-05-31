@@ -100,7 +100,7 @@ export function generateMockHRV(days = 30, seed = DEFAULT_SEED): MockHRVReading[
   const r = rng(seed);
   // Pick 2–3 "bad" days to dip.
   const dipDays = new Set<number>();
-  const dipCount = 2 + Math.floor(r() * 2);
+  const dipCount = Math.min(days, 2 + Math.floor(r() * 2));
   while (dipDays.size < dipCount) dipDays.add(Math.floor(r() * days));
 
   const out: MockHRVReading[] = [];
@@ -108,7 +108,7 @@ export function generateMockHRV(days = 30, seed = DEFAULT_SEED): MockHRVReading[
     const date = new Date();
     date.setDate(date.getDate() - i);
     const dow = date.getDay(); // 0=Sun
-    const trend = ((days - 1 - i) / (days - 1)) * 5; // +5ms over the window
+    const trend = ((days - 1 - i) / Math.max(1, days - 1)) * 5; // +5ms over the window
     const weekly = dow === 1 || dow === 2 ? -4 : 0; // Mon/Tue lower
     const noise = (r() - 0.5) * 16; // ±8
     const dip = dipDays.has(i) ? -15 : 0;

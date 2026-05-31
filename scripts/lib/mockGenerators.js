@@ -32,14 +32,14 @@ const daysAgoDate = (days) => daysAgoISO(days).slice(0, 10);
 function generateHRV(days = 30, seed = DEFAULT_SEED) {
   const r = rng(seed);
   const dips = new Set();
-  const dipCount = 2 + Math.floor(r() * 2);
+  const dipCount = Math.min(days, 2 + Math.floor(r() * 2));
   while (dips.size < dipCount) dips.add(Math.floor(r() * days));
   const out = [];
   for (let i = days - 1; i >= 0; i -= 1) {
     const date = new Date();
     date.setDate(date.getDate() - i);
     const dow = date.getDay();
-    const trend = ((days - 1 - i) / (days - 1)) * 5;
+    const trend = ((days - 1 - i) / Math.max(1, days - 1)) * 5;
     const weekly = dow === 1 || dow === 2 ? -4 : 0;
     const noise = (r() - 0.5) * 16;
     const dip = dips.has(i) ? -15 : 0;
