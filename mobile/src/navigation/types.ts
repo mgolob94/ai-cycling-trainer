@@ -40,4 +40,5 @@ export type AppStackParamList = {
   AIReport: undefined;
   MetricsIntro: undefined;
   RecoverySetup: undefined;
+  DevTools: undefined;
 };

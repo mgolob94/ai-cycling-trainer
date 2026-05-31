@@ -1,8 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Switch, Pressable, StyleSheet, Platform, Alert, ScrollView, Modal } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
+import Constants from 'expo-constants';
+
+import type { AppStackParamList } from '../navigation/types';
 
 import { useAuthStore } from '../store/useAuthStore';
 import { api, apiOrigin } from '../services/api';
@@ -41,6 +46,26 @@ const LEVEL_META: Record<KnowledgeLevel, { label: string; desc: string }> = {
 export default function ProfileScreen() {
   const clearSession = useAuthStore((state) => state.clearSession);
   const { colors, isDark, mode, setMode } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
+
+  // Dev-only: 5 quick taps on the version opens Dev Tools.
+  const versionTaps = useRef<{ count: number; first: number }>({ count: 0, first: 0 });
+  const onVersionTap = () => {
+    if (!__DEV__) return;
+    const now = Date.now();
+    const t = versionTaps.current;
+    if (now - t.first > 2000) {
+      t.count = 1;
+      t.first = now;
+    } else {
+      t.count += 1;
+    }
+    if (t.count >= 5) {
+      t.count = 0;
+      navigation.navigate('DevTools' as never);
+    }
+  };
+  const appVersion = Constants.expoConfig?.version ?? '0.1.0';
   const { level, setLevel } = useKnowledgeLevel();
   const insets = useSafeAreaInsets();
 
@@ -209,6 +234,12 @@ export default function ProfileScreen() {
           />
           <Button label="Sign out" variant="danger" onPress={clearSession} />
         </View>
+
+        <Pressable onPress={onVersionTap} hitSlop={8} style={styles.version}>
+          <Text variant="caption" color={colors.textTertiary}>
+            Version {appVersion}
+          </Text>
+        </Pressable>
       </ScrollView>
 
       {/* Data-display level picker */}
@@ -276,6 +307,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
 
   actions: { gap: spacing[3], marginTop: spacing[4] },
+  version: { alignItems: 'center', marginTop: spacing[5] },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(13,13,12,0.45)', justifyContent: 'flex-end' },
   sheet: {

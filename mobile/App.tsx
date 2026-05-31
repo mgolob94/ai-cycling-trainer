@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
+import { DevSettings } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 
-import Navigation from './src/navigation';
+import Navigation, { navigationRef } from './src/navigation';
 import { useAuthStore } from './src/store/useAuthStore';
+import { installLogCapture } from './src/services/logBuffer';
 import { ThemeProvider } from './src/theme/useTheme';
 import { KnowledgeLevelProvider } from './src/context/KnowledgeLevelContext';
 import { MetricTooltipProvider } from './src/components/metrics/MetricTooltip';
@@ -30,6 +32,15 @@ export default function App() {
     initNotifications();
     const unsubscribe = addNotificationListeners();
     return unsubscribe;
+  }, []);
+
+  // Dev-only: capture logs for the in-app viewer + add a shake-menu shortcut.
+  useEffect(() => {
+    if (!__DEV__) return;
+    installLogCapture();
+    DevSettings.addMenuItem('Dev Tools', () => {
+      if (navigationRef.isReady()) navigationRef.navigate('DevTools' as never);
+    });
   }, []);
 
   // Register this device's push token once the user is authenticated.
