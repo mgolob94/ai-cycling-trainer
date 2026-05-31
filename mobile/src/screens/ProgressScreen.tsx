@@ -42,6 +42,7 @@ import FTPChart from '../components/FTPChart';
 import AIAnalysisBadge from '../components/AIAnalysisBadge';
 import { Text, Card, Badge, SectionHeader, Button, SkeletonLoader, Emoji } from '../components/ui';
 import MetricTooltip, { useMetricTooltip } from '../components/metrics/MetricTooltip';
+import GoalsSection from '../components/goals/GoalsSection';
 import { scheduleWeeklySummary } from '../services/notifications';
 import { palette, spacing, radius } from '../theme/tokens';
 import { useThemeColors } from '../theme/useThemeColors';
@@ -450,6 +451,9 @@ export default function ProgressScreen() {
             <Button label="Full analysis →" variant="ghost" size="sm" onPress={() => navigation.navigate('AIReport')} />
           </View>
         </Card>
+
+        {/* Goals — coach tracks progress toward these */}
+        <GoalsSection />
 
         {/* Advanced-only: W' card */}
         {showAdvanced ? (

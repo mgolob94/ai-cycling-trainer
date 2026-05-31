@@ -14,7 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
 
-import { api, type ApiResponse } from '../services/api';
+import { api, apiOrigin, type ApiResponse } from '../services/api';
 import { Text } from '../components/ui';
 import { palette, spacing, radius } from '../theme/tokens';
 import { useTheme } from '../theme/useTheme';
@@ -56,7 +56,7 @@ export default function CoachChatScreen() {
     setSuggested(null);
     setSending(true);
     try {
-      const { data } = await api.post<ApiResponse<CoachReply>>('/coach/message', {
+      const { data } = await api.post<ApiResponse<CoachReply>>(`${apiOrigin}/coach/message`, {
         message: trimmed,
         conversationHistory: history,
       });
