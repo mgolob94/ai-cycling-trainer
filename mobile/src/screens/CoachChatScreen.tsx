@@ -89,6 +89,7 @@ export default function CoachChatScreen() {
       >
         <ScrollView
           ref={scrollRef}
+          style={styles.messagesScroll}
           contentContainerStyle={styles.messages}
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
@@ -137,7 +138,12 @@ export default function CoachChatScreen() {
         </ScrollView>
 
         {/* Quick replies */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.quickScroll}
+          contentContainerStyle={styles.quickRow}
+        >
           {QUICK_REPLIES.map((q) => (
             <Pressable key={q} style={[styles.quickChip, { borderColor: colors.border }]} onPress={() => send(q)}>
               <Text variant="caption" color={colors.textSecondary}>
@@ -175,6 +181,7 @@ export default function CoachChatScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   flex: { flex: 1 },
+  messagesScroll: { flex: 1 },
   messages: { padding: spacing[4], gap: spacing[3] },
   bubbleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing[2], maxWidth: '88%' },
   leftRow: { alignSelf: 'flex-start' },
@@ -184,8 +191,9 @@ const styles = StyleSheet.create({
   bubble: { borderRadius: radius.lg, paddingHorizontal: spacing[4], paddingVertical: spacing[3], flexShrink: 1 },
   suggested: { alignSelf: 'flex-start', marginLeft: 36, marginTop: -spacing[1] },
   bold: { fontWeight: '700' },
-  quickRow: { gap: spacing[2], paddingHorizontal: spacing[4], paddingBottom: spacing[2] },
-  quickChip: { borderWidth: 1, borderRadius: radius.full, paddingHorizontal: spacing[3], paddingVertical: 6 },
+  quickScroll: { flexGrow: 0, flexShrink: 0 },
+  quickRow: { gap: spacing[2], paddingHorizontal: spacing[4], paddingBottom: spacing[2], alignItems: 'center' },
+  quickChip: { borderWidth: 1, borderRadius: radius.full, paddingHorizontal: spacing[3], paddingVertical: 6, alignSelf: 'center' },
   remaining: { textAlign: 'center', paddingBottom: spacing[1] },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], padding: spacing[3], borderTopWidth: 1 },
   input: { flex: 1, borderRadius: radius.full, paddingHorizontal: spacing[4], paddingVertical: 10, fontSize: 15 },

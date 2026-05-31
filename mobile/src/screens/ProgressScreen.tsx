@@ -43,6 +43,7 @@ import AIAnalysisBadge from '../components/AIAnalysisBadge';
 import { Text, Card, Badge, SectionHeader, Button, SkeletonLoader, Emoji } from '../components/ui';
 import MetricTooltip, { useMetricTooltip } from '../components/metrics/MetricTooltip';
 import GoalsSection from '../components/goals/GoalsSection';
+import CoachFab from '../components/coach/CoachFab';
 import { scheduleWeeklySummary } from '../services/notifications';
 import { palette, spacing, radius } from '../theme/tokens';
 import { useThemeColors } from '../theme/useThemeColors';
@@ -341,7 +342,10 @@ export default function ProgressScreen() {
 
         {/* Weekly chart */}
         <Card variant="default">
-          <SectionHeader title="WEEKLY TRAINING" />
+          <View style={styles.cardHeadRow}>
+            <SectionHeader title="WEEKLY TRAINING (TSS)" />
+            <MetricTooltip metric="tss" />
+          </View>
           {metrics.loading ? (
             <SkeletonLoader height={140} />
           ) : (
@@ -515,13 +519,14 @@ export default function ProgressScreen() {
           <Button label="View periodization →" variant="ghost" onPress={() => navigation.navigate('Periodization')} />
         </View>
       </ScrollView>
+      <CoachFab />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  container: { padding: spacing[5], gap: spacing[4], paddingBottom: spacing[10] },
+  container: { padding: spacing[5], gap: spacing[4], paddingBottom: spacing[16] },
   flex: { flex: 1 },
   bold: { fontWeight: '700' },
 

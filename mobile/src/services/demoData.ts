@@ -205,6 +205,36 @@ export function demoGoalInsight(goalId: string) {
   };
 }
 
+// --- This week's training plan ---------------------------------------------
+function mondayThisWeek(): string {
+  return mondayWeeksAgo(0);
+}
+export function demoTrainingPlan() {
+  const workouts = [
+    { day: 'Monday', type: 'Rest', duration_min: 0, intensity: 'easy', description: 'Full rest day. Light stretching or a walk — let your legs absorb the weekend load.' },
+    { day: 'Tuesday', type: 'Threshold', duration_min: 75, intensity: 'hard', description: '3×12 min at 95–100% FTP (≈285W) with 5 min easy between. Your key session — fuel well beforehand.' },
+    { day: 'Wednesday', type: 'Endurance', duration_min: 90, intensity: 'easy', description: 'Steady Zone 2 ride. Keep it conversational — this builds your aerobic base without adding fatigue.' },
+    { day: 'Thursday', type: 'VO2max', duration_min: 70, intensity: 'hard', description: '5×4 min hard (110–115% FTP) with 4 min recovery. Lifts your top-end 5-min power.' },
+    { day: 'Friday', type: 'Recovery', duration_min: 45, intensity: 'easy', description: 'Easy spin to flush the legs. Stay in Zone 1 — this is active recovery, not training.' },
+    { day: 'Saturday', type: 'Long ride', duration_min: 150, intensity: 'moderate', description: 'Long endurance ride with a few tempo efforts on the climbs. The big aerobic stimulus of the week.' },
+    { day: 'Sunday', type: 'Endurance', duration_min: 80, intensity: 'easy', description: 'Relaxed Zone 2 to round out the week. Cut it short if Saturday left you tired.' },
+  ];
+  return {
+    id: 'demo-plan-1',
+    week_start: mondayThisWeek(),
+    plan_json: {
+      week_start: mondayThisWeek(),
+      summary: 'Build week — sweet-spot and VO2max focus around a big weekend endurance ride. ~460 TSS target.',
+      workouts,
+    },
+    generated_at: new Date().toISOString(),
+  };
+}
+
+export function demoLatestRide() {
+  return (MockData.rides(1) || [])[0] ?? null;
+}
+
 // --- Sync status ------------------------------------------------------------
 export function demoSyncStatus() {
   return {

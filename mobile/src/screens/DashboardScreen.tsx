@@ -28,6 +28,7 @@ import { hasSeenMetricsIntro } from '../services/metricsIntro';
 import { Feather } from '@expo/vector-icons';
 
 import { Text, Card, Badge, StatCard, SectionHeader } from '../components/ui';
+import CoachFab from '../components/coach/CoachFab';
 import WeekSummaryCard from '../components/dashboard/WeekSummaryCard';
 import NudgeItem from '../components/dashboard/NudgeItem';
 import { useNudges } from '../hooks/useNudges';
@@ -110,21 +111,33 @@ function formatDuration(seconds: number | null): string {
 
 const todayWeekday = new Date().toLocaleDateString('en-US', { weekday: 'long' });
 
-function WorkoutRow({ workout, isToday }: { workout: Workout; isToday: boolean }) {
+function WorkoutRow({ workout, isToday, onPress }: { workout: Workout; isToday: boolean; onPress?: () => void }) {
   const color = intensityColor(workout.intensity);
+  const isRest = workout.type?.toLowerCase() === 'rest' || workout.duration_min === 0;
   return (
-    <Card variant={isToday ? 'raised' : 'tinted'} padding={0} style={styles.workoutCard}>
+    <Card variant={isToday ? 'raised' : 'tinted'} padding={0} style={styles.workoutCard} onPress={onPress}>
       <View style={[styles.workoutBar, { backgroundColor: isToday ? palette.slate900 : color, width: isToday ? 4 : 3 }]} />
       <View style={styles.workoutBody}>
-        <View style={styles.workoutText}>
-          <Text variant="body" style={styles.workoutName}>
-            {workout.day}
-          </Text>
-          <Text variant="caption">
-            {workout.type} · {workout.duration_min} min
-          </Text>
+        <View style={styles.workoutHead}>
+          <View style={styles.workoutText}>
+            <View style={styles.workoutDayRow}>
+              <Text variant="body" style={styles.workoutName}>
+                {workout.day}
+              </Text>
+              {isToday ? <Badge label="Today" color="indigo" /> : null}
+            </View>
+            <Text variant="caption" color={palette.slate400}>
+              {workout.type}
+              {isRest ? '' : ` · ${workout.duration_min} min`}
+            </Text>
+          </View>
+          <Badge label={workout.intensity} color={intensityBadgeColor(workout.intensity)} />
         </View>
-        <Badge label={workout.intensity} color={intensityBadgeColor(workout.intensity)} />
+        {workout.description ? (
+          <Text variant="caption" style={styles.workoutDesc}>
+            {workout.description}
+          </Text>
+        ) : null}
       </View>
     </Card>
   );
@@ -446,7 +459,12 @@ export default function DashboardScreen() {
           {workouts.length ? (
             <View style={styles.workoutList}>
               {workouts.map((w, i) => (
-                <WorkoutRow key={`${w.day}-${i}`} workout={w} isToday={w.day === todayWeekday} />
+                <WorkoutRow
+                  key={`${w.day}-${i}`}
+                  workout={w}
+                  isToday={w.day === todayWeekday}
+                  onPress={() => navigation.navigate('TrainingPlan')}
+                />
               ))}
             </View>
           ) : (
@@ -507,13 +525,14 @@ export default function DashboardScreen() {
           </Pressable>
         ) : null}
       </ScrollView>
+      <CoachFab />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  container: { padding: spacing[5], paddingBottom: spacing[10], gap: spacing[5] },
+  container: { padding: spacing[5], paddingBottom: spacing[16], gap: spacing[5] },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginTop: spacing[1] },
   avatar: {
@@ -564,15 +583,12 @@ const styles = StyleSheet.create({
   workoutList: { gap: spacing[2] },
   workoutCard: { flexDirection: 'row', overflow: 'hidden' },
   workoutBar: {},
-  workoutBody: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing[4],
-  },
+  workoutBody: { flex: 1, padding: spacing[4], gap: spacing[2] },
+  workoutHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[3] },
   workoutText: { gap: 2, flex: 1 },
+  workoutDayRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   workoutName: { fontWeight: '600' },
+  workoutDesc: { lineHeight: 18 },
 
   statScroll: { gap: spacing[3], paddingRight: spacing[5] },
   statBox: { minWidth: 120 },
