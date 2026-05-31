@@ -19,14 +19,14 @@ interface Props {
 type Completion = 'completed' | 'partial' | 'skipped';
 
 const COMPLETION: { value: Completion; mark: string; label: string }[] = [
-  { value: 'completed', mark: '✓', label: 'Did it all' },
-  { value: 'partial', mark: '~', label: 'Partly' },
-  { value: 'skipped', mark: '✕', label: "Didn't ride" },
+  { value: 'completed', mark: '✓', label: 'Nailed it' },
+  { value: 'partial', mark: '~', label: 'Mostly done' },
+  { value: 'skipped', mark: '✕', label: 'Skipped' },
 ];
 
 const EFFORT = [
   { emoji: '😴', label: 'Too easy' },
-  { emoji: '😊', label: 'Easy' },
+  { emoji: '😊', label: 'About right' },
   { emoji: '😐', label: 'Just right' },
   { emoji: '😤', label: 'Hard' },
   { emoji: '💀', label: 'Too much' },

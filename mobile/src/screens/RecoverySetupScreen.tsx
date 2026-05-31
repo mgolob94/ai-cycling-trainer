@@ -29,7 +29,7 @@ const SOURCES: { key: SourceKey; name: string; desc: string; connectLabel: strin
 ];
 
 const MOODS = [
-  { emoji: '😴', label: 'Exhausted' },
+  { emoji: '😴', label: 'Wrecked' },
   { emoji: '😕', label: 'Tired' },
   { emoji: '😐', label: 'OK' },
   { emoji: '😊', label: 'Good' },
@@ -193,7 +193,7 @@ export default function RecoverySetupScreen() {
         {step === 3 ? (
           <View style={styles.step}>
             <Text variant="heading1" color={colors.textPrimary} style={styles.title}>
-              How do you feel in the morning?
+              How are you feeling this morning?
             </Text>
             <Text variant="bodyLarge" color={colors.textSecondary} style={styles.body}>
               No device? We can still help — just tell us how you feel.

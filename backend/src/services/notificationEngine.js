@@ -26,17 +26,17 @@ function phaseTransitionMessage(from, to, user) {
   switch (to) {
     case 'build':
       return from === 'recovery'
-        ? { title: 'Recovery complete ✓', body: 'Resuming the Build phase — fresh and ready!' }
-        : { title: 'Base is built 💪', body: 'Starting the Build phase — time for sharper, more intense sessions!' };
+        ? { title: 'Back at it ✓', body: 'Recovery done — Build phase resumes. Fresh and ready.' }
+        : { title: 'Base phase done 💪', body: 'Build phase starts this week — time to push.' };
     case 'peak':
-      return { title: 'Form is high ⚡', body: 'Entering the Peak phase — bringing your fitness to its sharpest.' };
+      return { title: 'Fitness is high ⚡', body: 'Peak phase — sharp and ready. This is what the base was for.' };
     case 'recovery':
-      return { title: 'Recovery week 🔄', body: 'Your body needs rest to absorb the work before the next push.' };
+      return { title: 'Recovery week 🔄', body: 'Intentionally easy. Adaptation happens when you rest.' };
     case 'taper':
-      return { title: 'Taper begins! 🏁', body: `${eventName} is close — cutting volume, keeping your form.` };
+      return { title: 'Taper time 🏁', body: `${eventName} is close — volume down, intensity stays. Arrive fresh.` };
     case 'base':
     default:
-      return { title: 'New phase 📗', body: 'Starting a Base block — building your aerobic foundation.' };
+      return { title: 'Base phase 📗', body: 'Building the engine. Long, steady rides. No heroics.' };
   }
 }
 
@@ -46,11 +46,11 @@ function inQuietHours(now) {
 }
 
 function readinessMessage(score) {
-  if (score >= 85) return 'Peak form today ⚡ — ideal for intervals or a long ride';
-  if (score >= 70) return 'Good readiness 🟢 — train as planned';
-  if (score >= 50) return 'Moderate readiness 🟡 — ease the intensity';
-  if (score >= 30) return 'Take it easier today 🟠 — easy ride or rest';
-  return 'Your body needs rest 🔴 — no training today';
+  if (score >= 85) return 'Flying today ⚡ — perfect day to go hard';
+  if (score >= 70) return 'Good shape today 🟢 — train as planned';
+  if (score >= 50) return 'A bit tired 🟡 — dial it back a notch';
+  if (score >= 30) return 'Take it easy today 🟠 — light or rest';
+  return 'Rest day 🔴 — your body is asking for it';
 }
 
 const isoDate = (d) => d.toISOString().slice(0, 10);
@@ -90,7 +90,7 @@ async function buildCandidates(userId, now) {
     const recent = new Date(`${latest.test_date}T00:00:00Z`) >= daysAgo(now, 2);
     if (recent && latest.ftp_watts > prev.ftp_watts) {
       const delta = latest.ftp_watts - prev.ftp_watts;
-      out.push({ type: 'milestone_ftp', title: 'FTP improvement! 💪', body: `FTP up to ${latest.ftp_watts}W (+${delta}W) — your hard work is paying off`, deep_link: 'Progress' });
+      out.push({ type: 'milestone_ftp', title: 'FTP improvement! 💪', body: `FTP up to ${latest.ftp_watts}W (+${delta}W). The work is paying off 💪`, deep_link: 'Progress' });
     }
   }
   const { data: prs } = await supabaseAdmin
@@ -102,7 +102,7 @@ async function buildCandidates(userId, now) {
     .limit(1);
   if (prs && prs.length) {
     const pr = prs[0];
-    out.push({ type: 'milestone_pr', title: 'New personal record! 🏆', body: `${pr.record_type.replace(/_/g, ' ')}: ${pr.value}${pr.unit === 'watts' ? 'W' : ` ${pr.unit}`}`, deep_link: 'Progress' });
+    out.push({ type: 'milestone_pr', title: 'New record 🏆', body: `New record. ${pr.record_type.replace(/_/g, ' ')}: ${pr.value}${pr.unit === 'watts' ? 'W' : ` ${pr.unit}`}`, deep_link: 'Progress' });
   }
 
   // 4. Lack of progress — TSS declined 3 weeks straight.
@@ -142,7 +142,7 @@ async function buildCandidates(userId, now) {
     .limit(1)
     .maybeSingle();
   if (lastRide?.ride_date && new Date(`${lastRide.ride_date}T00:00:00Z`) < daysAgo(now, 10)) {
-    out.push({ type: 'inactivity', title: 'Hey there', body: "All good? Whenever you're ready, your plan is right here 🚴", deep_link: 'Dashboard' });
+    out.push({ type: 'inactivity', title: 'Kōda', body: "Hey — whenever you're ready, your plan is here 🚴", deep_link: 'Dashboard' });
   }
 
   return out;

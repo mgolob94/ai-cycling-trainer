@@ -402,7 +402,14 @@ export default function DashboardScreen() {
               <Text variant="label" color={palette.slate400}>
                 FORM TODAY
               </Text>
-              <Badge label={tsbInfo.status === 'optimal' ? 'Optimal' : tsbInfo.label.split(' ')[0]} color={tsbInfo.color} />
+              <Badge
+                label={
+                  ({ overreached: 'Overreached', tired: 'Fatigued', optimal: 'Optimal', fresh: 'Peak form', very_fresh: 'Fresh' } as Record<string, string>)[
+                    tsbInfo.status
+                  ] ?? 'Form'
+                }
+                color={tsbInfo.color}
+              />
             </View>
             <Text variant="heading2" color="#FFFFFF" style={styles.heroStatus}>
               {tsbInfo.label}
@@ -494,8 +501,8 @@ export default function DashboardScreen() {
         {/* This week's plan */}
         <View style={styles.section}>
           <SectionHeader
-            title="THIS WEEK'S PLAN"
-            action={{ label: 'All workouts →', onPress: () => navigation.navigate('TrainingPlan') }}
+            title="THIS WEEK"
+            action={{ label: 'Full plan →', onPress: () => navigation.navigate('TrainingPlan') }}
           />
           {workouts.length ? (
             <View style={styles.workoutList}>
@@ -509,7 +516,7 @@ export default function DashboardScreen() {
               ))}
             </View>
           ) : (
-            <Text variant="caption">No plan yet — generate one from your recent rides.</Text>
+            <Text variant="caption">Your first plan is being built. Give it a moment.</Text>
           )}
         </View>
 

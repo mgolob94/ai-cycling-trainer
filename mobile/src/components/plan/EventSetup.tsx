@@ -76,7 +76,7 @@ export default function EventSetup({ visible, onClose, onSaved }: Props) {
       <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
         <View style={styles.header}>
           <Text variant="bodyLarge" style={styles.bold}>
-            {step === 1 ? 'Set your goal' : step === 2 ? 'Event details' : 'Your plan'}
+            {step === 1 ? 'What are you training for?' : step === 2 ? 'Event details' : 'Your plan'}
           </Text>
           <Pressable onPress={close} hitSlop={12}>
             <Feather name="x" size={22} color={colors.textSecondary} />
@@ -89,19 +89,19 @@ export default function EventSetup({ visible, onClose, onSaved }: Props) {
               <Card variant="default" onPress={() => setStep(2)} style={styles.choice}>
                 <Emoji size={28}>🏁</Emoji>
                 <Text variant="bodyLarge" style={styles.bold}>
-                  I have a specific date
+                  I have a specific event
                 </Text>
                 <Text variant="caption" color={colors.textSecondary}>
-                  Gran Fondo, a race, a marathon, a sportif… we'll plan backwards from the date.
+                  Gran Fondo, race, sportif — give us a date and we'll build backwards from it.
                 </Text>
               </Card>
               <Card variant="default" onPress={() => saveEvent({ target_event_name: null, target_event_date: null })} style={styles.choice}>
                 <Emoji size={28}>📈</Emoji>
                 <Text variant="bodyLarge" style={styles.bold}>
-                  Training for progress
+                  I want to get fitter
                 </Text>
                 <Text variant="caption" color={colors.textSecondary}>
-                  The coach builds your fitness through the season with no specific target.
+                  No event? No problem. We'll progress you through the season automatically.
                 </Text>
               </Card>
             </>

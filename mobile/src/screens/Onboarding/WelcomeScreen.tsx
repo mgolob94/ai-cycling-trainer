@@ -25,14 +25,14 @@ export default function WelcomeScreen({ navigation }: Props) {
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         <View style={styles.hero}>
-          <Text style={styles.badge}>AI POWERED</Text>
-          <Text style={styles.title}>Ride smarter.</Text>
+          <Text style={styles.badge}>KŌDA</Text>
+          <Text style={styles.title}>Your rides.</Text>
+          <Text style={styles.title}>Your data.</Text>
           <Text style={styles.title}>
-            Train with <Text style={styles.titleAccent}>AI</Text>.
+            Your <Text style={styles.titleAccent}>coach</Text>.
           </Text>
           <Text style={styles.subtitle}>
-            Personalized weekly cycling plans built from your real Strava rides, your
-            fitness, and your goals.
+            Kōda builds a training plan around how you actually ride — not a template.
           </Text>
         </View>
 
@@ -42,7 +42,7 @@ export default function WelcomeScreen({ navigation }: Props) {
             activeOpacity={0.85}
             onPress={() => navigation.navigate('SignUp')}
           >
-            <Text style={styles.primaryButtonText}>Get started</Text>
+            <Text style={styles.primaryButtonText}>Let's go</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -50,7 +50,7 @@ export default function WelcomeScreen({ navigation }: Props) {
             activeOpacity={0.7}
             onPress={() => setShowDemoModal(true)}
           >
-            <Text style={styles.ghostButtonText}>View demo</Text>
+            <Text style={styles.ghostButtonText}>See a demo first</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

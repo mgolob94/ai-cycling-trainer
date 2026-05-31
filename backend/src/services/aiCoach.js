@@ -561,6 +561,8 @@ async function generateWeeklyPlan(userId, weekStart) {
       `RECOVERY (score ${recovery}/100): ${recoveryLine}`,
       '',
       'Cover all 7 days (rest days have type "rest", duration_min 0). Mark the single most important session is_key_workout: true.',
+      'Use human workout types like "long easy ride", "threshold intervals", "sweet spot", "active recovery spin", "VO2max efforts" — never robotic names.',
+      'coach_intro and week_theme: warm, specific, plain English. Never mention CTL/ATL/TSB or the word "periodization".',
       `Return JSON exactly matching this schema: ${PLAN_SCHEMA}`,
     ].join('\n');
 

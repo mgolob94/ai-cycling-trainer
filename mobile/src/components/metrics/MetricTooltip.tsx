@@ -22,37 +22,37 @@ interface MetricDef {
 const METRICS: Record<MetricKey, MetricDef> = {
   tsb: {
     name: 'Form (TSB)',
-    short: 'The difference between your fitness and your fatigue.',
+    short: 'Fitness minus fatigue. Positive = fresh. Negative = tired. Sweet spot is +5 to +15.',
     analogy: 'Like a battery: positive = charged, negative = drained.',
     inYourCase: (v) => `Your form is currently ${Math.round(v)} — ${v >= 5 ? 'fresh side' : v >= -10 ? 'balanced' : 'fatigued side'}.`,
   },
   ctl: {
     name: 'Fitness (CTL)',
-    short: 'A 42-day average of your training load.',
+    short: 'How fit you are right now. Builds slowly over months. Drops slowly too.',
     analogy: "How much 'fitness in the bank' you have. Builds slowly, fades slowly.",
     inYourCase: (v) => `Your fitness is ${Math.round(v)}.`,
   },
   atl: {
     name: 'Fatigue (ATL)',
-    short: 'A 7-day average — how hard the last week has been.',
+    short: 'How tired your legs are. Spikes after hard weeks. Recovers in days.',
     analogy: 'How heavy your legs feel today.',
     inYourCase: (v) => `Your fatigue is ${Math.round(v)}.`,
   },
   ftp: {
     name: 'FTP — Functional Threshold Power',
-    short: 'The max power you can hold for about an hour.',
+    short: 'The maximum power you can hold for an hour. Your engine size. Higher = faster.',
     analogy: 'Your engine. A higher FTP means more speed for the same effort.',
     inYourCase: (v) => `Your FTP is ${Math.round(v)} W.`,
   },
   tss: {
     name: 'Training Stress (TSS)',
-    short: 'Total load of a ride — time combined with intensity.',
+    short: 'How hard a ride was overall — combines time and intensity. 100 TSS = one hour at your limit.',
     analogy: '60 min at FTP = 100 TSS. 2h easy = ~60 TSS.',
     inYourCase: (v) => `This effort was ${Math.round(v)} TSS.`,
   },
   np: {
     name: 'Normalized Power (NP)',
-    short: "A ride's true physiological load.",
+    short: 'A smarter measure of effort than average power. Accounts for surges and climbs.',
     analogy: 'More realistic than average power — it accounts for intervals and climbs.',
     inYourCase: (v) => `NP was ${Math.round(v)} W.`,
   },

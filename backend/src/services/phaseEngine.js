@@ -14,11 +14,11 @@ const TSS_FACTOR = { base: 0.9, build: 1.1, peak: 1.2, recovery: 0.6, taper: 0.5
 const NEXT_PHASE = { base: 'build', build: 'peak', peak: 'recovery', recovery: 'build', taper: 'taper' };
 
 const PHASE_RATIONALE = {
-  base: 'Building your aerobic foundation with steady, mostly easy riding.',
-  build: 'Raising your threshold and sustainable power with focused intensity.',
-  peak: 'Sharpening race-specific fitness while keeping you fresh.',
-  recovery: 'A lighter week so your body absorbs the training and rebounds stronger.',
-  taper: 'Cutting volume before your event so you arrive fresh with a revved engine.',
+  base: 'Building the engine. Long, steady rides. No heroics.',
+  build: 'Time to push. Threshold work starts here.',
+  peak: 'Sharp and ready. This is what the base was for.',
+  recovery: 'Intentionally easy. Adaptation happens when you rest.',
+  taper: 'Volume down, intensity stays. Arrive fresh.',
 };
 
 function mondayOf(date = new Date()) {

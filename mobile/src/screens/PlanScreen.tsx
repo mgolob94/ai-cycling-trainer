@@ -262,7 +262,7 @@ export default function PlanScreen() {
           <View style={styles.section}>
             <Pressable style={styles.historyHeader} onPress={toggleHistory} hitSlop={6}>
               <Text variant="label" color={colors.textTertiary}>
-                HISTORY
+                RECENT WEEKS
               </Text>
               <Feather name={showHistory ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textTertiary} />
             </Pressable>

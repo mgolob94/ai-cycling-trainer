@@ -400,7 +400,7 @@ export default function ProgressScreen() {
           {prs.loading ? (
             <SkeletonLoader height={90} borderRadius={radius.md} />
           ) : prs.records.length === 0 ? (
-            <Text variant="caption">No records yet.</Text>
+            <Text variant="caption">Your personal records will show up after your first few rides.</Text>
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.prScroll}>
               {goldRecord ? (

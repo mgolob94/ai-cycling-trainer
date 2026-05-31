@@ -92,7 +92,7 @@ export default function RidesScreen() {
             <Text variant="body" color={colors.textPrimary}>
               No rides yet
             </Text>
-            <Text variant="caption">Connect Strava and sync to import your activities.</Text>
+            <Text variant="caption">Your rides will appear here once Strava syncs.</Text>
           </Card>
         ) : (
           <View style={styles.list}>

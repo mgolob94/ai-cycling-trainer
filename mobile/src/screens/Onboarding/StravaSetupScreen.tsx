@@ -106,9 +106,9 @@ export default function StravaSetupScreen(_props: Props) {
       <View style={styles.container}>
         <View style={styles.hero}>
           <Text style={styles.step}>Step 4 of 4</Text>
-          <Text style={styles.title}>Connect Strava</Text>
+          <Text style={styles.title}>Connect your Strava</Text>
           <Text style={styles.subtitle}>
-            We need your ride history to personalize your training.
+            We'll pull your ride history and use it to build your first plan. The more rides you have, the smarter your coach gets.
           </Text>
         </View>
 

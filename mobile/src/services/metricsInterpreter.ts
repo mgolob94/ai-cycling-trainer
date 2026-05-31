@@ -62,9 +62,9 @@ export function interpretTSB(tsb: number): TrainingStatus {
   if (tsb < -25) {
     return {
       status: 'overreached',
-      label: 'Overreached',
+      label: 'Rest today. No exceptions.',
       description: "Your body can't make progress in this state.",
-      todayAdvice: 'You need at least 2 rest days.',
+      todayAdvice: 'Two days minimum. Sleep and eat well.',
       color: 'rose',
       emoji: '⚠️',
       scalePosition,
@@ -73,9 +73,9 @@ export function interpretTSB(tsb: number): TrainingStatus {
   if (tsb < -10) {
     return {
       status: 'tired',
-      label: 'Fatigued',
+      label: 'Your body needs a break.',
       description: 'Fatigue is building up.',
-      todayAdvice: 'Easy training or rest today.',
+      todayAdvice: 'Easy spin or full rest.',
       color: 'amber',
       emoji: '🟡',
       scalePosition,
@@ -84,20 +84,20 @@ export function interpretTSB(tsb: number): TrainingStatus {
   if (tsb <= 5) {
     return {
       status: 'optimal',
-      label: 'Optimal form',
+      label: 'Good shape. Make the most of it.',
       description: 'Fitness and fatigue are well balanced.',
-      todayAdvice: 'Ideal time for a quality workout.',
-      color: 'indigo',
-      emoji: '🔵',
+      todayAdvice: 'Train as planned — you’re ready.',
+      color: 'emerald',
+      emoji: '🟢',
       scalePosition,
     };
   }
   if (tsb <= 20) {
     return {
       status: 'fresh',
-      label: 'Fresh & ready',
+      label: 'You’re flying right now.',
       description: 'You are well recovered.',
-      todayAdvice: 'You can handle anything today — intervals, a long ride, a race.',
+      todayAdvice: 'Best conditions for a hard effort or long ride.',
       color: 'emerald',
       emoji: '🟢',
       scalePosition,
@@ -105,7 +105,7 @@ export function interpretTSB(tsb: number): TrainingStatus {
   }
   return {
     status: 'very_fresh',
-    label: 'Very fresh — undertraining?',
+    label: 'Fresh — maybe too fresh.',
     description: 'Form is good, but you may be training too little.',
     todayAdvice: 'Consider whether you are training enough.',
     color: 'emerald',
@@ -118,12 +118,11 @@ export function interpretTSB(tsb: number): TrainingStatus {
 // 2. CTL → fitness status
 // ---------------------------------------------------------------------------
 const CTL_CATEGORIES: { max: number; category: string; label: string; range: string }[] = [
-  { max: 30, category: 'Beginner', label: 'Building your base. Focus on consistency.', range: '0–30' },
-  { max: 50, category: 'Recreational', label: 'Good base endurance.', range: '30–50' },
-  { max: 70, category: 'Fitness rider', label: 'Solid form for weekend riders.', range: '50–70' },
-  { max: 90, category: 'Amateur', label: 'Training seriously. Visible progress.', range: '70–90' },
-  { max: 110, category: 'Advanced amateur', label: 'High form. Close to professional levels.', range: '90–110' },
-  { max: Infinity, category: 'Elite', label: 'Professional training load.', range: '110+' },
+  { max: 30, category: 'Early days', label: 'Early days. Keep showing up.', range: '0–30' },
+  { max: 50, category: 'Solid base', label: 'Solid base. Consistency is working.', range: '30–50' },
+  { max: 70, category: 'Good fitness', label: "Good fitness. You're doing real training.", range: '50–70' },
+  { max: 90, category: 'Strong', label: 'Strong. This is serious amateur territory.', range: '70–90' },
+  { max: Infinity, category: 'Elite', label: 'Elite-level training load.', range: '90+' },
 ];
 
 export function interpretCTL(ctl: number, ctlTrend: number): FitnessStatus {
@@ -193,11 +192,11 @@ export function interpretWeeklyTSS(tss: number, avgTss4weeks: number): VolumeSta
 // 5. FTP → power status
 // ---------------------------------------------------------------------------
 const FTP_CATEGORIES: { max: number; category: string; description: string }[] = [
-  { max: 2.0, category: 'Recreational', description: 'Building toward structured fitness.' },
-  { max: 3.0, category: 'Fitness rider', description: 'Solid all-round power.' },
-  { max: 4.0, category: 'Amateur', description: 'Strong club-level power.' },
-  { max: 5.0, category: 'Advanced amateur', description: 'Racing-level power.' },
-  { max: Infinity, category: 'Elite', description: 'Professional-level power.' },
+  { max: 2.0, category: 'Getting started', description: 'Building toward structured fitness.' },
+  { max: 3.0, category: 'Recreational rider', description: 'Solid all-round power.' },
+  { max: 4.0, category: 'Club cyclist', description: 'Strong club-level power.' },
+  { max: 5.0, category: 'Serious amateur', description: 'Racing-level power.' },
+  { max: Infinity, category: 'Elite level', description: 'Professional-level power.' },
 ];
 
 export function interpretFTP(ftp: number, weight: number, prevFtp: number | null): FTPStatus {

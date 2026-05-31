@@ -336,9 +336,9 @@ export default function StravaConnectScreen(_props: Props) {
       <SafeAreaView style={styles.safe} edges={['bottom']}>
         <View style={styles.container}>
           <View style={styles.hero}>
-            <Text style={styles.title}>Connect Strava</Text>
+            <Text style={styles.title}>Connect your Strava</Text>
             <Text style={styles.mutedText}>
-              Connect your Strava account to import all of your rides.
+              We'll pull your ride history and use it to build your first plan. The more rides you have, the smarter your coach gets.
             </Text>
           </View>
           <View style={styles.actions}>

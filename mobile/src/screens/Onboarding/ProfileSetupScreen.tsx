@@ -158,7 +158,7 @@ export default function ProfileSetupScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Tell us about you</Text>
+        <Text style={styles.title}>Tell us about yourself</Text>
         <Text style={styles.subtitle}>
           We use this to calibrate your training load and intensity.
         </Text>
@@ -222,7 +222,7 @@ export default function ProfileSetupScreen({ navigation }: Props) {
         </View>
 
         {/* Coach style */}
-        <Text style={styles.sectionTitle}>What kind of coach suits you?</Text>
+        <Text style={styles.sectionTitle}>How should your coach talk to you?</Text>
         <Text style={styles.sectionSubtitle}>How your AI coach talks to you — change it anytime.</Text>
         {COACH_STYLES.map((opt) => {
           const selected = coachStyle === opt.style;
